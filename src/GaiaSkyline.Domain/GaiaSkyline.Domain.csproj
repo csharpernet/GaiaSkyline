@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <!--
+    Domain is the innermost layer of the Clean Architecture: entities, value objects and
+    domain events only. It has NO dependencies (not even NuGet packages) so it can never
+    take a leak from EF Core, ASP.NET or any external concern.
+  -->
+
+</Project>

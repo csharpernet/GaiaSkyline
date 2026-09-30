@@ -1,0 +1,7 @@
+/*
+ * Tailwind entry point. Compiled to wwwroot/css/app.css at build time (see package.json
+ * "build:css" and the TailwindBuild MSBuild target). Do not edit the compiled output.
+ */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;

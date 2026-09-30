@@ -1,0 +1,88 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    # Ubuntu ships with Docker, which Testcontainers needs for the integration tests.
+    runs-on: ubuntu-latest
+
+    env:
+      DOTNET_NOLOGO: "true"
+      DOTNET_CLI_TELEMETRY_OPTOUT: "true"
+      DOTNET_SKIP_FIRST_TIME_EXPERIENCE: "true"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up .NET (from global.json)
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Set up Node.js (for the Tailwind build)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Restore
+        run: dotnet restore GaiaSkyline.sln
+
+      - name: Build (analyzers + warnings are errors)
+        run: dotnet build GaiaSkyline.sln --configuration Release --no-restore
+
+      - name: Format check
+        run: dotnet format GaiaSkyline.sln --verify-no-changes --no-restore
+
+      - name: Unit tests
+        run: >
+          dotnet test GaiaSkyline.sln
+          --configuration Release
+          --no-build
+          --filter "FullyQualifiedName!~GaiaSkyline.Infrastructure.Tests"
+          --results-directory ./TestResults
+          --collect "XPlat Code Coverage"
+
+      - name: Integration tests (Testcontainers + real SQL Server 2022)
+        run: >
+          dotnet test tests/GaiaSkyline.Infrastructure.Tests/GaiaSkyline.Infrastructure.Tests.csproj
+          --configuration Release
+          --no-build
+          --results-directory ./TestResults
+          --collect "XPlat Code Coverage"
+
+      - name: Coverage report
+        if: always()
+        run: |
+          dotnet tool install --global dotnet-reportgenerator-globaltool
+          reportgenerator \
+            -reports:"./TestResults/**/coverage.cobertura.xml" \
+            -targetdir:"./coverage-report" \
+            -reporttypes:"Html;TextSummary;MarkdownSummaryGithub"
+          cat ./coverage-report/Summary.txt >> "$GITHUB_STEP_SUMMARY" || true
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: ./coverage-report
+
+      - name: Vulnerable package scan (fail on High/Critical)
+        run: |
+          dotnet restore GaiaSkyline.sln
+          report=$(dotnet list GaiaSkyline.sln package --vulnerable --include-transitive 2>&1)
+          echo "$report"
+          if echo "$report" | grep -E '\b(High|Critical)\b'; then
+            echo "::error::High or Critical vulnerabilities detected."
+            exit 1
+          fi
+          echo "No High/Critical vulnerabilities found."

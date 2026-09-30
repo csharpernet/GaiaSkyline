@@ -1,0 +1,28 @@
+@{
+    // Per-request CSP nonce (see SecurityHeadersMiddleware). Stamp any inline <script>/<style>
+    // with nonce="@cspNonce" so it satisfies the Content-Security-Policy.
+    var cspNonce = Context.Items[GaiaSkyline.Web.Middleware.SecurityHeadersMiddleware.NonceItemKey] as string ?? string.Empty;
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@(ViewData["Title"] ?? "Gaia Skyline")</title>
+    <link rel="icon" href="~/favicon.ico" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preload" as="style"
+          href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@@9..144,400;9..144,600;9..144,700&family=Inter:wght@@400;500;600&display=swap" />
+    <link rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@@9..144,400;9..144,600;9..144,700&family=Inter:wght@@400;500;600&display=swap" />
+
+    <link rel="stylesheet" href="~/css/tokens.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/app.css" asp-append-version="true" />
+</head>
+<body class="font-body bg-stone text-ink antialiased min-h-screen">
+    @RenderBody()
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

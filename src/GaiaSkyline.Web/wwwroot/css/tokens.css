@@ -1,0 +1,48 @@
+/*
+ * GaiaSkyline design tokens (CSS custom-property side).
+ * Mirrors tailwind.config.js so Razor partials can use either utilities or var(--token).
+ * Loaded before app.css in _Layout.cshtml.
+ */
+:root {
+  /* Palette */
+  --color-ink: #0F1417;
+  --color-stone: #F5F1EA;
+  --color-clay: #B85D3A;
+  --color-river: #2E4F60;
+  --color-fog: #D9D2C5;
+  --color-white: #FFFFFF;
+
+  /* Typography (variable fonts loaded from Google Fonts) */
+  --font-display: 'Fraunces', ui-serif, Georgia, serif;
+  --font-body: 'Inter', ui-sans-serif, system-ui, sans-serif;
+
+  /* Radii */
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 24px;
+
+  /* Spacing base unit (4px grid) */
+  --space-unit: 4px;
+
+  /* Motion */
+  --motion-fast: 200ms;
+  --motion-slow: 300ms;
+  --motion-ease-out: cubic-bezier(0, 0, 0.2, 1);
+}
+
+/* Respect users who prefer reduced motion. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-fast: 0ms;
+    --motion-slow: 0ms;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
