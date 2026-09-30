@@ -1,8 +1,12 @@
 # 0003 — Testcontainers for integration tests (no in-memory provider)
 
-- Status: Accepted
+- Status: **Superseded by [ADR 0004](0004-no-docker-localdb-for-tests.md)**
 - Date: 2026-09-29
 - Deciders: GaiaSkyline maintainers
+
+> **Superseded (2026-09-30):** the project moved to a Windows-only, no-Docker workflow.
+> Integration tests now run against SQL Server LocalDB instead of Testcontainers. The reasoning
+> below is kept for history; the "no in-memory provider" principle still holds — see ADR 0004.
 
 ## Context
 

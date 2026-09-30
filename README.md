@@ -18,25 +18,28 @@ build on. There are no booking features yet.
 | Background jobs     | Hangfire (wired up, dormant by default)                          |
 | Styling            | Tailwind CSS v3, compiled at build time (see [ADR 0001](docs/decisions/0001-tailwind-build-strategy.md)) |
 | Logging            | Serilog → console (App Insights placeholder)                      |
-| Tests              | xUnit · FluentAssertions · Moq · Bogus · Testcontainers (SQL Server 2022) |
-| CI                 | GitHub Actions                                                    |
+| Tests              | xUnit · FluentAssertions · Moq · Bogus · SQL Server LocalDB (integration) |
+| CI                 | GitHub Actions (`windows-latest`)                                 |
 
 ---
 
 ## Get productive in under 15 minutes
 
-### 1. Prerequisites
+### 1. Prerequisites (Windows)
 
 - **.NET 10 SDK** — https://dotnet.microsoft.com/download (the repo pins the version in `global.json`)
-- **Docker Desktop** — required to run the app via compose and to run the integration tests
+- **Visual Studio 2026** — which installs **SQL Server LocalDB** (the "Data storage and
+  processing" workload). No VS? Install the standalone **SqlLocalDB** MSI instead.
 - **Node.js 20 LTS** — https://nodejs.org (build-time only, for the Tailwind CSS step)
+
+No Docker is required.
 
 Check them:
 
 ```bash
-dotnet --version   # 10.0.x
-docker --version
-node --version     # v20.x
+dotnet --version    # 10.0.x
+sqllocaldb info     # lists LocalDB instances (e.g. MSSQLLocalDB)
+node --version      # v20.x
 ```
 
 ### 2. Clone & restore
@@ -65,35 +68,33 @@ dotnet test
 ```
 
 - **Unit tests** (Domain, Application, Web) run everywhere.
-- **Integration tests** (`GaiaSkyline.Infrastructure.Tests`) start a real **SQL Server 2022**
-  container via Testcontainers. Without Docker running they **skip** (they do not fail); with
-  Docker they execute for real. See [ADR 0003](docs/decisions/0003-testcontainers-for-integration-tests.md).
+- **Integration tests** (`GaiaSkyline.Infrastructure.Tests`) run against **SQL Server LocalDB**.
+  Each test class provisions its own throwaway database (created, migrated, then dropped). If
+  LocalDB is not installed the tests fail with a clear, actionable message — there are **no silent
+  skips**. See [ADR 0004](docs/decisions/0004-no-docker-localdb-for-tests.md).
 
 ### 5. Run the site
-
-**Option A — everything in Docker (SQL Server + web):**
-
-```bash
-docker compose up --build
-```
-
-Open **http://localhost:8080** → the placeholder page renders **“Gaia Skyline”** in Fraunces on
-the stone background.
-
-**Option B — just the web app locally** (uses SQL Server LocalDB from `appsettings.json`):
 
 ```bash
 dotnet run --project src/GaiaSkyline.Web
 ```
 
-The landing page and `/health/live` work without a database. `/health/ready` reports the SQL
-Server dependency and only turns healthy once a database is reachable.
+Browse the URL printed in the console (e.g. **http://localhost:5xxx**) → the placeholder page
+renders **“Gaia Skyline”** in Fraunces on the stone background. `/health/live` is up immediately;
+`/health/ready` turns healthy once SQL Server (LocalDB) is reachable.
 
 Front-end iteration (live Tailwind rebuilds):
 
 ```bash
 cd src/GaiaSkyline.Web && npm run watch:css
 ```
+
+### Local email sink (later stages)
+
+Transactional email arrives in a later stage. For local development we'll use
+[**smtp4dev**](https://github.com/rnwood/smtp4dev) — a local SMTP server with a web UI, installable
+as a .NET global tool (`dotnet tool install -g Rnwood.Smtp4dev`), no Docker required. It is **not
+needed yet**.
 
 ---
 
@@ -110,7 +111,7 @@ GaiaSkyline.sln
 ├─ tests/
 │  ├─ GaiaSkyline.Domain.Tests
 │  ├─ GaiaSkyline.Application.Tests
-│  ├─ GaiaSkyline.Infrastructure.Tests   (Testcontainers)
+│  ├─ GaiaSkyline.Infrastructure.Tests   (SQL Server LocalDB)
 │  └─ GaiaSkyline.Web.Tests              (WebApplicationFactory)
 ├─ docs/decisions/                ADRs (numbered)
 └─ .github/workflows/ci.yml
@@ -172,11 +173,12 @@ The initial migration `0001_Init` creates the `Properties` table. A design-time
 
 ## Continuous integration
 
-`.github/workflows/ci.yml` runs on every push/PR:
+`.github/workflows/ci.yml` runs on every push/PR on **`windows-latest`** (LocalDB is pre-installed,
+verified with `sqllocaldb info`):
 
-restore → build (analyzers/warnings as errors) → `dotnet format --verify-no-changes` → unit tests
-→ integration tests (Testcontainers) → coverage report (Coverlet + ReportGenerator) → vulnerable
-package scan (`dotnet list package --vulnerable`, fails on High/Critical).
+restore → build (analyzers/warnings as errors) → `dotnet format --verify-no-changes` → tests
+(unit + LocalDB integration) → coverage report (Coverlet + ReportGenerator) → vulnerable package
+scan (`dotnet list package --vulnerable`, fails on High/Critical).
 
 ---
 
@@ -184,4 +186,5 @@ package scan (`dotnet list package --vulnerable`, fails on High/Critical).
 
 - [0001 — Tailwind build strategy](docs/decisions/0001-tailwind-build-strategy.md)
 - [0002 — Strongly-typed identifiers](docs/decisions/0002-strongly-typed-ids.md)
-- [0003 — Testcontainers for integration tests](docs/decisions/0003-testcontainers-for-integration-tests.md)
+- [0003 — Testcontainers for integration tests](docs/decisions/0003-testcontainers-for-integration-tests.md) — _superseded by 0004_
+- [0004 — No Docker; LocalDB for integration tests](docs/decisions/0004-no-docker-localdb-for-tests.md)

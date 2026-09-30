@@ -8,7 +8,10 @@
     <LangVersion>13.0</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <InvariantGlobalization>true</InvariantGlobalization>
+    <!--
+      NOTE: Do NOT enable InvariantGlobalization. Microsoft.Data.SqlClient (used by EF Core and
+      the LocalDB integration tests) requires ICU globalization and throws under invariant mode.
+    -->
 
     <!-- Quality gates: warnings (including analyzer diagnostics) fail the build. -->
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>

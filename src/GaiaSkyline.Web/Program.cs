@@ -1,3 +1,4 @@
+using System.Globalization;
 using GaiaSkyline.Application;
 using GaiaSkyline.BackgroundJobs;
 using GaiaSkyline.Infrastructure;
@@ -14,7 +15,7 @@ builder.Services.AddSerilog((services, loggerConfiguration) => loggerConfigurati
     .ReadFrom.Configuration(builder.Configuration)
     .ReadFrom.Services(services)
     .Enrich.FromLogContext()
-    .WriteTo.Console());
+    .WriteTo.Console(formatProvider: CultureInfo.InvariantCulture));
 
 // --- MVC + application layers ---
 builder.Services.AddControllersWithViews();
