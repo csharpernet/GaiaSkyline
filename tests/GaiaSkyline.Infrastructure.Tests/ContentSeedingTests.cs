@@ -1,6 +1,7 @@
 using FluentAssertions;
 using GaiaSkyline.Application.Content;
 using GaiaSkyline.Domain.Content;
+using GaiaSkyline.Domain.Entities;
 using GaiaSkyline.Domain.Identifiers;
 using GaiaSkyline.Infrastructure.Content;
 using GaiaSkyline.Infrastructure.Data;
@@ -31,6 +32,19 @@ public sealed class ContentSeedingTests(LocalDbFixture fixture) : IClassFixture<
         await using var dbContext = _fixture.CreateContext();
         var service = new ContentService(new ContentReadStore(dbContext), _cache, _revision);
         return await service.GetSectionAsync(section, language, CancellationToken.None);
+    }
+
+    private async Task<IReadOnlyList<ReviewDto>> GetReviewsAsync()
+    {
+        await using var dbContext = _fixture.CreateContext();
+        var service = new ContentService(new ContentReadStore(dbContext), _cache, _revision);
+        return await service.GetPublishedReviewsAsync(CancellationToken.None);
+    }
+
+    private async Task<Property?> GetPropertyAsync()
+    {
+        await using var dbContext = _fixture.CreateContext();
+        return await dbContext.Properties.AsNoTracking().FirstOrDefaultAsync();
     }
 
     private async Task<int[]> RowCountsAsync()
@@ -126,5 +140,65 @@ public sealed class ContentSeedingTests(LocalDbFixture fixture) : IClassFixture<
 
         payload.Items.Should().NotContainKey("home.unpublished.draft");
         payload.Items.Should().ContainKey("home.hero.headline");
+    }
+
+    [Fact]
+    public async Task Amenities_section_has_the_full_list()
+    {
+        await SeedAsync();
+
+        var payload = await GetSectionAsync("amenities", "en");
+
+        payload.Items.Should().HaveCount(51);
+        payload.Items.Values.Should().OnlyContain(v => v.Kind == ContentKind.Boolean);
+        payload.Items.Values.Count(v => v.Boolean == true).Should().Be(47);
+        payload.Items.Values.Count(v => v.Boolean == false).Should().Be(4);
+        payload.Items["amenities.not_available.smoke_alarm"].Boolean.Should().BeFalse();
+        payload.Items["amenities.kitchen.dishwasher"].Boolean.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Property_capacity_is_seeded()
+    {
+        await SeedAsync();
+
+        var property = await GetPropertyAsync();
+
+        property.Should().NotBeNull();
+        property!.Sleeps.Should().Be(6);
+        property.Bedrooms.Should().Be(2);
+        property.Beds.Should().Be(4);
+        property.Bathrooms.Should().Be(2);
+        property.BedsBreakdown.Should().Contain("sofa bed");
+    }
+
+    [Fact]
+    public async Task Snapshot_line_is_derived_from_property_capacity()
+    {
+        await SeedAsync();
+
+        var payload = await GetSectionAsync("home", "en");
+
+        payload.Items["home.snapshot.line"].Text
+            .Should().Be("2 bedrooms · 4 beds · 2 baths · Sleeps 6 · Vila Nova de Gaia");
+    }
+
+    [Fact]
+    public async Task Reviews_are_seeded_with_real_verbatim_bodies()
+    {
+        await SeedAsync();
+
+        var reviews = await GetReviewsAsync();
+
+        reviews.Should().HaveCount(6);
+        reviews.Should().OnlyContain(r => r.Source == "Airbnb" && r.Rating == 5);
+
+        var aicha = reviews.Single(r => r.GuestFirstName == "Aicha");
+        aicha.GuestLocation.Should().Be("Charlotte, North Carolina");
+        aicha.Body.Should().Be(
+            "Good location, very easy to get into the center of Porto by using bus 901 or 906. " +
+            "Very convenient! The apartment was very modern with a beautiful view. The staff was " +
+            "very nice and even checked on my son when I mentioned he was sick and recommended a " +
+            "pharmacy near by that helped us out.");
     }
 }

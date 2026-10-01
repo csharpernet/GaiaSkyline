@@ -30,8 +30,27 @@ public sealed class ContentSeeder(AppDbContext dbContext, IContentRevision revis
         ("de", "[DE] "),
     ];
 
-    private static readonly string[] ReviewGuests =
-        ["Aicha", "Mary", "Pascale", "Raquel", "Emine", "Patrice"];
+    private static readonly ReviewSpec[] Reviews =
+    [
+        new("Aicha", 5, "Charlotte, North Carolina",
+            "Good location, very easy to get into the center of Porto by using bus 901 or 906. Very convenient! The apartment was very modern with a beautiful view. The staff was very nice and even checked on my son when I mentioned he was sick and recommended a pharmacy near by that helped us out.",
+            new DateOnly(2026, 8, 1)),
+        new("Mary", 5, "Bath, New York",
+            "Beatrix was a very good communicator. She gave us good ideas and even walked us around the neighborhood when we were hungry after unpacking. She answered questions promptly. Thank you Beatrix! The hot tub and the views of Porto were relaxing. Washer/dryer and dishwasher made things easier. Local grocery store was a plus. Many choices of fine restaurants within easy Uber rides. Local seafood was fantastic.",
+            new DateOnly(2026, 9, 10)),
+        new("Pascale", 5, null,
+            "There was a little mix-up with the address at the beginning. Ultra-secure building with 1 security guard 24/7. Amazing view. The host offered to book a taxi for us, but ultimately without success.",
+            new DateOnly(2026, 9, 17)),
+        new("Raquel", 5, null,
+            "We had a very nice and quiet stay. The host was extremely attentive throughout the entire stay. When we return to Porto, we will certainly stay here again.",
+            new DateOnly(2026, 8, 1)),
+        new("Emine", 5, null,
+            "Really lovely responsive host, the property was just like the photos and a lovely stay!",
+            new DateOnly(2026, 8, 1)),
+        new("Patrice", 5, null,
+            "Pleasant stay, the view of Porto is beautiful. We had a great stay and were able to enjoy the private pool. The apartment is well-equipped.",
+            new DateOnly(2026, 8, 1)),
+    ];
 
     private readonly AppDbContext _dbContext = dbContext;
     private readonly IContentRevision _revision = revision;
@@ -59,8 +78,8 @@ public sealed class ContentSeeder(AppDbContext dbContext, IContentRevision revis
             return;
         }
 
-        // The Stage 1 Property entity carries no capacity fields; the sleeps/beds/baths figures from
-        // the brief live in content blocks (home.snapshot.line, amenities). See docs/content-seed.md.
+        // Capacity lives on the Property entity (migration 0003); home.snapshot.line derives its
+        // English value from these fields so the numbers have a single source of truth.
         _dbContext.Properties.Add(new Property(
             PropertyId.From(DeterministicGuid.From("property:gaia-skyline")),
             name: "Gaia Skyline Apartment",
@@ -71,7 +90,12 @@ public sealed class ContentSeeder(AppDbContext dbContext, IContentRevision revis
             defaultCurrency: "EUR",
             timezone: "Europe/Lisbon",
             checkInFromLocal: new TimeOnly(16, 0),
-            checkOutByLocal: new TimeOnly(10, 0)));
+            checkOutByLocal: new TimeOnly(10, 0),
+            sleeps: 6,
+            bedrooms: 2,
+            beds: 4,
+            bathrooms: 2,
+            bedsBreakdown: "Bedroom 1 — 2 single beds; Bedroom 2 — 1 queen bed; Living room — 1 sofa bed"));
     }
 
     private async Task EnsureMediaAssetsAsync(string? mediaPhysicalRoot, CancellationToken cancellationToken)
@@ -174,6 +198,7 @@ public sealed class ContentSeeder(AppDbContext dbContext, IContentRevision revis
     {
         var existingKeys = (await _dbContext.ContentBlocks.Select(b => b.Key).ToListAsync(cancellationToken))
             .ToHashSet(StringComparer.Ordinal);
+        var property = await _dbContext.Properties.AsNoTracking().FirstOrDefaultAsync(cancellationToken);
 
         for (var i = 0; i < Blocks.Length; i++)
         {
@@ -182,6 +207,12 @@ public sealed class ContentSeeder(AppDbContext dbContext, IContentRevision revis
             {
                 continue;
             }
+
+            // The snapshot line's numbers derive from Property so there is a single source of truth.
+            var englishText = spec.Key == "home.snapshot.line" && property is not null
+                ? $"{property.Bedrooms} bedrooms · {property.Beds} beds · {property.Bathrooms} baths · " +
+                  $"Sleeps {property.Sleeps} · Vila Nova de Gaia"
+                : spec.Text;
 
             var block = new ContentBlock(
                 ContentBlockId.From(DeterministicGuid.From($"block:{spec.Key}")),
@@ -198,15 +229,15 @@ public sealed class ContentSeeder(AppDbContext dbContext, IContentRevision revis
                 ? (MediaAssetId?)null
                 : MediaAssetId.From(DeterministicGuid.From($"media:{spec.MediaName}"));
 
-            block.SetTranslation("en", spec.Text, mediaId, spec.Number, spec.Boolean, SeedTimestampUtc, Actor);
+            block.SetTranslation("en", englishText, mediaId, spec.Number, spec.Boolean, SeedTimestampUtc, Actor);
 
-            if (IsTextTranslatable(spec.Kind, spec.Text))
+            if (IsTextTranslatable(spec.Kind, englishText))
             {
                 foreach (var (language, prefix) in PlaceholderLanguages)
                 {
                     block.SetTranslation(
                         language,
-                        spec.Text is null ? null : prefix + spec.Text,
+                        englishText is null ? null : prefix + englishText,
                         mediaId,
                         spec.Number,
                         spec.Boolean,
@@ -223,25 +254,22 @@ public sealed class ContentSeeder(AppDbContext dbContext, IContentRevision revis
     {
         var existing = (await _dbContext.Reviews.Select(r => r.Id).ToListAsync(cancellationToken)).ToHashSet();
 
-        for (var i = 0; i < ReviewGuests.Length; i++)
+        foreach (var review in Reviews)
         {
-            var name = ReviewGuests[i];
-            var id = ReviewId.From(DeterministicGuid.From($"review:{name}"));
+            var id = ReviewId.From(DeterministicGuid.From($"review:{review.Guest}"));
             if (existing.Contains(id))
             {
                 continue;
             }
 
-            // Review bodies/ratings/locations were not supplied in the Stage 2 brief; they are
-            // placeholders to be replaced from the real listing via the admin (ADR 0007).
             _dbContext.Reviews.Add(new Review(
                 id,
-                rating: 5,
-                guestFirstName: name,
-                guestLocation: null,
-                body: "TBD",
+                review.Rating,
+                review.Guest,
+                review.Location,
+                review.Body,
                 source: "Airbnb",
-                stayedOn: new DateOnly(2025, i + 1, 15),
+                review.StayedOn,
                 isPublished: true));
         }
     }
@@ -268,6 +296,8 @@ public sealed class ContentSeeder(AppDbContext dbContext, IContentRevision revis
         decimal? Number = null,
         bool? Boolean = null,
         string? MediaName = null);
+
+    private sealed record ReviewSpec(string Guest, int Rating, string? Location, string Body, DateOnly StayedOn);
 
     // The canonical content. Keep in sync with docs/content-seed.md.
     private static readonly BlockSpec[] Blocks =
@@ -374,33 +404,69 @@ public sealed class ContentSeeder(AppDbContext dbContext, IContentRevision revis
         new("faq", "faq.6.q", ContentKind.ShortText, "FAQ 6 question", Text: "TBD"),
         new("faq", "faq.6.a", ContentKind.RichText, "FAQ 6 answer", Text: "TBD"),
 
-        // ----- amenities (Boolean = availability; Text = label). Grounded in the provided
-        //       description; groups without source data are intentionally omitted (see seed doc). -----
-        new("amenities", "amenities.views.bridge_balcony", ContentKind.Boolean, "Amenity: bridge balcony",
-            Text: "Balcony facing the Dom Luís I Bridge", Boolean: true),
-        new("amenities", "amenities.views.river_panorama", ContentKind.Boolean, "Amenity: river panorama",
-            Text: "Douro river & city panorama", Boolean: true),
-        new("amenities", "amenities.outdoor.hot_tub", ContentKind.Boolean, "Amenity: hot tub",
-            Text: "Private hot tub (27–33 °C)", Boolean: true),
-        new("amenities", "amenities.outdoor.balcony", ContentKind.Boolean, "Amenity: balcony",
-            Text: "Private balcony", Boolean: true),
-        new("amenities", "amenities.kitchen.fully_equipped", ContentKind.Boolean, "Amenity: kitchen",
-            Text: "Fully equipped kitchen", Boolean: true),
-        new("amenities", "amenities.bedroom_laundry.washing_machine", ContentKind.Boolean, "Amenity: washing machine",
-            Text: "Washing machine", Boolean: true),
-        new("amenities", "amenities.bedroom_laundry.iron", ContentKind.Boolean, "Amenity: iron",
-            Text: "Iron", Boolean: true),
-        new("amenities", "amenities.internet_office.wifi", ContentKind.Boolean, "Amenity: Wi-Fi",
-            Text: "Fast Wi-Fi", Boolean: true),
-        new("amenities", "amenities.internet_office.workspace", ContentKind.Boolean, "Amenity: workspace",
-            Text: "Dedicated workspace", Boolean: true),
-        new("amenities", "amenities.bathroom.two_bathrooms", ContentKind.Boolean, "Amenity: bathrooms",
-            Text: "2 bathrooms", Boolean: true),
-        new("amenities", "amenities.services.hot_tub_maintenance", ContentKind.Boolean, "Amenity: hot tub maintenance",
-            Text: "Professionally maintained hot tub", Boolean: true),
-        new("amenities", "amenities.not_available.children", ContentKind.Boolean, "Not available: children",
-            Text: "Suitable for children and infants", Boolean: false),
-        new("amenities", "amenities.not_available.smoking_indoors", ContentKind.Boolean, "Not available: indoor smoking",
-            Text: "Smoking indoors", Boolean: false),
+        // ----- amenities (Boolean = availability; Text = label). Full source list; the
+        //       not_available group renders greyed out (ValueBoolean = false). -----
+        new("amenities", "amenities.views.city_skyline", ContentKind.Boolean, "Amenity: City skyline view", Text: "City skyline view", Boolean: true),
+        new("amenities", "amenities.views.river_view", ContentKind.Boolean, "Amenity: River view", Text: "River view", Boolean: true),
+
+        new("amenities", "amenities.bathroom.bathtub", ContentKind.Boolean, "Amenity: Bathtub", Text: "Bathtub", Boolean: true),
+        new("amenities", "amenities.bathroom.hair_dryer", ContentKind.Boolean, "Amenity: Hair dryer", Text: "Hair dryer", Boolean: true),
+        new("amenities", "amenities.bathroom.shampoo", ContentKind.Boolean, "Amenity: Shampoo", Text: "Shampoo", Boolean: true),
+        new("amenities", "amenities.bathroom.conditioner", ContentKind.Boolean, "Amenity: Conditioner", Text: "Conditioner", Boolean: true),
+        new("amenities", "amenities.bathroom.body_soap", ContentKind.Boolean, "Amenity: Body soap", Text: "Body soap", Boolean: true),
+        new("amenities", "amenities.bathroom.bidet", ContentKind.Boolean, "Amenity: Bidet", Text: "Bidet", Boolean: true),
+        new("amenities", "amenities.bathroom.hot_water", ContentKind.Boolean, "Amenity: Hot water", Text: "Hot water", Boolean: true),
+        new("amenities", "amenities.bathroom.shower_gel", ContentKind.Boolean, "Amenity: Shower gel", Text: "Shower gel", Boolean: true),
+
+        new("amenities", "amenities.bedroom_laundry.washer", ContentKind.Boolean, "Amenity: Washer", Text: "Washer", Boolean: true),
+        new("amenities", "amenities.bedroom_laundry.hangers", ContentKind.Boolean, "Amenity: Hangers", Text: "Hangers", Boolean: true),
+        new("amenities", "amenities.bedroom_laundry.bed_linens", ContentKind.Boolean, "Amenity: Bed linens", Text: "Bed linens", Boolean: true),
+        new("amenities", "amenities.bedroom_laundry.extra_pillows_blankets", ContentKind.Boolean, "Amenity: Extra pillows and blankets", Text: "Extra pillows and blankets", Boolean: true),
+        new("amenities", "amenities.bedroom_laundry.room_darkening_shades", ContentKind.Boolean, "Amenity: Room-darkening shades", Text: "Room-darkening shades", Boolean: true),
+        new("amenities", "amenities.bedroom_laundry.iron", ContentKind.Boolean, "Amenity: Iron", Text: "Iron", Boolean: true),
+        new("amenities", "amenities.bedroom_laundry.clothing_storage", ContentKind.Boolean, "Amenity: Clothing storage", Text: "Clothing storage", Boolean: true),
+
+        new("amenities", "amenities.entertainment.tv", ContentKind.Boolean, "Amenity: TV", Text: "TV", Boolean: true),
+
+        new("amenities", "amenities.climate.air_conditioning", ContentKind.Boolean, "Amenity: Air conditioning", Text: "Air conditioning", Boolean: true),
+        new("amenities", "amenities.climate.heating", ContentKind.Boolean, "Amenity: Heating", Text: "Heating", Boolean: true),
+
+        new("amenities", "amenities.safety.fire_extinguisher", ContentKind.Boolean, "Amenity: Fire extinguisher", Text: "Fire extinguisher", Boolean: true),
+        new("amenities", "amenities.safety.first_aid_kit", ContentKind.Boolean, "Amenity: First aid kit", Text: "First aid kit", Boolean: true),
+
+        new("amenities", "amenities.internet_office.wifi", ContentKind.Boolean, "Amenity: Wifi", Text: "Wifi", Boolean: true),
+        new("amenities", "amenities.internet_office.workspace", ContentKind.Boolean, "Amenity: Dedicated workspace", Text: "Dedicated workspace", Boolean: true),
+
+        new("amenities", "amenities.kitchen.kitchen", ContentKind.Boolean, "Amenity: Kitchen", Text: "Kitchen", Boolean: true),
+        new("amenities", "amenities.kitchen.refrigerator", ContentKind.Boolean, "Amenity: Refrigerator", Text: "Refrigerator", Boolean: true),
+        new("amenities", "amenities.kitchen.microwave", ContentKind.Boolean, "Amenity: Microwave", Text: "Microwave", Boolean: true),
+        new("amenities", "amenities.kitchen.cooking_basics", ContentKind.Boolean, "Amenity: Cooking basics", Text: "Cooking basics", Boolean: true),
+        new("amenities", "amenities.kitchen.dishes_silverware", ContentKind.Boolean, "Amenity: Dishes and silverware", Text: "Dishes and silverware", Boolean: true),
+        new("amenities", "amenities.kitchen.freezer", ContentKind.Boolean, "Amenity: Freezer", Text: "Freezer", Boolean: true),
+        new("amenities", "amenities.kitchen.dishwasher", ContentKind.Boolean, "Amenity: Dishwasher", Text: "Dishwasher", Boolean: true),
+        new("amenities", "amenities.kitchen.stove", ContentKind.Boolean, "Amenity: Stove", Text: "Stove", Boolean: true),
+        new("amenities", "amenities.kitchen.oven", ContentKind.Boolean, "Amenity: Oven", Text: "Oven", Boolean: true),
+        new("amenities", "amenities.kitchen.hot_water_kettle", ContentKind.Boolean, "Amenity: Hot water kettle", Text: "Hot water kettle", Boolean: true),
+        new("amenities", "amenities.kitchen.coffee_maker", ContentKind.Boolean, "Amenity: Coffee maker", Text: "Coffee maker", Boolean: true),
+        new("amenities", "amenities.kitchen.wine_glasses", ContentKind.Boolean, "Amenity: Wine glasses", Text: "Wine glasses", Boolean: true),
+        new("amenities", "amenities.kitchen.toaster", ContentKind.Boolean, "Amenity: Toaster", Text: "Toaster", Boolean: true),
+        new("amenities", "amenities.kitchen.baking_sheet", ContentKind.Boolean, "Amenity: Baking sheet", Text: "Baking sheet", Boolean: true),
+        new("amenities", "amenities.kitchen.dining_table", ContentKind.Boolean, "Amenity: Dining table", Text: "Dining table", Boolean: true),
+        new("amenities", "amenities.kitchen.coffee", ContentKind.Boolean, "Amenity: Coffee", Text: "Coffee", Boolean: true),
+
+        new("amenities", "amenities.outdoor.patio_balcony", ContentKind.Boolean, "Amenity: Patio or balcony", Text: "Patio or balcony", Boolean: true),
+        new("amenities", "amenities.outdoor.outdoor_furniture", ContentKind.Boolean, "Amenity: Outdoor furniture", Text: "Outdoor furniture", Boolean: true),
+        new("amenities", "amenities.outdoor.outdoor_dining", ContentKind.Boolean, "Amenity: Outdoor dining area", Text: "Outdoor dining area", Boolean: true),
+
+        new("amenities", "amenities.parking.free_parking", ContentKind.Boolean, "Amenity: Free parking on premises", Text: "Free parking on premises", Boolean: true),
+        new("amenities", "amenities.parking.pool", ContentKind.Boolean, "Amenity: Pool", Text: "Pool", Boolean: true),
+        new("amenities", "amenities.parking.hot_tub", ContentKind.Boolean, "Amenity: Private hot tub", Text: "Private hot tub (available all year, 24h)", Boolean: true),
+
+        new("amenities", "amenities.services.host_greeting", ContentKind.Boolean, "Amenity: Host greets you", Text: "Host greets you", Boolean: true),
+
+        new("amenities", "amenities.not_available.essentials", ContentKind.Boolean, "Not available: Essentials", Text: "Essentials (disposable plastic toiletries eliminated)", Boolean: false),
+        new("amenities", "amenities.not_available.smoke_alarm", ContentKind.Boolean, "Not available: Smoke alarm", Text: "Smoke alarm", Boolean: false),
+        new("amenities", "amenities.not_available.carbon_monoxide_alarm", ContentKind.Boolean, "Not available: Carbon monoxide alarm", Text: "Carbon monoxide alarm", Boolean: false),
+        new("amenities", "amenities.not_available.private_entrance", ContentKind.Boolean, "Not available: Private entrance", Text: "Private entrance", Boolean: false),
     ];
 }

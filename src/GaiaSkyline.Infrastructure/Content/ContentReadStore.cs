@@ -2,6 +2,7 @@ using GaiaSkyline.Application.Content;
 using GaiaSkyline.Domain.Content;
 using GaiaSkyline.Domain.Identifiers;
 using GaiaSkyline.Domain.Media;
+using GaiaSkyline.Domain.Reviews;
 using GaiaSkyline.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -46,5 +47,14 @@ internal sealed class ContentReadStore(AppDbContext dbContext) : IContentReadSto
         return await _dbContext.MediaAssets
             .AsNoTracking()
             .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<Review>> GetPublishedReviewsAsync(CancellationToken cancellationToken)
+    {
+        return await _dbContext.Reviews
+            .AsNoTracking()
+            .Where(r => r.IsPublished)
+            .OrderByDescending(r => r.StayedOn)
+            .ToListAsync(cancellationToken);
     }
 }

@@ -24,13 +24,23 @@ public sealed class Property : Entity<PropertyId>
         string defaultCurrency,
         string timezone,
         TimeOnly checkInFromLocal,
-        TimeOnly checkOutByLocal)
+        TimeOnly checkOutByLocal,
+        int sleeps,
+        int bedrooms,
+        int beds,
+        int bathrooms,
+        string bedsBreakdown)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentException.ThrowIfNullOrWhiteSpace(registrationCode);
         ArgumentException.ThrowIfNullOrWhiteSpace(address);
         ArgumentException.ThrowIfNullOrWhiteSpace(defaultCurrency);
         ArgumentException.ThrowIfNullOrWhiteSpace(timezone);
+        ArgumentException.ThrowIfNullOrWhiteSpace(bedsBreakdown);
+        ArgumentOutOfRangeException.ThrowIfNegative(sleeps);
+        ArgumentOutOfRangeException.ThrowIfNegative(bedrooms);
+        ArgumentOutOfRangeException.ThrowIfNegative(beds);
+        ArgumentOutOfRangeException.ThrowIfNegative(bathrooms);
 
         if (lat is < -90d or > 90d)
         {
@@ -59,6 +69,11 @@ public sealed class Property : Entity<PropertyId>
         Timezone = timezone.Trim();
         CheckInFromLocal = checkInFromLocal;
         CheckOutByLocal = checkOutByLocal;
+        Sleeps = sleeps;
+        Bedrooms = bedrooms;
+        Beds = beds;
+        Bathrooms = bathrooms;
+        BedsBreakdown = bedsBreakdown.Trim();
     }
 
     /// <summary>Public-facing name of the listing.</summary>
@@ -87,4 +102,19 @@ public sealed class Property : Entity<PropertyId>
 
     /// <summary>Latest local check-out time.</summary>
     public TimeOnly CheckOutByLocal { get; private set; }
+
+    /// <summary>Maximum number of guests.</summary>
+    public int Sleeps { get; private set; }
+
+    /// <summary>Number of bedrooms.</summary>
+    public int Bedrooms { get; private set; }
+
+    /// <summary>Total number of beds.</summary>
+    public int Beds { get; private set; }
+
+    /// <summary>Number of bathrooms.</summary>
+    public int Bathrooms { get; private set; }
+
+    /// <summary>Free-text bed breakdown (e.g. "Bedroom 1 — 2 single beds; …").</summary>
+    public string BedsBreakdown { get; private set; } = null!;
 }

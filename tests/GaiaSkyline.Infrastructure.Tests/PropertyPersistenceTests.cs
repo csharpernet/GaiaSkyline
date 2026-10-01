@@ -20,7 +20,12 @@ public class PropertyPersistenceTests(LocalDbFixture fixture) : IClassFixture<Lo
             "EUR",
             "Europe/Lisbon",
             new TimeOnly(15, 0),
-            new TimeOnly(11, 0));
+            new TimeOnly(11, 0),
+            sleeps: 6,
+            bedrooms: 2,
+            beds: 4,
+            bathrooms: 2,
+            bedsBreakdown: "Bedroom 1 — 2 single beds; Bedroom 2 — 1 queen bed; Living room — 1 sofa bed");
 
     [Fact]
     public async Task Property_round_trips_through_localdb()

@@ -88,6 +88,19 @@ public sealed class ContentApiTests : IDisposable
     }
 
     [Fact]
+    public async Task Reviews_endpoint_returns_published_reviews()
+    {
+        using var client = CreateClient();
+
+        using var response = await client.GetAsync(new Uri("/api/reviews", UriKind.Relative));
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var json = await response.Content.ReadAsStringAsync();
+        json.Should().Contain(FakeContentReadStore.KnownReviewBody);
+        json.Should().Contain("Aicha");
+    }
+
+    [Fact]
     public async Task Media_endpoint_returns_asset_or_404()
     {
         using var client = CreateClient();

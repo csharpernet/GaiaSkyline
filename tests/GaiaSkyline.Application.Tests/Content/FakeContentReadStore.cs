@@ -2,6 +2,7 @@ using GaiaSkyline.Application.Content;
 using GaiaSkyline.Domain.Content;
 using GaiaSkyline.Domain.Identifiers;
 using GaiaSkyline.Domain.Media;
+using GaiaSkyline.Domain.Reviews;
 
 namespace GaiaSkyline.Application.Tests.Content;
 
@@ -37,4 +38,12 @@ internal sealed class FakeContentReadStore : IContentReadStore
 
     public Task<MediaAsset?> GetMediaAssetAsync(MediaAssetId id, CancellationToken cancellationToken) =>
         Task.FromResult(Media.TryGetValue(id, out var asset) ? asset : null);
+
+    public List<Review> Reviews { get; } = [];
+
+    public Task<IReadOnlyList<Review>> GetPublishedReviewsAsync(CancellationToken cancellationToken)
+    {
+        IReadOnlyList<Review> result = Reviews.Where(r => r.IsPublished).ToList();
+        return Task.FromResult(result);
+    }
 }

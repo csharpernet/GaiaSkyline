@@ -1,6 +1,7 @@
 using GaiaSkyline.Domain.Content;
 using GaiaSkyline.Domain.Identifiers;
 using GaiaSkyline.Domain.Media;
+using GaiaSkyline.Domain.Reviews;
 
 namespace GaiaSkyline.Application.Content;
 
@@ -20,4 +21,6 @@ public interface IContentReadStore
         CancellationToken cancellationToken);
 
     Task<MediaAsset?> GetMediaAssetAsync(MediaAssetId id, CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<Review>> GetPublishedReviewsAsync(CancellationToken cancellationToken);
 }

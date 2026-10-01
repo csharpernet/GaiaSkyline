@@ -131,6 +131,7 @@ in the inner layers. **EF Core types never leak** into Application or Domain.
 | `/health/ready`                | Readiness — dependencies (SQL Server) are reachable          |
 | `/api/content/{section}?lang=` | Resolved content for a section in a language (read-only)     |
 | `/api/media/{id}`              | Media asset metadata (read-only)                             |
+| `/api/reviews`                 | Published guest reviews, most recent first (read-only)       |
 
 Language resolves per request as `?lang=` → cookie `.AspNetCore.Culture` → `Accept-Language` →
 `en`, across five cultures (en, pt-PT, es, fr, de). Missing values fall back to English, then to a

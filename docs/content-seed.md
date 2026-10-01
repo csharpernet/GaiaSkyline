@@ -19,8 +19,7 @@ both the requested language and English, the API returns the key wrapped in `‹
 
 ## Property (singleton)
 
-Seeded onto the `Property` entity (the Stage 1 entity has no capacity columns, so sleeps/beds/baths
-live in content blocks — see `home.snapshot.line` and amenities).
+Seeded onto the `Property` entity, which now carries capacity columns (migration 0003).
 
 | Field | Value |
 | --- | --- |
@@ -32,9 +31,15 @@ live in content blocks — see `home.snapshot.line` and amenities).
 | Timezone | Europe/Lisbon |
 | Check-in from | 16:00 |
 | Check-out by | 10:00 |
+| Sleeps | 6 |
+| Bedrooms | 2 |
+| Beds | 4 |
+| Bathrooms | 2 |
+| BedsBreakdown | Bedroom 1 — 2 single beds; Bedroom 2 — 1 queen bed; Living room — 1 sofa bed |
 
-> Not represented on the entity (captured in content instead): Sleeps 6 · Bedrooms 2 · Beds 4 ·
-> Baths 2 · Bedroom 1: 2 single · Bedroom 2: 1 queen · Living room: 1 sofa bed.
+`home.snapshot.line`'s English value is **derived from these Property fields on first seed**
+(`{Bedrooms} bedrooms · {Beds} beds · {Bathrooms} baths · Sleeps {Sleeps} · Vila Nova de Gaia`),
+so the numbers have a single source of truth.
 
 ## Media
 
@@ -116,29 +121,35 @@ The long `*.body` / `blurb` paragraphs are stored verbatim in the seeder; see it
 ### Section `amenities`
 
 Each amenity is a `Boolean` block: `ValueText` is the label, `ValueBoolean` is availability.
-Grounded in the provided property description. Groups with no source data in the brief
-(`entertainment`, `climate`, `safety`, `parking`) are intentionally omitted until the real listing's
-amenity inventory is imported.
+**51 amenities** across 12 groups; the `not_available` group (4) has `ValueBoolean = false` and
+renders greyed out. Keys are `amenities.<group>.<slug>`.
 
-| Key | Label | Available |
-| --- | --- | --- |
-| amenities.views.bridge_balcony | Balcony facing the Dom Luís I Bridge | true |
-| amenities.views.river_panorama | Douro river & city panorama | true |
-| amenities.outdoor.hot_tub | Private hot tub (27–33 °C) | true |
-| amenities.outdoor.balcony | Private balcony | true |
-| amenities.kitchen.fully_equipped | Fully equipped kitchen | true |
-| amenities.bedroom_laundry.washing_machine | Washing machine | true |
-| amenities.bedroom_laundry.iron | Iron | true |
-| amenities.internet_office.wifi | Fast Wi-Fi | true |
-| amenities.internet_office.workspace | Dedicated workspace | true |
-| amenities.bathroom.two_bathrooms | 2 bathrooms | true |
-| amenities.services.hot_tub_maintenance | Professionally maintained hot tub | true |
-| amenities.not_available.children | Suitable for children and infants | false |
-| amenities.not_available.smoking_indoors | Smoking indoors | false |
+- **views** (2): City skyline view · River view
+- **bathroom** (8): Bathtub · Hair dryer · Shampoo · Conditioner · Body soap · Bidet · Hot water · Shower gel
+- **bedroom_laundry** (7): Washer · Hangers · Bed linens · Extra pillows and blankets · Room-darkening shades · Iron · Clothing storage
+- **entertainment** (1): TV
+- **climate** (2): Air conditioning · Heating
+- **safety** (2): Fire extinguisher · First aid kit
+- **internet_office** (2): Wifi · Dedicated workspace
+- **kitchen** (16): Kitchen · Refrigerator · Microwave · Cooking basics · Dishes and silverware · Freezer · Dishwasher · Stove · Oven · Hot water kettle · Coffee maker · Wine glasses · Toaster · Baking sheet · Dining table · Coffee
+- **outdoor** (3): Patio or balcony · Outdoor furniture · Outdoor dining area
+- **parking** (3): Free parking on premises · Pool · Private hot tub (available all year, 24h)
+- **services** (1): Host greets you
+- **not_available** (4, `false`): Essentials (disposable plastic toiletries eliminated) · Smoke alarm · Carbon monoxide alarm · Private entrance
 
 ## Reviews
 
-Six rows (`Source = Airbnb`, `IsPublished = true`): **Aicha, Mary, Pascale, Raquel, Emine,
-Patrice**. The review **bodies, ratings and locations were not supplied in the Stage 2 brief**, so
-they are placeholders (`Body = "TBD"`, `Rating = 5`, `GuestLocation = null`, staggered `StayedOn`
-dates in 2025) to be replaced from the real listing via the admin (ADR 0007).
+Six rows, all `Source = Airbnb`, `Rating = 5`, `IsPublished = true`. Surfaced (most recent first)
+via `GET /api/reviews`.
+
+| Guest | Location | StayedOn | Body |
+| --- | --- | --- | --- |
+| Aicha | Charlotte, North Carolina | 2026-08-01 | Good location, very easy to get into the center of Porto by using bus 901 or 906. Very convenient! The apartment was very modern with a beautiful view. The staff was very nice and even checked on my son when I mentioned he was sick and recommended a pharmacy near by that helped us out. |
+| Mary | Bath, New York | 2026-09-10 | Beatrix was a very good communicator. She gave us good ideas and even walked us around the neighborhood when we were hungry after unpacking. She answered questions promptly. Thank you Beatrix! The hot tub and the views of Porto were relaxing. Washer/dryer and dishwasher made things easier. Local grocery store was a plus. Many choices of fine restaurants within easy Uber rides. Local seafood was fantastic. |
+| Pascale | — | 2026-09-17 | There was a little mix-up with the address at the beginning. Ultra-secure building with 1 security guard 24/7. Amazing view. The host offered to book a taxi for us, but ultimately without success. |
+| Raquel | — | 2026-08-01 | We had a very nice and quiet stay. The host was extremely attentive throughout the entire stay. When we return to Porto, we will certainly stay here again. |
+| Emine | — | 2026-08-01 | Really lovely responsive host, the property was just like the photos and a lovely stay! |
+| Patrice | — | 2026-08-01 | Pleasant stay, the view of Porto is beautiful. We had a great stay and were able to enjoy the private pool. The apartment is well-equipped. |
+
+`StayedOn` dates are approximations of the source's relative timestamps ("August 2026",
+"3 weeks ago", "2 weeks ago").

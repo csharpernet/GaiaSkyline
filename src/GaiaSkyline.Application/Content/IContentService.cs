@@ -11,4 +11,6 @@ public interface IContentService
     Task<ContentPayload> GetSectionAsync(string section, string language, CancellationToken cancellationToken);
 
     Task<MediaAssetDto?> GetMediaAssetAsync(MediaAssetId id, CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<ReviewDto>> GetPublishedReviewsAsync(CancellationToken cancellationToken);
 }

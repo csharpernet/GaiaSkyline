@@ -28,6 +28,12 @@ internal sealed class PropertyConfiguration : IEntityTypeConfiguration<Property>
         builder.Property(p => p.CheckInFromLocal).IsRequired();
         builder.Property(p => p.CheckOutByLocal).IsRequired();
 
+        builder.Property(p => p.Sleeps).IsRequired();
+        builder.Property(p => p.Bedrooms).IsRequired();
+        builder.Property(p => p.Beds).IsRequired();
+        builder.Property(p => p.Bathrooms).IsRequired();
+        builder.Property(p => p.BedsBreakdown).HasMaxLength(500).IsRequired();
+
         // The registration (AL) code is a real-world unique licence identifier.
         builder.HasIndex(p => p.RegistrationCode).IsUnique();
 

@@ -1,6 +1,7 @@
 using GaiaSkyline.Domain.Content;
 using GaiaSkyline.Domain.Identifiers;
 using GaiaSkyline.Domain.Media;
+using GaiaSkyline.Domain.Reviews;
 using Microsoft.Extensions.Caching.Memory;
 
 namespace GaiaSkyline.Application.Content;
@@ -56,6 +57,12 @@ public sealed class ContentService : IContentService
     {
         var asset = await _readStore.GetMediaAssetAsync(id, cancellationToken);
         return asset is null ? null : ToDto(asset);
+    }
+
+    public async Task<IReadOnlyList<ReviewDto>> GetPublishedReviewsAsync(CancellationToken cancellationToken)
+    {
+        var reviews = await _readStore.GetPublishedReviewsAsync(cancellationToken);
+        return reviews.Select(ToReviewDto).ToList();
     }
 
     /// <summary>The visible gap marker used when a value is missing in both the requested language and English.</summary>
@@ -185,4 +192,13 @@ public sealed class ContentService : IContentService
         asset.DurationSec,
         asset.ByteSize,
         asset.ContentType);
+
+    private static ReviewDto ToReviewDto(Review review) => new(
+        review.Id.Value,
+        review.Rating,
+        review.GuestFirstName,
+        review.GuestLocation,
+        review.Body,
+        review.Source,
+        review.StayedOn);
 }

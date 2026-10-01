@@ -2,6 +2,7 @@ using GaiaSkyline.Application.Content;
 using GaiaSkyline.Domain.Content;
 using GaiaSkyline.Domain.Identifiers;
 using GaiaSkyline.Domain.Media;
+using GaiaSkyline.Domain.Reviews;
 
 namespace GaiaSkyline.Web.Tests;
 
@@ -52,4 +53,15 @@ internal sealed class FakeContentReadStore : IContentReadStore
 
     public Task<MediaAsset?> GetMediaAssetAsync(MediaAssetId id, CancellationToken cancellationToken) =>
         Task.FromResult(id == KnownMediaId ? _asset : null);
+
+    public const string KnownReviewBody = "Good location, very easy to get into the center of Porto.";
+
+    public Task<IReadOnlyList<Review>> GetPublishedReviewsAsync(CancellationToken cancellationToken)
+    {
+        IReadOnlyList<Review> result =
+        [
+            new Review(ReviewId.New(), 5, "Aicha", "Charlotte, North Carolina", KnownReviewBody, "Airbnb", new DateOnly(2026, 8, 1), true),
+        ];
+        return Task.FromResult(result);
+    }
 }

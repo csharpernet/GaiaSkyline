@@ -20,18 +20,21 @@ owner via the admin in Stage 7:
   prefixed with `[PT] `, `[ES] `, `[FR] `, `[DE] ` — so switching language visibly changes the copy.
 - **Non-text blocks** (Url, Number, media refs) are seeded in **English only**, so requests for
   other languages fall back to English. This also gives us a built-in fallback test fixture.
-- **FAQ** questions and answers are seeded as `TBD`.
-- **Reviews** (Aicha, Mary, Pascale, Raquel, Emine, Patrice) are seeded with `Source = Airbnb` and
-  `IsPublished = true`, but their **bodies, ratings and locations are placeholders** (`"TBD"`,
-  rating `5`, no location) because the real text was not supplied in the brief.
-- **Amenities** are seeded only where grounded in the provided property description; groups with no
-  source data are omitted rather than invented.
+- **FAQ** questions and answers are seeded as `TBD` — the real FAQ text was not provided, so the
+  owner fills it via the admin in Stage 7.
+- **Reviews** (Aicha, Mary, Pascale, Raquel, Emine, Patrice) are seeded with their **real verbatim
+  bodies, ratings and locations** (`Source = Airbnb`, `IsPublished = true`), surfaced via
+  `GET /api/reviews`.
+- **Amenities** are seeded as the **full source list** (51 across 12 groups); the `not_available`
+  group carries `ValueBoolean = false`.
+- **Property capacity** (Sleeps/Bedrooms/Beds/Bathrooms/BedsBreakdown) lives on the `Property`
+  entity (migration 0003); `home.snapshot.line` derives its numbers from it.
 
 ## Consequences
 
 - **+** Localization, fallback (`‹key›` when wholly missing) and the full content pipeline are
   demonstrable and testable today.
 - **+** Gaps are obvious: `[DE] …` prefixes and `TBD` values read as "not real yet".
-- **−** The seeded dataset is not production copy. Real translations and the real FAQ/review text
-  must be entered in Stage 7 before go-live.
+- **−** The seeded dataset is not production copy. Real translations and the real FAQ text must be
+  entered in Stage 7 before go-live (reviews and amenities are now real).
 - See `docs/content-seed.md` for exactly what is placeholder vs. authoritative.

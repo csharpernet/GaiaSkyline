@@ -24,7 +24,12 @@ public class PropertyTests
             currency!,
             timezone!,
             new TimeOnly(15, 0),
-            new TimeOnly(11, 0));
+            new TimeOnly(11, 0),
+            sleeps: 6,
+            bedrooms: 2,
+            beds: 4,
+            bathrooms: 2,
+            bedsBreakdown: "Bedroom 1 — 2 single beds; Bedroom 2 — 1 queen bed; Living room — 1 sofa bed");
 
     [Fact]
     public void Valid_property_is_constructed_and_trimmed()
@@ -41,7 +46,12 @@ public class PropertyTests
             "eur",
             " Europe/Lisbon ",
             new TimeOnly(15, 0),
-            new TimeOnly(11, 0));
+            new TimeOnly(11, 0),
+            sleeps: 6,
+            bedrooms: 2,
+            beds: 4,
+            bathrooms: 2,
+            bedsBreakdown: "  Bedroom 1 — 2 single beds  ");
 
         property.Id.Should().Be(id);
         property.Name.Should().Be("Gaia Skyline");
@@ -51,7 +61,23 @@ public class PropertyTests
         property.Timezone.Should().Be("Europe/Lisbon");
         property.CheckInFromLocal.Should().Be(new TimeOnly(15, 0));
         property.CheckOutByLocal.Should().Be(new TimeOnly(11, 0));
+        property.Sleeps.Should().Be(6);
+        property.Bedrooms.Should().Be(2);
+        property.Beds.Should().Be(4);
+        property.Bathrooms.Should().Be(2);
+        property.BedsBreakdown.Should().Be("Bedroom 1 — 2 single beds");
         property.DomainEvents.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Rejects_negative_capacity()
+    {
+        var act = () => new Property(
+            PropertyId.New(), "Gaia Skyline", "AL/12345", "Rua do Ouro", 41.13, -8.61, "EUR",
+            "Europe/Lisbon", new TimeOnly(15, 0), new TimeOnly(11, 0),
+            sleeps: -1, bedrooms: 2, beds: 4, bathrooms: 2, bedsBreakdown: "x");
+
+        act.Should().Throw<ArgumentOutOfRangeException>();
     }
 
     [Theory]
