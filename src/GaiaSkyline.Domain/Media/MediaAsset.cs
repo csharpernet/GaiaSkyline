@@ -25,7 +25,8 @@ public sealed class MediaAsset : Entity<MediaAssetId>
         long byteSize,
         string contentType,
         DateTime uploadedAtUtc,
-        string uploadedBy)
+        string uploadedBy,
+        string? altText = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(blobUri);
         ArgumentException.ThrowIfNullOrWhiteSpace(contentType);
@@ -45,6 +46,7 @@ public sealed class MediaAsset : Entity<MediaAssetId>
         ContentType = contentType.Trim();
         UploadedAtUtc = uploadedAtUtc;
         UploadedBy = uploadedBy;
+        AltText = string.IsNullOrWhiteSpace(altText) ? null : altText.Trim();
     }
 
     public MediaKind Kind { get; private set; }
@@ -66,4 +68,8 @@ public sealed class MediaAsset : Entity<MediaAssetId>
     public DateTime UploadedAtUtc { get; private set; }
 
     public string UploadedBy { get; private set; } = null!;
+
+    /// <summary>Descriptive alternative text for accessibility and image SEO (required in Stage 7).</summary>
+    public string? AltText { get; private set; }
 }
+

@@ -1,0 +1,19 @@
+@model GalleryViewModel
+@{
+    var poster = Model.Home.Media("home.hero.poster");
+}
+<div class="max-w-6xl mx-auto px-6 py-12">
+    <h1 class="font-display text-4xl sm:text-5xl font-semibold">Photo gallery</h1>
+    <p class="mt-3 text-lg text-ink/70">The apartment, the balcony view over the Douro, and the hot tub.</p>
+
+    <div class="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        @if (poster is not null)
+        {
+            <figure class="rounded-lg overflow-hidden bg-white shadow-sm">
+                <img src="@poster.BlobUri" alt="@poster.Alt" width="@poster.Width" height="@poster.Height" loading="eager" class="w-full aspect-[3/2] object-cover" />
+            </figure>
+        }
+    </div>
+
+    <p class="mt-10 text-sm text-ink/60">The full swipeable, deep-linkable gallery arrives with real photography.</p>
+</div>

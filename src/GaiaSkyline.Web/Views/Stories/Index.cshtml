@@ -1,0 +1,37 @@
+@model StoriesIndexViewModel
+@{
+    var slug = SupportedCultures.SlugForCulture(System.Globalization.CultureInfo.CurrentUICulture.Name);
+}
+<div class="max-w-6xl mx-auto px-6 py-12">
+    <h1 class="font-display text-4xl sm:text-5xl font-semibold">Stories</h1>
+    <p class="mt-3 text-lg text-ink/70 max-w-2xl">Guides and notes about the apartment, Vila Nova de Gaia and the Douro.</p>
+
+    @if (Model.Stories.Count == 0)
+    {
+        <p class="mt-10 text-ink/60">No stories published yet.</p>
+    }
+    else
+    {
+        <div class="mt-10 grid gap-8 md:grid-cols-3">
+            @foreach (var story in Model.Stories)
+            {
+                <article class="bg-white rounded-lg overflow-hidden shadow-sm">
+                    <a href="/@slug/stories/@story.Slug" class="group block">
+                        @if (story.Cover is not null)
+                        {
+                            <img src="@story.Cover.BlobUri" alt="@story.Cover.Alt" width="@story.Cover.Width" height="@story.Cover.Height" loading="lazy" class="w-full aspect-[3/2] object-cover" />
+                        }
+                        <div class="p-5">
+                            <h2 class="font-display text-xl font-semibold group-hover:text-clay">@story.Title</h2>
+                            <p class="mt-2 text-sm text-ink/70">@story.Excerpt</p>
+                            <p class="mt-3 text-xs text-river">
+                                <time datetime="@story.PublishedAtUtc.ToString("yyyy-MM-dd")">@story.PublishedAtUtc.ToString("d MMM yyyy", System.Globalization.CultureInfo.InvariantCulture)</time>
+                                · @story.ReadingTimeMinutes min read
+                            </p>
+                        </div>
+                    </a>
+                </article>
+            }
+        </div>
+    }
+</div>

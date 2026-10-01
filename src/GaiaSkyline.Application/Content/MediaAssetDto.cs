@@ -12,4 +12,5 @@ public sealed record MediaAssetDto(
     int Height,
     int? DurationSec,
     long ByteSize,
-    string ContentType);
+    string ContentType,
+    string? Alt);

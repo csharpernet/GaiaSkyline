@@ -3,6 +3,7 @@ using GaiaSkyline.Domain.Entities;
 using GaiaSkyline.Domain.Identifiers;
 using GaiaSkyline.Domain.Media;
 using GaiaSkyline.Domain.Reviews;
+using GaiaSkyline.Domain.Stories;
 using GaiaSkyline.Infrastructure.Persistence.Converters;
 using Microsoft.EntityFrameworkCore;
 
@@ -29,6 +30,10 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 
     public DbSet<Review> Reviews => Set<Review>();
 
+    public DbSet<Story> Stories => Set<Story>();
+
+    public DbSet<StoryTranslation> StoryTranslations => Set<StoryTranslation>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -46,5 +51,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
         configurationBuilder.Properties<MediaCollectionId>().HaveConversion<MediaCollectionIdConverter>();
         configurationBuilder.Properties<MediaCollectionItemId>().HaveConversion<MediaCollectionItemIdConverter>();
         configurationBuilder.Properties<ReviewId>().HaveConversion<ReviewIdConverter>();
+        configurationBuilder.Properties<StoryId>().HaveConversion<StoryIdConverter>();
+        configurationBuilder.Properties<StoryTranslationId>().HaveConversion<StoryTranslationIdConverter>();
     }
 }

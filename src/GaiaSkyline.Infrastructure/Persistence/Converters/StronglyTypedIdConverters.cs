@@ -53,3 +53,19 @@ internal sealed class ReviewIdConverter : ValueConverter<ReviewId, Guid>
     {
     }
 }
+
+internal sealed class StoryIdConverter : ValueConverter<StoryId, Guid>
+{
+    public StoryIdConverter()
+        : base(id => id.Value, value => StoryId.From(value))
+    {
+    }
+}
+
+internal sealed class StoryTranslationIdConverter : ValueConverter<StoryTranslationId, Guid>
+{
+    public StoryTranslationIdConverter()
+        : base(id => id.Value, value => StoryTranslationId.From(value))
+    {
+    }
+}

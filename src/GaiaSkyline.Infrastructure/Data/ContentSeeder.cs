@@ -5,6 +5,7 @@ using GaiaSkyline.Domain.Entities;
 using GaiaSkyline.Domain.Identifiers;
 using GaiaSkyline.Domain.Media;
 using GaiaSkyline.Domain.Reviews;
+using GaiaSkyline.Domain.Stories;
 using GaiaSkyline.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -66,6 +67,7 @@ public sealed class ContentSeeder(AppDbContext dbContext, IContentRevision revis
         await EnsureGalleryAsync(cancellationToken);
         await EnsureContentBlocksAsync(cancellationToken);
         await EnsureReviewsAsync(cancellationToken);
+        await EnsureStoriesAsync(cancellationToken);
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         _revision.Bump();
@@ -170,7 +172,8 @@ public sealed class ContentSeeder(AppDbContext dbContext, IContentRevision revis
             byteSize: Encoding.UTF8.GetByteCount(svg),
             contentType: "image/svg+xml",
             uploadedAtUtc: SeedTimestampUtc,
-            uploadedBy: Actor));
+            uploadedBy: Actor,
+            altText: $"Gaia Skyline apartment, Vila Nova de Gaia — {label.ToLowerInvariant()}"));
     }
 
     private async Task EnsureGalleryAsync(CancellationToken cancellationToken)
@@ -274,6 +277,44 @@ public sealed class ContentSeeder(AppDbContext dbContext, IContentRevision revis
         }
     }
 
+    private async Task EnsureStoriesAsync(CancellationToken cancellationToken)
+    {
+        var property = await _dbContext.Properties.AsNoTracking().FirstOrDefaultAsync(cancellationToken);
+        var authorName = property?.Name ?? "Gaia Skyline";
+        var existing = (await _dbContext.Stories.Select(s => s.Id).ToListAsync(cancellationToken)).ToHashSet();
+
+        for (var i = 0; i < StorySpecs.Length; i++)
+        {
+            var spec = StorySpecs[i];
+            var id = StoryId.From(DeterministicGuid.From($"story:{spec.Slug}"));
+            if (existing.Contains(id))
+            {
+                continue;
+            }
+
+            var cover = MediaAssetId.From(DeterministicGuid.From($"media:{spec.CoverMediaName}"));
+            var story = new Story(id, spec.Slug, cover, spec.PublishedAtUtc, isPublished: true, displayOrder: i + 1, authorName);
+
+            // English only; other languages fall back to English (owner translates via admin in Stage 7).
+            story.SetTranslation(
+                "en",
+                spec.Title,
+                spec.Excerpt,
+                spec.Body,
+                metaTitle: spec.Title,
+                metaDescription: spec.Excerpt,
+                readingTimeMinutes: EstimateReadingMinutes(spec.Body));
+
+            _dbContext.Stories.Add(story);
+        }
+    }
+
+    private static int EstimateReadingMinutes(string html)
+    {
+        var words = html.Split([' ', '\n', '\r', '\t'], StringSplitOptions.RemoveEmptyEntries).Length;
+        return Math.Max(1, (int)Math.Ceiling(words / 200.0));
+    }
+
     private static bool IsTextTranslatable(ContentKind kind, string? text) => kind switch
     {
         ContentKind.PlainText or ContentKind.RichText or ContentKind.ShortText => true,
@@ -298,6 +339,44 @@ public sealed class ContentSeeder(AppDbContext dbContext, IContentRevision revis
         string? MediaName = null);
 
     private sealed record ReviewSpec(string Guest, int Rating, string? Location, string Body, DateOnly StayedOn);
+
+    private sealed record StorySpec(
+        string Slug,
+        string CoverMediaName,
+        DateTime PublishedAtUtc,
+        string Title,
+        string Excerpt,
+        string Body);
+
+    // Three keyword-aware example stories. English only for now; the owner expands and translates
+    // them via the admin in Stage 7. Bodies are placeholders.
+    private static readonly StorySpec[] StorySpecs =
+    [
+        new("view-from-the-balcony-a-first-timers-guide-to-the-douro",
+            "home.gallery.1",
+            new DateTime(2026, 9, 26, 9, 0, 0, DateTimeKind.Utc),
+            "The View from the Balcony: A First-Timer's Guide to the Douro",
+            "What you're actually looking at from the balcony — the Dom Luís I Bridge, both riverbanks, and the best times of day to take it all in.",
+            "<p>The first thing most guests do is walk straight to the balcony. It's the right instinct. From here the Douro opens up below you, with the Dom Luís I Bridge to one side and the two riverbanks — Gaia and Porto — laid out in a single view.</p>" +
+            "<p>Mornings are the quietest. The light comes up behind the old town and the river turns from slate to silver. By late afternoon the terraces across the water fill up and the whole scene warms to gold.</p>" +
+            "<p>This is a placeholder article. The owner will expand it with a proper first-timer's orientation to the river, the bridge decks, and the walks that start right outside the door.</p>"),
+        new("why-vila-nova-de-gaia-not-porto-is-the-better-base",
+            "home.gallery.2",
+            new DateTime(2026, 9, 5, 9, 0, 0, DateTimeKind.Utc),
+            "Why Vila Nova de Gaia (Not Porto) Is the Better Base",
+            "Staying on the Gaia side of the Douro puts the view in front of you and Porto a short walk across the bridge.",
+            "<p>Most visitors assume they should stay in Porto. Stay in Vila Nova de Gaia instead, and the view everyone photographs is the one from your own windows.</p>" +
+            "<p>Gaia sits on the south bank of the Douro, directly across from Porto's historic centre. You get the river, the cellars and the calmer streets — and Porto is a short walk across either deck of the bridge whenever you want it.</p>" +
+            "<p>This is a placeholder article. The owner will expand it into a practical case for basing a Douro trip on the Gaia side.</p>"),
+        new("a-slow-morning-the-hot-tub-sunrise-and-port-wine-at-home",
+            "home.gallery.3",
+            new DateTime(2026, 8, 12, 9, 0, 0, DateTimeKind.Utc),
+            "A Slow Morning: The Hot Tub, Sunrise, and Port Wine at Home",
+            "How to spend a morning without leaving the apartment — and why the hot tub at dawn is the best seat in the building.",
+            "<p>Some mornings the best plan is no plan. Coffee, the balcony, and the hot tub warm and waiting — the only one in the building — while the city wakes up across the water.</p>" +
+            "<p>Set the water somewhere between a refreshing 27°C and a spa-warm 33°C, watch the sun come up over the old town, and save a glass of Port for when the lights come on again that evening.</p>" +
+            "<p>This is a placeholder article. The owner will expand it into a slow-morning ritual guide for the apartment.</p>"),
+    ];
 
     // The canonical content. Keep in sync with docs/content-seed.md.
     private static readonly BlockSpec[] Blocks =

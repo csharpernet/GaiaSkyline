@@ -1,0 +1,19 @@
+@model LegalViewModel
+<div class="max-w-3xl mx-auto px-6 py-12">
+    <h1 class="font-display text-4xl sm:text-5xl font-semibold">@Model.Heading</h1>
+
+    @if (Model.Page == "al-registration")
+    {
+        <div class="mt-8 prose prose-lg max-w-none text-ink/90">
+            <p>This property is registered as a short-term rental (Alojamento Local) in Portugal.</p>
+            <p><strong>AL registration number:</strong> @Model.RegistrationValue</p>
+            <p>Vila Nova de Gaia, Portugal. Operated in accordance with the applicable Portuguese Alojamento Local regulations.</p>
+        </div>
+    }
+    else
+    {
+        <div class="mt-8 prose prose-lg max-w-none text-ink/80">
+            <p>The full @Model.Heading text is managed in the backoffice and will be published here.</p>
+        </div>
+    }
+</div>

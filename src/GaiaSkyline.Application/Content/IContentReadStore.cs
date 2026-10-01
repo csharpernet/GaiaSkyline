@@ -2,6 +2,7 @@ using GaiaSkyline.Domain.Content;
 using GaiaSkyline.Domain.Identifiers;
 using GaiaSkyline.Domain.Media;
 using GaiaSkyline.Domain.Reviews;
+using GaiaSkyline.Domain.Stories;
 
 namespace GaiaSkyline.Application.Content;
 
@@ -23,4 +24,9 @@ public interface IContentReadStore
     Task<MediaAsset?> GetMediaAssetAsync(MediaAssetId id, CancellationToken cancellationToken);
 
     Task<IReadOnlyList<Review>> GetPublishedReviewsAsync(CancellationToken cancellationToken);
+
+    /// <summary>Published stories, newest first, each with its translations loaded.</summary>
+    Task<IReadOnlyList<Story>> GetPublishedStoriesAsync(CancellationToken cancellationToken);
+
+    Task<Story?> GetPublishedStoryBySlugAsync(string slug, CancellationToken cancellationToken);
 }

@@ -5,10 +5,12 @@ using GaiaSkyline.BackgroundJobs;
 using GaiaSkyline.Infrastructure;
 using GaiaSkyline.Infrastructure.Data;
 using GaiaSkyline.Infrastructure.Persistence;
+using GaiaSkyline.Web.Localization;
 using GaiaSkyline.Web.Middleware;
 using Microsoft.AspNetCore.CookiePolicy;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Localization;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 
@@ -35,16 +37,20 @@ builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddBackgroundJobs(builder.Configuration);
 
-// --- Localization: five supported cultures; resolve ?lang -> cookie -> Accept-Language -> en ---
-var supportedCultures = new[] { "en", "pt-PT", "es", "fr", "de" };
+// --- Localization: URL-based (/{lang}/...). Resolve route -> ?lang (API) -> cookie -> Accept-Language -> en ---
+builder.Services.Configure<RouteOptions>(options =>
+    options.ConstraintMap["culture"] = typeof(CultureRouteConstraint));
+
+var supportedCultures = SupportedCultures.AllCultures.ToArray();
 builder.Services.Configure<RequestLocalizationOptions>(options =>
 {
-    options.SetDefaultCulture("en");
+    options.SetDefaultCulture(SupportedCultures.DefaultCulture);
     options.AddSupportedCultures(supportedCultures);
     options.AddSupportedUICultures(supportedCultures);
     options.ApplyCurrentCultureToResponseHeaders = true;
     options.RequestCultureProviders =
     [
+        new RouteCultureProvider(),
         new QueryStringRequestCultureProvider { QueryStringKey = "lang", UIQueryStringKey = "lang" },
         new CookieRequestCultureProvider(),
         new AcceptLanguageHeaderRequestCultureProvider(),
@@ -99,7 +105,7 @@ if (app.Environment.IsDevelopment() && seedOnStartup)
 
 if (!app.Environment.IsDevelopment())
 {
-    app.UseExceptionHandler("/Home/Error");
+    app.UseExceptionHandler("/error");
     app.UseHsts();
 }
 
@@ -107,6 +113,20 @@ app.UseSerilogRequestLogging();
 app.UseHttpsRedirection();
 app.UseMiddleware<SecurityHeadersMiddleware>();
 app.UseStaticFiles();
+
+// Canonicalise to no trailing slash (301), except the root "/".
+app.Use(async (context, next) =>
+{
+    var path = context.Request.Path.Value;
+    if (path is { Length: > 1 } && path.EndsWith('/'))
+    {
+        context.Response.Redirect(path.TrimEnd('/') + context.Request.QueryString, permanent: true);
+        return;
+    }
+
+    await next(context);
+});
+
 app.UseRouting();
 app.UseRequestLocalization();
 app.UseCookiePolicy();
@@ -118,10 +138,9 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions
     Predicate = registration => registration.Tags.Contains("ready"),
 });
 
-app.MapControllers(); // attribute-routed API controllers (/api/content, /api/media)
-app.MapControllerRoute(
-    name: "default",
-    pattern: "{controller=Home}/{action=Index}/{id?}");
+// All controllers are attribute-routed: the public site (/{lang}/...), the APIs (/api/...),
+// the root redirect, sitemap/robots and the error page.
+app.MapControllers();
 
 // Hangfire is wired via AddBackgroundJobs. The dashboard is intentionally NOT mapped yet — it
 // needs authentication, which arrives with the admin area in a later stage.

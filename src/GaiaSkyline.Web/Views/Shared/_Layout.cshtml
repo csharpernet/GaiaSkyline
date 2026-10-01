@@ -1,28 +1,127 @@
 @{
-    // Per-request CSP nonce (see SecurityHeadersMiddleware). Stamp any inline <script>/<style>
-    // with nonce="@cspNonce" so it satisfies the Content-Security-Policy.
+    var meta = ViewData["PageMeta"] as PageMeta;
+    var culture = meta?.Culture ?? SupportedCultures.DefaultCulture;
+    var slug = meta?.Slug ?? SupportedCultures.DefaultSlug;
+    var relPath = meta?.RelativePath ?? string.Empty;
+    var relSuffix = string.IsNullOrEmpty(relPath) ? string.Empty : "/" + relPath;
+    var baseUrl = $"{Context.Request.Scheme}://{Context.Request.Host}";
+    var ogLocale = SupportedCultures.TryGetByCulture(culture)?.OgLocale ?? "en";
+
+    string PathFor(string s) => $"/{s}{relSuffix}";
+    string AbsFor(string s) => baseUrl + PathFor(s);
+
+    var canonical = AbsFor(slug);
+    var title = meta?.Title ?? "Gaia Skyline";
+    var description = meta?.Description ?? "A two-bedroom apartment above the Douro in Vila Nova de Gaia.";
+    var ogType = meta?.OgType ?? "website";
+    string? ogImage = meta?.OgImagePath is { Length: > 0 } img
+        ? (img.StartsWith("http", StringComparison.OrdinalIgnoreCase) ? img : baseUrl + img)
+        : null;
     var cspNonce = Context.Items[GaiaSkyline.Web.Middleware.SecurityHeadersMiddleware.NonceItemKey] as string ?? string.Empty;
-}
-<!DOCTYPE html>
-<html lang="en">
+    var fonts = "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@@9..144,400;9..144,600;9..144,700&family=Inter:wght@@400;500;600&display=swap";
+}<!DOCTYPE html>
+<html lang="@culture">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@(ViewData["Title"] ?? "Gaia Skyline")</title>
-    <link rel="icon" href="~/favicon.ico" />
+    <title>@title</title>
+    <meta name="description" content="@description" />
+    <link rel="canonical" href="@canonical" />
+    @foreach (var c in SupportedCultures.All)
+    {
+        <link rel="alternate" hreflang="@c.Culture" href="@AbsFor(c.Slug)" />
+    }
+    <link rel="alternate" hreflang="x-default" href="@AbsFor(SupportedCultures.DefaultSlug)" />
+
+    <meta property="og:site_name" content="Gaia Skyline" />
+    <meta property="og:title" content="@title" />
+    <meta property="og:description" content="@description" />
+    <meta property="og:url" content="@canonical" />
+    <meta property="og:type" content="@ogType" />
+    <meta property="og:locale" content="@ogLocale" />
+    @if (ogImage is not null)
+    {
+        <meta property="og:image" content="@ogImage" />
+    }
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="@title" />
+    <meta name="twitter:description" content="@description" />
+    @if (ogImage is not null)
+    {
+        <meta name="twitter:image" content="@ogImage" />
+    }
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="preload" as="style"
-          href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@@9..144,400;9..144,600;9..144,700&family=Inter:wght@@400;500;600&display=swap" />
-    <link rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@@9..144,400;9..144,600;9..144,700&family=Inter:wght@@400;500;600&display=swap" />
-
+    <link rel="preload" as="style" href="@fonts" />
+    <link rel="stylesheet" href="@fonts" />
     <link rel="stylesheet" href="~/css/tokens.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/app.css" asp-append-version="true" />
+    <link rel="icon" href="~/favicon.ico" />
+
+    @if (!string.IsNullOrEmpty(meta?.JsonLd))
+    {
+        <script type="application/ld+json" nonce="@cspNonce">@Html.Raw(meta!.JsonLd)</script>
+    }
 </head>
-<body class="font-body bg-stone text-ink antialiased min-h-screen">
-    @RenderBody()
+<body class="font-body bg-stone text-ink antialiased min-h-screen flex flex-col">
+    <a href="#main" class="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:top-2 focus:left-2 focus:bg-white focus:text-ink focus:px-4 focus:py-2 focus:rounded-md">Skip to content</a>
+
+    <header class="sticky top-0 z-40 bg-stone/80 backdrop-blur border-b border-fog">
+        <nav class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between" aria-label="Main">
+            <a href="@PathFor(slug)" class="font-display text-ink text-xl font-semibold tracking-tight">Gaia&nbsp;Skyline</a>
+            <div class="flex items-center gap-4">
+                <ul class="hidden sm:flex items-center gap-4 text-sm" aria-label="Sections">
+                    <li><a class="hover:text-clay" href="/@slug/gallery">Gallery</a></li>
+                    <li><a class="hover:text-clay" href="/@slug/stories">Stories</a></li>
+                </ul>
+                <ul class="flex items-center gap-1 text-xs" aria-label="Language">
+                    @foreach (var c in SupportedCultures.All)
+                    {
+                        var current = string.Equals(c.Culture, culture, StringComparison.OrdinalIgnoreCase);
+                        <li>
+                            <a class="px-1.5 py-1 rounded @(current ? "font-semibold text-clay" : "text-river hover:text-clay")"
+                               href="/culture/set?culture=@c.Culture&returnUrl=@Uri.EscapeDataString(PathFor(c.Slug))"
+                               hreflang="@c.Culture"
+                               lang="@c.Culture"
+                               aria-current="@(current ? "true" : null)">@c.ShortLabel</a>
+                        </li>
+                    }
+                </ul>
+                <a href="/@slug/book" class="bg-clay text-white text-sm px-4 py-2 rounded-md hover:opacity-90 transition-opacity duration-200">Book</a>
+            </div>
+        </nav>
+    </header>
+
+    @if (meta is { Breadcrumbs.Count: > 0 })
+    {
+        <nav aria-label="Breadcrumb" class="max-w-6xl mx-auto px-6 pt-6">
+            <ol class="flex flex-wrap items-center gap-2 text-sm text-river">
+                @foreach (var crumb in meta.Breadcrumbs)
+                {
+                    <li class="flex items-center gap-2">
+                        @if (crumb.RelativePath is null)
+                        {
+                            <span aria-current="page" class="text-ink">@crumb.Label</span>
+                        }
+                        else
+                        {
+                            <a class="hover:text-clay" href="/@slug@(crumb.RelativePath.Length == 0 ? "" : "/" + crumb.RelativePath)">@crumb.Label</a>
+                            <span aria-hidden="true">/</span>
+                        }
+                    </li>
+                }
+            </ol>
+        </nav>
+    }
+
+    <main id="main" tabindex="-1" class="flex-1">
+        @RenderBody()
+    </main>
+
+    @await Component.InvokeAsync("SiteFooter")
+
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

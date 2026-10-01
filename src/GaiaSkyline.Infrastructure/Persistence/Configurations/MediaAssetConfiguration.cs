@@ -23,5 +23,6 @@ internal sealed class MediaAssetConfiguration : IEntityTypeConfiguration<MediaAs
         builder.Property(a => a.ContentType).HasMaxLength(100).IsRequired();
         builder.Property(a => a.UploadedAtUtc).IsRequired();
         builder.Property(a => a.UploadedBy).HasMaxLength(100).IsRequired();
+        builder.Property(a => a.AltText).HasMaxLength(500);
     }
 }

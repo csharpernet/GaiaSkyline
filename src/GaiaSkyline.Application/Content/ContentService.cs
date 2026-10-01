@@ -2,6 +2,7 @@ using GaiaSkyline.Domain.Content;
 using GaiaSkyline.Domain.Identifiers;
 using GaiaSkyline.Domain.Media;
 using GaiaSkyline.Domain.Reviews;
+using GaiaSkyline.Domain.Stories;
 using Microsoft.Extensions.Caching.Memory;
 
 namespace GaiaSkyline.Application.Content;
@@ -63,6 +64,38 @@ public sealed class ContentService : IContentService
     {
         var reviews = await _readStore.GetPublishedReviewsAsync(cancellationToken);
         return reviews.Select(ToReviewDto).ToList();
+    }
+
+    public async Task<IReadOnlyList<StoryDto>> GetPublishedStoriesAsync(
+        string language,
+        int? take,
+        CancellationToken cancellationToken)
+    {
+        var lang = Normalize(language);
+        var stories = await _readStore.GetPublishedStoriesAsync(cancellationToken);
+        if (take is int limit)
+        {
+            stories = stories.Take(limit).ToList();
+        }
+
+        var coverIds = stories.Select(s => s.CoverMediaAssetId).Distinct().ToList();
+        var media = coverIds.Count == 0 ? NoMedia : await _readStore.GetMediaAssetsAsync(coverIds, cancellationToken);
+
+        return stories.Select(s => ToStoryDto(s, lang, media)).ToList();
+    }
+
+    public async Task<StoryDto?> GetStoryAsync(string slug, string language, CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(slug);
+
+        var story = await _readStore.GetPublishedStoryBySlugAsync(slug.Trim().ToLowerInvariant(), cancellationToken);
+        if (story is null)
+        {
+            return null;
+        }
+
+        var media = await _readStore.GetMediaAssetsAsync([story.CoverMediaAssetId], cancellationToken);
+        return ToStoryDto(story, Normalize(language), media);
     }
 
     /// <summary>The visible gap marker used when a value is missing in both the requested language and English.</summary>
@@ -191,7 +224,8 @@ public sealed class ContentService : IContentService
         asset.Height,
         asset.DurationSec,
         asset.ByteSize,
-        asset.ContentType);
+        asset.ContentType,
+        asset.AltText);
 
     private static ReviewDto ToReviewDto(Review review) => new(
         review.Id.Value,
@@ -201,4 +235,37 @@ public sealed class ContentService : IContentService
         review.Body,
         review.Source,
         review.StayedOn);
+
+    private static string Normalize(string language) =>
+        string.IsNullOrWhiteSpace(language) ? DefaultLanguage : language.Trim();
+
+    private static StoryDto ToStoryDto(
+        Story story,
+        string language,
+        IReadOnlyDictionary<MediaAssetId, MediaAsset> media)
+    {
+        var translation = FindStoryTranslation(story, language)
+            ?? (string.Equals(language, DefaultLanguage, StringComparison.OrdinalIgnoreCase)
+                ? null
+                : FindStoryTranslation(story, DefaultLanguage));
+
+        var cover = media.TryGetValue(story.CoverMediaAssetId, out var asset) ? ToDto(asset) : null;
+
+        return new StoryDto(
+            story.Slug,
+            translation?.Title ?? MissingValue(story.Slug),
+            translation?.Excerpt ?? string.Empty,
+            translation?.BodyRichText ?? string.Empty,
+            translation?.MetaTitle,
+            translation?.MetaDescription,
+            cover,
+            story.PublishedAtUtc,
+            translation?.ReadingTimeMinutes ?? 0,
+            story.AuthorName,
+            translation?.LanguageCode ?? "none");
+    }
+
+    private static StoryTranslation? FindStoryTranslation(Story story, string language) =>
+        story.Translations.FirstOrDefault(
+            t => string.Equals(t.LanguageCode, language, StringComparison.OrdinalIgnoreCase));
 }

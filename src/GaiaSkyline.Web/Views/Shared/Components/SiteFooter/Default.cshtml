@@ -1,0 +1,46 @@
+@model ContentPayload
+@{
+    var slug = SupportedCultures.SlugForCulture(System.Globalization.CultureInfo.CurrentUICulture.Name);
+    var regLabel = Model.TextOr("footer.registration_label", "AL Registration");
+    var regValue = Model.TextOr("footer.registration_value", "175890/AL");
+}
+<footer class="bg-ink text-fog mt-24">
+    <div class="max-w-6xl mx-auto px-6 py-14 grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
+        <div>
+            <p class="font-display text-white text-lg font-semibold">Gaia Skyline</p>
+            <p class="mt-2 text-sm">@regLabel: <span class="text-white">@regValue</span></p>
+        </div>
+        <nav aria-label="Legal">
+            <h2 class="text-white text-sm font-semibold uppercase tracking-wide">Legal</h2>
+            <ul class="mt-3 space-y-2 text-sm">
+                <li><a class="hover:text-white" href="/@slug/legal/terms">Terms &amp; Conditions</a></li>
+                <li><a class="hover:text-white" href="/@slug/legal/privacy">Privacy Policy</a></li>
+                <li><a class="hover:text-white" href="/@slug/legal/cancellation-policy">Cancellation Policy</a></li>
+                <li><a class="hover:text-white" href="/@slug/legal/al-registration">AL Registration</a></li>
+            </ul>
+        </nav>
+        <nav aria-label="Explore">
+            <h2 class="text-white text-sm font-semibold uppercase tracking-wide">Explore</h2>
+            <ul class="mt-3 space-y-2 text-sm">
+                <li><a class="hover:text-white" href="/@slug/gallery">Gallery</a></li>
+                <li><a class="hover:text-white" href="/@slug/stories">Stories</a></li>
+                <li><a class="hover:text-white" href="/@slug/book">Book</a></li>
+            </ul>
+        </nav>
+        <div>
+            <h2 class="text-white text-sm font-semibold uppercase tracking-wide">Language</h2>
+            <ul class="mt-3 flex flex-wrap gap-2 text-sm">
+                @foreach (var c in SupportedCultures.All)
+                {
+                    <li>
+                        <a class="hover:text-white" lang="@c.Culture" hreflang="@c.Culture"
+                           href="/culture/set?culture=@c.Culture&returnUrl=@Uri.EscapeDataString("/" + c.Slug)">@c.NativeName</a>
+                    </li>
+                }
+            </ul>
+        </div>
+    </div>
+    <div class="border-t border-white/10">
+        <p class="max-w-6xl mx-auto px-6 py-6 text-xs text-fog/70">© @DateTime.UtcNow.Year Gaia Skyline — Vila Nova de Gaia, Portugal.</p>
+    </div>
+</footer>

@@ -1,8 +1,178 @@
+@model HomeViewModel
 @{
-    ViewData["Title"] = "Gaia Skyline";
+    Layout = "_Layout";
+    var home = Model.Home;
+    var poster = home.Media("home.hero.poster");
+    var video = home.Media("home.hero.video");
+    var headline = home.TextOr("home.hero.headline", "Wake up to the Dom Luís I Bridge");
+    var subheadline = home.Text("home.hero.subheadline");
+    var ctaText = home.TextOr("home.hero.cta_text", "Check availability");
+    var ctaHref = home.TextOr("home.hero.cta_href", "/book");
+    var overlay = (double?)home.Number("home.hero.overlay_opacity") ?? 0.35;
+    var slug = SupportedCultures.SlugForCulture(System.Globalization.CultureInfo.CurrentUICulture.Name);
+
+    var narratives = new[]
+    {
+        ("home.view.title", "home.view.body"),
+        ("home.hottub.title", "home.hottub.body"),
+        ("home.layout.title", "home.layout.body"),
+    };
+    var amenityGroups = Model.Amenities.Items.GroupBy(kv => kv.Key.Split('.')[1]).OrderBy(g => g.Key).ToList();
+    var cspNonce = Context.Items[GaiaSkyline.Web.Middleware.SecurityHeadersMiddleware.NonceItemKey] as string ?? string.Empty;
+    var overlayCss = overlay.ToString(System.Globalization.CultureInfo.InvariantCulture);
 }
-<main class="min-h-screen flex items-center justify-center px-6">
-    <h1 class="font-display text-ink font-semibold tracking-tight text-center text-6xl sm:text-7xl md:text-8xl">
-        Gaia Skyline
-    </h1>
-</main>
+
+<style nonce="@cspNonce">.gs-hero-scrim{opacity:@overlayCss}</style>
+<section class="relative h-[70vh] md:h-[100dvh] min-h-[32rem] flex items-end overflow-hidden" aria-label="Introduction">
+    <video class="absolute inset-0 w-full h-full object-cover" playsinline muted loop autoplay
+           preload="metadata" poster="@poster?.BlobUri" aria-hidden="true" tabindex="-1">
+        @if (video is not null)
+        {
+            <source src="@video.BlobUri" type="video/mp4" />
+        }
+    </video>
+    <div class="absolute inset-0 bg-ink gs-hero-scrim" aria-hidden="true"></div>
+    <div class="relative max-w-6xl mx-auto w-full px-6 pb-20 text-white">
+        <h1 class="font-display font-semibold tracking-tight text-4xl sm:text-6xl md:text-7xl max-w-3xl">@headline</h1>
+        @if (!string.IsNullOrWhiteSpace(subheadline))
+        {
+            <p class="mt-5 text-lg sm:text-xl max-w-2xl text-white/90">@subheadline</p>
+        }
+        <a href="/@slug@(ctaHref.StartsWith('/') ? ctaHref : "/" + ctaHref)"
+           class="inline-block mt-8 bg-clay text-white px-7 py-3 rounded-md text-lg hover:opacity-90 transition-opacity duration-200">@ctaText</a>
+    </div>
+    <div class="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/70 text-sm" aria-hidden="true">↓</div>
+</section>
+
+<section class="bg-river text-white" aria-label="At a glance">
+    <p class="max-w-6xl mx-auto px-6 py-4 text-center text-sm sm:text-base">@home.TextOr("home.snapshot.line", "2 bedrooms · 4 beds · 2 baths · Sleeps 6 · Vila Nova de Gaia")</p>
+</section>
+
+<div class="max-w-6xl mx-auto px-6">
+    <section class="py-20 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4" aria-label="Photos">
+        <h2 class="font-display text-3xl font-semibold">Photos</h2>
+        <a href="/@slug/gallery" class="text-clay hover:underline">See all photos →</a>
+    </section>
+
+    @foreach (var (titleKey, bodyKey) in narratives)
+    {
+        var t = home.Text(titleKey);
+        var b = home.Text(bodyKey);
+        if (string.IsNullOrWhiteSpace(t) && string.IsNullOrWhiteSpace(b)) { continue; }
+        <section class="py-12 border-t border-fog grid md:grid-cols-3 gap-8">
+            <h2 class="font-display text-3xl font-semibold md:col-span-1">@t</h2>
+            <div class="md:col-span-2 prose text-lg leading-relaxed text-ink/90">@Html.Raw(b)</div>
+        </section>
+    }
+
+    <section class="py-16 border-t border-fog" aria-labelledby="amenities-heading">
+        <h2 id="amenities-heading" class="font-display text-3xl font-semibold">What this place offers</h2>
+        <div class="mt-8 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+            @foreach (var group in amenityGroups)
+            {
+                <div>
+                    <h3 class="text-sm font-semibold uppercase tracking-wide text-river">@group.Key.Replace('_', ' ')</h3>
+                    <ul class="mt-3 space-y-1.5">
+                        @foreach (var item in group)
+                        {
+                            var available = item.Value.Boolean ?? true;
+                            <li class="@(available ? "text-ink" : "text-ink/40 line-through")">@item.Value.Text</li>
+                        }
+                    </ul>
+                </div>
+            }
+        </div>
+    </section>
+
+    <section class="py-16 border-t border-fog" aria-label="Highlights">
+        <div class="grid gap-6 sm:grid-cols-3">
+            @for (var i = 1; i <= 3; i++)
+            {
+                var ht = home.Text($"home.highlights.{i}.title");
+                var hb = home.Text($"home.highlights.{i}.body");
+                if (string.IsNullOrWhiteSpace(ht)) { continue; }
+                <div class="bg-white rounded-lg p-6 shadow-sm">
+                    <p class="font-display text-lg font-semibold">@ht</p>
+                    <p class="mt-1 text-sm text-ink/70">@hb</p>
+                </div>
+            }
+        </div>
+    </section>
+
+    <section class="py-16 border-t border-fog" aria-labelledby="reviews-heading">
+        <div class="flex items-baseline gap-3">
+            <h2 id="reviews-heading" class="font-display text-3xl font-semibold">Reviews</h2>
+            <p class="text-xl">★ @home.Number("home.reviews.aggregate.value") · @home.Number("home.reviews.aggregate.count") reviews</p>
+        </div>
+        <div class="mt-8 grid gap-6 md:grid-cols-2">
+            @foreach (var review in Model.Reviews)
+            {
+                <figure class="bg-white rounded-lg p-6 shadow-sm">
+                    <blockquote class="text-ink/90">@review.Body</blockquote>
+                    <figcaption class="mt-3 text-sm text-river">— @review.GuestFirstName@(string.IsNullOrWhiteSpace(review.GuestLocation) ? "" : $", {review.GuestLocation}")</figcaption>
+                </figure>
+            }
+        </div>
+    </section>
+
+    <section class="py-16 border-t border-fog" aria-labelledby="host-heading">
+        <h2 id="host-heading" class="font-display text-3xl font-semibold">Your host</h2>
+        <p class="mt-3 text-lg" id="host-card">@home.Text("home.host.name") · @home.Number("home.host.years") years hosting · @home.Text("home.host.languages")</p>
+    </section>
+
+    <section class="py-16 border-t border-fog" aria-labelledby="rules-heading">
+        <h2 id="rules-heading" class="font-display text-3xl font-semibold">House rules &amp; good to know</h2>
+        <dl class="mt-6 grid gap-4 sm:grid-cols-2 text-sm">
+            <div><dt class="text-river">Check-in</dt><dd>@Model.Rules.Text("rules.checkin_window")</dd></div>
+            <div><dt class="text-river">Check-out</dt><dd>@Model.Rules.Text("rules.checkout_by")</dd></div>
+            <div><dt class="text-river">Smoking</dt><dd>@Model.Rules.Text("rules.smoking")</dd></div>
+            <div><dt class="text-river">Quiet hours</dt><dd>@Model.Rules.Text("rules.quiet_hours")</dd></div>
+        </dl>
+    </section>
+
+    <section class="py-16 border-t border-fog" aria-labelledby="faq-heading">
+        <h2 id="faq-heading" class="font-display text-3xl font-semibold">Frequently asked</h2>
+        <div class="mt-6 divide-y divide-fog">
+            @for (var i = 1; i <= 6; i++)
+            {
+                var q = Model.Faq.Text($"faq.{i}.q");
+                var a = Model.Faq.Text($"faq.{i}.a");
+                if (string.IsNullOrWhiteSpace(q)) { continue; }
+                <details class="py-3">
+                    <summary class="cursor-pointer font-medium">@q</summary>
+                    <div class="mt-2 text-ink/80">@Html.Raw(a)</div>
+                </details>
+            }
+        </div>
+    </section>
+
+    <section class="py-16 border-t border-fog" aria-labelledby="location-heading">
+        <h2 id="location-heading" class="font-display text-3xl font-semibold">The neighbourhood</h2>
+        <div class="mt-4 prose text-lg leading-relaxed text-ink/90">@Html.Raw(home.Text("home.location.blurb"))</div>
+    </section>
+
+    @if (Model.Stories.Count > 0)
+    {
+        <section class="py-16 border-t border-fog" aria-labelledby="stories-heading">
+            <div class="flex items-center justify-between">
+                <h2 id="stories-heading" class="font-display text-3xl font-semibold">Stories</h2>
+                <a href="/@slug/stories" class="text-clay hover:underline">All stories →</a>
+            </div>
+            <div class="mt-8 grid gap-6 md:grid-cols-3">
+                @foreach (var story in Model.Stories)
+                {
+                    <a href="/@slug/stories/@story.Slug" class="group block bg-white rounded-lg overflow-hidden shadow-sm">
+                        @if (story.Cover is not null)
+                        {
+                            <img src="@story.Cover.BlobUri" alt="@story.Cover.Alt" width="@story.Cover.Width" height="@story.Cover.Height" loading="lazy" class="w-full aspect-[3/2] object-cover" />
+                        }
+                        <div class="p-5">
+                            <h3 class="font-display text-lg font-semibold group-hover:text-clay">@story.Title</h3>
+                            <p class="mt-1 text-sm text-ink/70">@story.Excerpt</p>
+                        </div>
+                    </a>
+                }
+            </div>
+        </section>
+    }
+</div>
