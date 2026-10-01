@@ -1,4 +1,5 @@
 using GaiaSkyline.Domain.Content;
+using GaiaSkyline.Domain.Entities;
 using GaiaSkyline.Domain.Identifiers;
 using GaiaSkyline.Domain.Media;
 using GaiaSkyline.Domain.Reviews;
@@ -29,4 +30,9 @@ public interface IContentReadStore
     Task<IReadOnlyList<Story>> GetPublishedStoriesAsync(CancellationToken cancellationToken);
 
     Task<Story?> GetPublishedStoryBySlugAsync(string slug, CancellationToken cancellationToken);
+
+    Task<Property?> GetPropertyAsync(CancellationToken cancellationToken);
+
+    /// <summary>A media collection by key (e.g. "home.gallery") with its items loaded.</summary>
+    Task<MediaCollection?> GetMediaCollectionAsync(string key, CancellationToken cancellationToken);
 }

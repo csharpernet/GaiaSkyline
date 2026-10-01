@@ -1,4 +1,5 @@
 using GaiaSkyline.Domain.Content;
+using GaiaSkyline.Domain.Entities;
 using GaiaSkyline.Domain.Identifiers;
 using GaiaSkyline.Domain.Media;
 using GaiaSkyline.Domain.Reviews;
@@ -96,6 +97,30 @@ public sealed class ContentService : IContentService
 
         var media = await _readStore.GetMediaAssetsAsync([story.CoverMediaAssetId], cancellationToken);
         return ToStoryDto(story, Normalize(language), media);
+    }
+
+    public async Task<PropertyDto?> GetPropertyAsync(CancellationToken cancellationToken)
+    {
+        var property = await _readStore.GetPropertyAsync(cancellationToken);
+        return property is null ? null : ToPropertyDto(property);
+    }
+
+    public async Task<IReadOnlyList<GalleryImageDto>> GetGalleryAsync(string key, CancellationToken cancellationToken)
+    {
+        var collection = await _readStore.GetMediaCollectionAsync(key, cancellationToken);
+        if (collection is null)
+        {
+            return [];
+        }
+
+        var ids = collection.Items.Select(i => i.MediaAssetId).Distinct().ToList();
+        var media = ids.Count == 0 ? NoMedia : await _readStore.GetMediaAssetsAsync(ids, cancellationToken);
+
+        return collection.Items
+            .Where(i => media.ContainsKey(i.MediaAssetId))
+            .OrderBy(i => i.DisplayOrder)
+            .Select(i => new GalleryImageDto(ToDto(media[i.MediaAssetId]), i.DisplayOrder, i.IsHero))
+            .ToList();
     }
 
     /// <summary>The visible gap marker used when a value is missing in both the requested language and English.</summary>
@@ -268,4 +293,20 @@ public sealed class ContentService : IContentService
     private static StoryTranslation? FindStoryTranslation(Story story, string language) =>
         story.Translations.FirstOrDefault(
             t => string.Equals(t.LanguageCode, language, StringComparison.OrdinalIgnoreCase));
+
+    private static PropertyDto ToPropertyDto(Property property) => new(
+        property.Name,
+        property.RegistrationCode,
+        property.Address,
+        property.Lat,
+        property.Lng,
+        property.DefaultCurrency,
+        property.Timezone,
+        property.CheckInFromLocal,
+        property.CheckOutByLocal,
+        property.Sleeps,
+        property.Bedrooms,
+        property.Beds,
+        property.Bathrooms,
+        property.BedsBreakdown);
 }

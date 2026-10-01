@@ -18,4 +18,9 @@ public interface IContentService
     Task<IReadOnlyList<StoryDto>> GetPublishedStoriesAsync(string language, int? take, CancellationToken cancellationToken);
 
     Task<StoryDto?> GetStoryAsync(string slug, string language, CancellationToken cancellationToken);
+
+    Task<PropertyDto?> GetPropertyAsync(CancellationToken cancellationToken);
+
+    /// <summary>Images in a media collection (e.g. "home.gallery"), ordered.</summary>
+    Task<IReadOnlyList<GalleryImageDto>> GetGalleryAsync(string key, CancellationToken cancellationToken);
 }

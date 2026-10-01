@@ -49,9 +49,29 @@
 </section>
 
 <div class="max-w-6xl mx-auto px-6">
-    <section class="py-20 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4" aria-label="Photos">
-        <h2 class="font-display text-3xl font-semibold">Photos</h2>
-        <a href="/@slug/gallery" class="text-clay hover:underline">See all photos →</a>
+    <section class="py-16" aria-labelledby="photos-heading">
+        <div class="flex items-center justify-between">
+            <h2 id="photos-heading" class="font-display text-3xl font-semibold">Photos</h2>
+            <a href="/@slug/gallery" class="text-clay hover:underline">See all photos →</a>
+        </div>
+        @if (Model.Gallery.Count > 0)
+        {
+            var take = Math.Min(6, Model.Gallery.Count);
+            <ul id="gallery-grid" class="mt-8 grid gap-3 grid-cols-2 md:grid-cols-3" role="list">
+                @for (var i = 0; i < take; i++)
+                {
+                    var img = Model.Gallery[i].Asset;
+                    <li>
+                        <button type="button" data-gallery-open="@i"
+                                class="block w-full overflow-hidden rounded-lg group focus-visible:outline focus-visible:outline-2 focus-visible:outline-clay"
+                                aria-label="Open photo @(i + 1)">
+                            <img src="@img.BlobUri" alt="@img.Alt" width="@img.Width" height="@img.Height" loading="lazy"
+                                 class="w-full aspect-[3/2] object-cover group-hover:scale-[1.02] transition-transform duration-200" />
+                        </button>
+                    </li>
+                }
+            </ul>
+        }
     </section>
 
     @foreach (var (titleKey, bodyKey) in narratives)
@@ -176,3 +196,9 @@
         </section>
     }
 </div>
+
+@await Html.PartialAsync("_Lightbox")
+
+@section Scripts {
+    <script src="~/js/gallery.js" defer></script>
+}

@@ -24,7 +24,7 @@ public abstract class PublicController : Controller
         string ogType = "website",
         string? ogImagePath = null,
         IReadOnlyList<Breadcrumb>? breadcrumbs = null,
-        string? jsonLd = null) => new()
+        IReadOnlyList<string>? jsonLdBlocks = null) => new()
         {
             Culture = CurrentCulture,
             Slug = CurrentSlug,
@@ -34,6 +34,9 @@ public abstract class PublicController : Controller
             OgType = ogType,
             OgImagePath = ogImagePath,
             Breadcrumbs = breadcrumbs ?? [],
-            JsonLd = jsonLd,
+            JsonLdBlocks = jsonLdBlocks ?? [],
         };
+
+    /// <summary>Absolute base URL for the current request (used to build JSON-LD and OG URLs).</summary>
+    protected string BaseUrl => $"{Request.Scheme}://{Request.Host}";
 }

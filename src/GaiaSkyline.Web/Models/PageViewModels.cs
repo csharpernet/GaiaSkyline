@@ -8,9 +8,10 @@ public sealed record HomeViewModel(
     ContentPayload Rules,
     ContentPayload Faq,
     IReadOnlyList<ReviewDto> Reviews,
-    IReadOnlyList<StoryDto> Stories);
+    IReadOnlyList<StoryDto> Stories,
+    IReadOnlyList<GalleryImageDto> Gallery);
 
-public sealed record GalleryViewModel(ContentPayload Home);
+public sealed record GalleryViewModel(IReadOnlyList<GalleryImageDto> Images);
 
 public sealed record StoriesIndexViewModel(IReadOnlyList<StoryDto> Stories);
 

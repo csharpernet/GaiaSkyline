@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RunSettings>
+  <RunConfiguration>
+    <!--
+      Run test assemblies sequentially (MaxCpuCount=1). The integration suites (Infrastructure.Tests
+      and Web.Tests) each provision a SQL Server LocalDB database; running them in parallel on the
+      single LocalDB instance causes lock contention. Within an assembly, xUnit still parallelises.
+    -->
+    <MaxCpuCount>1</MaxCpuCount>
+  </RunConfiguration>
+</RunSettings>

@@ -56,6 +56,7 @@ jobs:
           dotnet test GaiaSkyline.sln
           --configuration Release
           --no-build
+          --settings tests.runsettings
           --results-directory ./TestResults
           --collect "XPlat Code Coverage"
 

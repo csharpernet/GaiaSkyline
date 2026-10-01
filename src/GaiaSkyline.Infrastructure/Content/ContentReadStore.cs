@@ -1,5 +1,6 @@
 using GaiaSkyline.Application.Content;
 using GaiaSkyline.Domain.Content;
+using GaiaSkyline.Domain.Entities;
 using GaiaSkyline.Domain.Identifiers;
 using GaiaSkyline.Domain.Media;
 using GaiaSkyline.Domain.Reviews;
@@ -76,6 +77,20 @@ internal sealed class ContentReadStore(AppDbContext dbContext) : IContentReadSto
             .AsNoTracking()
             .Where(s => s.IsPublished && s.Slug == slug)
             .Include(s => s.Translations)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<Property?> GetPropertyAsync(CancellationToken cancellationToken)
+    {
+        return await _dbContext.Properties.AsNoTracking().FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<MediaCollection?> GetMediaCollectionAsync(string key, CancellationToken cancellationToken)
+    {
+        return await _dbContext.MediaCollections
+            .AsNoTracking()
+            .Where(c => c.Key == key)
+            .Include(c => c.Items)
             .FirstOrDefaultAsync(cancellationToken);
     }
 }

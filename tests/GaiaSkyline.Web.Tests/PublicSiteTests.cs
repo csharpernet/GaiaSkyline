@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using FluentAssertions;
@@ -160,8 +161,77 @@ public class PublicSiteTests(PublicSiteFactory factory) : IClassFixture<PublicSi
         home.Headers.GetValues("Content-Security-Policy").Single().Should().Contain("default-src 'self'");
     }
 
+    [Fact]
+    public async Task Home_emits_valid_lodgingbusiness_jsonld()
+    {
+        using var client = Client();
+        var html = await client.GetStringAsync(new Uri("/en", UriKind.Relative));
+
+        var lodging = JsonLdBlocks(html).Single(e => e.GetProperty("@type").GetString() == "LodgingBusiness");
+
+        lodging.GetProperty("name").GetString().Should().NotBeNullOrWhiteSpace();
+        lodging.GetProperty("address").GetProperty("addressLocality").GetString().Should().Be("Vila Nova de Gaia");
+        lodging.GetProperty("geo").GetProperty("latitude").GetDouble().Should().BeApproximately(41.137, 0.1);
+        lodging.GetProperty("checkinTime").GetString().Should().Be("16:00");
+        lodging.GetProperty("numberOfRooms").GetInt32().Should().Be(2);
+        lodging.GetProperty("aggregateRating").GetProperty("ratingValue").GetDecimal().Should().Be(4.91m);
+        lodging.GetProperty("aggregateRating").GetProperty("reviewCount").GetDecimal().Should().Be(23m);
+        lodging.GetProperty("review").GetArrayLength().Should().BeGreaterThan(0);
+    }
+
+    [Fact]
+    public async Task Stories_index_emits_collectionpage_jsonld()
+    {
+        using var client = Client();
+        var html = await client.GetStringAsync(new Uri("/en/stories", UriKind.Relative));
+
+        var page = JsonLdBlocks(html).Single(e => e.GetProperty("@type").GetString() == "CollectionPage");
+
+        page.GetProperty("mainEntity").GetProperty("itemListElement").GetArrayLength().Should().Be(3);
+    }
+
+    [Fact]
+    public async Task Story_detail_emits_article_jsonld()
+    {
+        using var client = Client();
+        var html = await client.GetStringAsync(new Uri($"/en/stories/{StorySlug}", UriKind.Relative));
+
+        var article = JsonLdBlocks(html).Single(e => e.GetProperty("@type").GetString() == "Article");
+
+        article.GetProperty("headline").GetString().Should().Contain("Slow Morning");
+        article.GetProperty("datePublished").GetString().Should().MatchRegex(@"^\d{4}-\d{2}-\d{2}$");
+        article.GetProperty("author").GetProperty("name").GetString().Should().NotBeNullOrWhiteSpace();
+        article.GetProperty("inLanguage").GetString().Should().Be("en");
+    }
+
+    [Fact]
+    public async Task Non_home_pages_emit_breadcrumblist_jsonld()
+    {
+        using var client = Client();
+        var html = await client.GetStringAsync(new Uri("/en/gallery", UriKind.Relative));
+
+        var crumbs = JsonLdBlocks(html).Single(e => e.GetProperty("@type").GetString() == "BreadcrumbList");
+
+        crumbs.GetProperty("itemListElement").GetArrayLength().Should().BeGreaterThanOrEqualTo(2);
+    }
+
+    [Fact]
+    public async Task Gallery_page_shows_images_with_lightbox_hooks()
+    {
+        using var client = Client();
+        var html = await client.GetStringAsync(new Uri("/en/gallery", UriKind.Relative));
+
+        html.Should().Contain("id=\"gallery-grid\"");
+        html.Should().Contain("id=\"lightbox\"");
+        Regex.Count(html, "data-gallery-open").Should().BeGreaterThan(5);
+    }
+
     private static List<string> Alternates(string html) =>
         Regex.Matches(html, "rel=\"alternate\" hreflang=\"(?!x-default)[^\"]+\" href=\"([^\"]+)\"")
             .Select(m => m.Groups[1].Value)
             .ToList();
+
+    private static IEnumerable<JsonElement> JsonLdBlocks(string html) =>
+        Regex.Matches(html, "<script type=\"application/ld\\+json\"[^>]*>(.*?)</script>", RegexOptions.Singleline)
+            .Select(m => JsonDocument.Parse(m.Groups[1].Value).RootElement.Clone());
 }

@@ -1,0 +1,7 @@
+@* Accessible lightbox used by the home mosaic and the gallery page (driven by ~/js/gallery.js). *@
+<div id="lightbox" class="fixed inset-0 z-50 bg-ink/95 hidden items-center justify-center" role="dialog" aria-modal="true" aria-label="Photo viewer">
+    <button type="button" data-gallery-close class="absolute top-4 right-4 text-white text-3xl leading-none p-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white" aria-label="Close photo viewer">✕</button>
+    <button type="button" data-gallery-prev class="absolute left-2 sm:left-6 text-white text-4xl leading-none p-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white" aria-label="Previous photo">‹</button>
+    <img id="lightbox-image" class="max-h-[85vh] max-w-[90vw] object-contain rounded" alt="" />
+    <button type="button" data-gallery-next class="absolute right-2 sm:right-6 text-white text-4xl leading-none p-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white" aria-label="Next photo">›</button>
+</div>

@@ -11,12 +11,15 @@ public sealed class StoriesController(IContentService content) : PublicControlle
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
     {
         var stories = await content.GetPublishedStoriesAsync(CurrentCulture, take: null, cancellationToken);
+        var pageUrl = $"{BaseUrl}/{CurrentSlug}/stories";
+        var items = stories.Select(s => ($"{BaseUrl}/{CurrentSlug}/stories/{s.Slug}", s.Title)).ToList();
 
         SetMeta(Meta(
             relativePath: "stories",
             title: $"Stories — {BrandName}",
             description: "Guides and notes about the apartment, Vila Nova de Gaia and the Douro — written by the host.",
-            breadcrumbs: [new Breadcrumb("Home", string.Empty), new Breadcrumb("Stories", null)]));
+            breadcrumbs: [new Breadcrumb("Home", string.Empty), new Breadcrumb("Stories", null)],
+            jsonLdBlocks: [JsonLd.CollectionPage(pageUrl, $"Stories — {BrandName}", items)]));
 
         return View(new StoriesIndexViewModel(stories));
     }
@@ -32,6 +35,8 @@ public sealed class StoriesController(IContentService content) : PublicControlle
 
         var all = await content.GetPublishedStoriesAsync(CurrentCulture, take: null, cancellationToken);
         var related = all.Where(s => s.Slug != story.Slug).Take(2).ToList();
+        var pageUrl = $"{BaseUrl}/{CurrentSlug}/stories/{story.Slug}";
+        var coverAbsolute = story.Cover is not null ? BaseUrl + story.Cover.BlobUri : null;
 
         SetMeta(Meta(
             relativePath: $"stories/{story.Slug}",
@@ -44,7 +49,8 @@ public sealed class StoriesController(IContentService content) : PublicControlle
                 new Breadcrumb("Home", string.Empty),
                 new Breadcrumb("Stories", "stories"),
                 new Breadcrumb(story.Title, null),
-            ]));
+            ],
+            jsonLdBlocks: [JsonLd.Article(pageUrl, story, coverAbsolute, CurrentCulture)]));
 
         return View(new StoryDetailViewModel(story, related));
     }

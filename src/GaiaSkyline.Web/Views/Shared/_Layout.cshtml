@@ -60,9 +60,23 @@
     <link rel="stylesheet" href="~/css/app.css" asp-append-version="true" />
     <link rel="icon" href="~/favicon.ico" />
 
-    @if (!string.IsNullOrEmpty(meta?.JsonLd))
+    @if (meta is not null)
     {
-        <script type="application/ld+json" nonce="@cspNonce">@Html.Raw(meta!.JsonLd)</script>
+        // Emit the whole <script> via Html.Raw so the MIME type keeps its literal '+'
+        // (Razor would otherwise HTML-encode "application/ld+json" to "application/ld&#x2B;json").
+        foreach (var block in meta.JsonLdBlocks)
+        {
+            @Html.Raw($"<script type=\"application/ld+json\" nonce=\"{cspNonce}\">{block}</script>")
+        }
+        if (meta.Breadcrumbs.Count > 0)
+        {
+            var crumbs = meta.Breadcrumbs
+                .Select(c => (c.Label, c.RelativePath is null
+                    ? (string?)null
+                    : (c.RelativePath.Length == 0 ? $"{baseUrl}/{slug}" : $"{baseUrl}/{slug}/{c.RelativePath}")))
+                .ToList();
+            @Html.Raw($"<script type=\"application/ld+json\" nonce=\"{cspNonce}\">{GaiaSkyline.Web.Seo.JsonLd.BreadcrumbList(crumbs)}</script>")
+        }
     }
 </head>
 <body class="font-body bg-stone text-ink antialiased min-h-screen flex flex-col">

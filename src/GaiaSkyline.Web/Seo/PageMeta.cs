@@ -30,6 +30,6 @@ public sealed class PageMeta
 
     public IReadOnlyList<Breadcrumb> Breadcrumbs { get; init; } = [];
 
-    /// <summary>Raw JSON-LD to inject in a &lt;script type="application/ld+json"&gt; block.</summary>
-    public string? JsonLd { get; init; }
+    /// <summary>Raw JSON-LD documents, each injected in its own &lt;script type="application/ld+json"&gt; block.</summary>
+    public IReadOnlyList<string> JsonLdBlocks { get; init; } = [];
 }
