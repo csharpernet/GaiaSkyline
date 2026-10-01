@@ -124,11 +124,18 @@ in the inner layers. **EF Core types never leak** into Application or Domain.
 
 ## Endpoints
 
-| Path            | Purpose                                                      |
-| --------------- | ----------------------------------------------------------- |
-| `/`             | Placeholder landing page                                    |
-| `/health/live`  | Liveness — is the process up (no dependency checks)          |
-| `/health/ready` | Readiness — dependencies (SQL Server) are reachable          |
+| Path                           | Purpose                                                      |
+| ------------------------------ | ----------------------------------------------------------- |
+| `/`                            | Placeholder landing page                                    |
+| `/health/live`                 | Liveness — is the process up (no dependency checks)          |
+| `/health/ready`                | Readiness — dependencies (SQL Server) are reachable          |
+| `/api/content/{section}?lang=` | Resolved content for a section in a language (read-only)     |
+| `/api/media/{id}`              | Media asset metadata (read-only)                             |
+
+Language resolves per request as `?lang=` → cookie `.AspNetCore.Culture` → `Accept-Language` →
+`en`, across five cultures (en, pt-PT, es, fr, de). Missing values fall back to English, then to a
+visible `‹key›` marker. On Development startup the app migrates and seeds canonical content (see
+`docs/content-seed.md`); disable with `Features:SeedContentOnStartup=false`.
 
 ---
 
@@ -188,3 +195,6 @@ scan (`dotnet list package --vulnerable`, fails on High/Critical).
 - [0002 — Strongly-typed identifiers](docs/decisions/0002-strongly-typed-ids.md)
 - [0003 — Testcontainers for integration tests](docs/decisions/0003-testcontainers-for-integration-tests.md) — _superseded by 0004_
 - [0004 — No Docker; LocalDB for integration tests](docs/decisions/0004-no-docker-localdb-for-tests.md)
+- [0005 — Content versioning out of scope for v1](docs/decisions/0005-content-versioning-out-of-scope.md)
+- [0006 — Media storage: local disk in dev, Blob in prod](docs/decisions/0006-media-storage-local-disk-dev-blob-prod.md)
+- [0007 — Placeholder translations and content](docs/decisions/0007-placeholder-translations.md)

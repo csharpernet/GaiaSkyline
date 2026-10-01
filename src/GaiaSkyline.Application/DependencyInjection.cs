@@ -1,4 +1,5 @@
 using FluentValidation;
+using GaiaSkyline.Application.Content;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace GaiaSkyline.Application;
@@ -18,6 +19,11 @@ public static class DependencyInjection
 
         services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(applicationAssembly));
         services.AddValidatorsFromAssembly(applicationAssembly, includeInternalTypes: true);
+
+        // Content read pipeline. IContentReadStore (EF) is provided by AddInfrastructure.
+        services.AddMemoryCache();
+        services.AddSingleton<IContentRevision, ContentRevision>();
+        services.AddScoped<IContentService, ContentService>();
 
         return services;
     }

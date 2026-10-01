@@ -1,0 +1,55 @@
+using GaiaSkyline.Application.Content;
+using GaiaSkyline.Domain.Content;
+using GaiaSkyline.Domain.Identifiers;
+using GaiaSkyline.Domain.Media;
+
+namespace GaiaSkyline.Web.Tests;
+
+/// <summary>
+/// Deterministic <see cref="IContentReadStore"/> used to drive the HTTP content API tests without
+/// a database: one text block (en + [DE] placeholder) and one number block (en only, so German
+/// falls back), plus a single media asset.
+/// </summary>
+internal sealed class FakeContentReadStore : IContentReadStore
+{
+    private static readonly DateTime Now = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+    public static readonly MediaAssetId KnownMediaId = MediaAssetId.From(Guid.Parse("11111111-1111-1111-1111-111111111111"));
+
+    private readonly List<ContentBlock> _blocks = Build();
+    private readonly MediaAsset _asset = new(
+        KnownMediaId, MediaKind.Image, "/media/known.svg", null, 1600, 1066, null, 100, "image/svg+xml", Now, "seed");
+
+    private static List<ContentBlock> Build()
+    {
+        var headline = new ContentBlock(
+            ContentBlockId.New(), "home.hero.headline", ContentKind.PlainText, "home", "Headline", 1, true, Now, "seed");
+        headline.SetTranslation("en", "Wake up to the Dom Luís I Bridge", null, null, null, Now, "seed");
+        headline.SetTranslation("de", "[DE] Wake up to the Dom Luís I Bridge", null, null, null, Now, "seed");
+
+        var opacity = new ContentBlock(
+            ContentBlockId.New(), "home.hero.overlay_opacity", ContentKind.Number, "home", "Opacity", 2, true, Now, "seed");
+        opacity.SetTranslation("en", null, null, 0.35m, null, Now, "seed");
+
+        return [headline, opacity];
+    }
+
+    public Task<IReadOnlyList<ContentBlock>> GetPublishedBlocksBySectionAsync(
+        string section,
+        CancellationToken cancellationToken)
+    {
+        IReadOnlyList<ContentBlock> result = _blocks.Where(b => b.Section == section && b.IsPublished).ToList();
+        return Task.FromResult(result);
+    }
+
+    public Task<IReadOnlyDictionary<MediaAssetId, MediaAsset>> GetMediaAssetsAsync(
+        IReadOnlyCollection<MediaAssetId> ids,
+        CancellationToken cancellationToken)
+    {
+        IReadOnlyDictionary<MediaAssetId, MediaAsset> result = new Dictionary<MediaAssetId, MediaAsset>();
+        return Task.FromResult(result);
+    }
+
+    public Task<MediaAsset?> GetMediaAssetAsync(MediaAssetId id, CancellationToken cancellationToken) =>
+        Task.FromResult(id == KnownMediaId ? _asset : null);
+}

@@ -5,6 +5,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- Expose internal types (ContentReadStore, etc.) to the integration test project. -->
+    <InternalsVisibleTo Include="GaiaSkyline.Infrastructure.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\GaiaSkyline.Application\GaiaSkyline.Application.csproj" />
     <ProjectReference Include="..\GaiaSkyline.Domain\GaiaSkyline.Domain.csproj" />
   </ItemGroup>

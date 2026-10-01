@@ -1,10 +1,15 @@
 using System.Globalization;
+using System.Text.Json.Serialization;
 using GaiaSkyline.Application;
 using GaiaSkyline.BackgroundJobs;
 using GaiaSkyline.Infrastructure;
+using GaiaSkyline.Infrastructure.Data;
+using GaiaSkyline.Infrastructure.Persistence;
 using GaiaSkyline.Web.Middleware;
 using Microsoft.AspNetCore.CookiePolicy;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.Localization;
+using Microsoft.EntityFrameworkCore;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -18,10 +23,33 @@ builder.Services.AddSerilog((services, loggerConfiguration) => loggerConfigurati
     .WriteTo.Console(formatProvider: CultureInfo.InvariantCulture));
 
 // --- MVC + application layers ---
-builder.Services.AddControllersWithViews();
+builder.Services
+    .AddControllersWithViews()
+    .AddJsonOptions(options =>
+    {
+        // API payloads: enums as names, omit null fields.
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+        options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
+    });
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddBackgroundJobs(builder.Configuration);
+
+// --- Localization: five supported cultures; resolve ?lang -> cookie -> Accept-Language -> en ---
+var supportedCultures = new[] { "en", "pt-PT", "es", "fr", "de" };
+builder.Services.Configure<RequestLocalizationOptions>(options =>
+{
+    options.SetDefaultCulture("en");
+    options.AddSupportedCultures(supportedCultures);
+    options.AddSupportedUICultures(supportedCultures);
+    options.ApplyCurrentCultureToResponseHeaders = true;
+    options.RequestCultureProviders =
+    [
+        new QueryStringRequestCultureProvider { QueryStringKey = "lang", UIQueryStringKey = "lang" },
+        new CookieRequestCultureProvider(),
+        new AcceptLanguageHeaderRequestCultureProvider(),
+    ];
+});
 
 // --- Antiforgery + cookie policy (SameSite=Lax; Secure in non-dev) ---
 var secureCookiePolicy = builder.Environment.IsDevelopment()
@@ -54,6 +82,21 @@ if (!string.IsNullOrWhiteSpace(connectionString))
 
 var app = builder.Build();
 
+// Development convenience: apply migrations and seed canonical content on startup. Gated by a
+// flag so the test host (and any environment that opts out) never touches the database here.
+var seedOnStartup = bool.TryParse(app.Configuration["Features:SeedContentOnStartup"], out var seedFlag) && seedFlag;
+if (app.Environment.IsDevelopment() && seedOnStartup)
+{
+    using var scope = app.Services.CreateScope();
+    var database = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    await database.Database.MigrateAsync();
+
+    var seeder = scope.ServiceProvider.GetRequiredService<ContentSeeder>();
+    var webRoot = app.Environment.WebRootPath;
+    var mediaRoot = string.IsNullOrEmpty(webRoot) ? null : Path.Combine(webRoot, "media");
+    await seeder.SeedAsync(mediaRoot, CancellationToken.None);
+}
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
@@ -65,6 +108,7 @@ app.UseHttpsRedirection();
 app.UseMiddleware<SecurityHeadersMiddleware>();
 app.UseStaticFiles();
 app.UseRouting();
+app.UseRequestLocalization();
 app.UseCookiePolicy();
 app.UseAuthorization();
 
@@ -74,6 +118,7 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions
     Predicate = registration => registration.Tags.Contains("ready"),
 });
 
+app.MapControllers(); // attribute-routed API controllers (/api/content, /api/media)
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");

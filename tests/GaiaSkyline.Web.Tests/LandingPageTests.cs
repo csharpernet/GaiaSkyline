@@ -2,6 +2,7 @@ using System.Net;
 using FluentAssertions;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.Configuration;
 
 namespace GaiaSkyline.Web.Tests;
 
@@ -12,7 +13,13 @@ public class LandingPageTests(WebApplicationFactory<Program> factory)
 
     private HttpClient CreateClient() =>
         _factory
-            .WithWebHostBuilder(webHost => webHost.UseEnvironment("Development"))
+            .WithWebHostBuilder(webHost =>
+            {
+                webHost.UseEnvironment("Development");
+                // Keep the landing-page tests database-free: do not seed on startup.
+                webHost.ConfigureAppConfiguration((_, cfg) => cfg.AddInMemoryCollection(
+                    new Dictionary<string, string?> { ["Features:SeedContentOnStartup"] = "false" }));
+            })
             .CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
 
     [Fact]

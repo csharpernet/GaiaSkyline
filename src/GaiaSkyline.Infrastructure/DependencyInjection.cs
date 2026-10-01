@@ -1,3 +1,6 @@
+using GaiaSkyline.Application.Content;
+using GaiaSkyline.Infrastructure.Content;
+using GaiaSkyline.Infrastructure.Data;
 using GaiaSkyline.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -27,6 +30,9 @@ public static class DependencyInjection
 
         services.AddDbContext<AppDbContext>(options =>
             options.UseSqlServer(connectionString, sql => sql.EnableRetryOnFailure()));
+
+        services.AddScoped<IContentReadStore, ContentReadStore>();
+        services.AddScoped<ContentSeeder>();
 
         return services;
     }
