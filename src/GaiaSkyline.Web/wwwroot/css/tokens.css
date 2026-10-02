@@ -29,7 +29,8 @@
   /* Palette */
   --color-ink: #0F1417;
   --color-stone: #F5F1EA;
-  --color-clay: #B85D3A;
+  /* clay is darkened from #B85D3A to meet WCAG AA (4.5:1) as link/label text on stone/white. */
+  --color-clay: #A04A28;
   --color-river: #2E4F60;
   --color-fog: #D9D2C5;
   --color-white: #FFFFFF;

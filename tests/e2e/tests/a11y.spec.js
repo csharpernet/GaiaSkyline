@@ -1,5 +1,5 @@
-import { test, expect } from '@playwright/test';
-import AxeBuilder from '@axe-core/playwright';
+const { test, expect } = require('@playwright/test');
+const AxeBuilder = require('@axe-core/playwright').default;
 
 // Public pages that must have zero serious/critical accessibility violations (Stage 3 acceptance).
 // Covers each page template plus a second language to catch lang-specific markup regressions.
@@ -28,7 +28,7 @@ for (const path of paths) {
       id: v.id,
       impact: v.impact,
       help: v.help,
-      nodes: v.nodes.length,
+      nodes: v.nodes.map((n) => ({ target: n.target, failureSummary: n.failureSummary })),
     }));
 
     expect(summary, JSON.stringify(summary, null, 2)).toEqual([]);

@@ -13,7 +13,8 @@ module.exports = {
       colors: {
         ink: '#0F1417',
         stone: '#F5F1EA',
-        clay: '#B85D3A',
+        // Darkened from #B85D3A to meet WCAG AA (4.5:1) as link/label text on stone/white.
+        clay: '#A04A28',
         river: '#2E4F60',
         fog: '#D9D2C5',
         white: '#FFFFFF',

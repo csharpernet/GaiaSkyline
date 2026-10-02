@@ -94,7 +94,7 @@
                         @foreach (var item in group)
                         {
                             var available = item.Value.Boolean ?? true;
-                            <li class="@(available ? "text-ink" : "text-ink/40 line-through")">@item.Value.Text</li>
+                            <li class="@(available ? "text-ink" : "text-ink/70 line-through")">@item.Value.Text</li>
                         }
                     </ul>
                 </div>
@@ -173,6 +173,7 @@
             var mapLng = Model.Property.Lng.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
             <figure class="mt-8">
                 <div id="location-map"
+                     role="region"
                      class="h-80 w-full overflow-hidden rounded-lg bg-fog"
                      aria-label="Map of the approximate location in Vila Nova de Gaia, across the Douro from central Porto"
                      data-lat="@mapLat" data-lng="@mapLng" data-zoom="13"
