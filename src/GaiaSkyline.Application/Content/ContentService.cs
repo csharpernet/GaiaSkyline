@@ -250,7 +250,8 @@ public sealed class ContentService : IContentService
         asset.DurationSec,
         asset.ByteSize,
         asset.ContentType,
-        asset.AltText);
+        asset.AltText,
+        asset.Lqip);
 
     private static ReviewDto ToReviewDto(Review review) => new(
         review.Id.Value,

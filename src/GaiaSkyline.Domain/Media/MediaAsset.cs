@@ -26,7 +26,8 @@ public sealed class MediaAsset : Entity<MediaAssetId>
         string contentType,
         DateTime uploadedAtUtc,
         string uploadedBy,
-        string? altText = null)
+        string? altText = null,
+        string? lqip = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(blobUri);
         ArgumentException.ThrowIfNullOrWhiteSpace(contentType);
@@ -47,6 +48,7 @@ public sealed class MediaAsset : Entity<MediaAssetId>
         UploadedAtUtc = uploadedAtUtc;
         UploadedBy = uploadedBy;
         AltText = string.IsNullOrWhiteSpace(altText) ? null : altText.Trim();
+        Lqip = string.IsNullOrWhiteSpace(lqip) ? null : lqip.Trim();
     }
 
     public MediaKind Kind { get; private set; }
@@ -71,5 +73,11 @@ public sealed class MediaAsset : Entity<MediaAssetId>
 
     /// <summary>Descriptive alternative text for accessibility and image SEO (required in Stage 7).</summary>
     public string? AltText { get; private set; }
+
+    /// <summary>
+    /// Low-Quality Image Placeholder: a tiny blurred preview as a self-contained <c>data:</c> URI,
+    /// shown behind the real image while it loads to cut perceived LCP without a layout shift.
+    /// </summary>
+    public string? Lqip { get; private set; }
 }
 

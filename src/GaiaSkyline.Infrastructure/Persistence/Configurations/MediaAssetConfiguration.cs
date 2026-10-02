@@ -24,5 +24,7 @@ internal sealed class MediaAssetConfiguration : IEntityTypeConfiguration<MediaAs
         builder.Property(a => a.UploadedAtUtc).IsRequired();
         builder.Property(a => a.UploadedBy).HasMaxLength(100).IsRequired();
         builder.Property(a => a.AltText).HasMaxLength(500);
+        // LQIP is a base64 data: URI for a ~24px-wide blurred preview; a few KB at most.
+        builder.Property(a => a.Lqip).HasMaxLength(8000);
     }
 }

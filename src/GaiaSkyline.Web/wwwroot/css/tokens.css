@@ -3,6 +3,28 @@
  * Mirrors tailwind.config.js so Razor partials can use either utilities or var(--token).
  * Loaded before app.css in _Layout.cshtml.
  */
+/*
+ * Metric-matched fallback faces. The size-adjust / *-override descriptors make the local fallback
+ * occupy the same space as the web font, so swapping in Inter/Fraunces causes no layout shift (CLS).
+ */
+@font-face {
+  font-family: 'Inter Fallback';
+  src: local('Arial');
+  size-adjust: 107%;
+  ascent-override: 90%;
+  descent-override: 22.4%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: 'Fraunces Fallback';
+  src: local('Georgia');
+  size-adjust: 104%;
+  ascent-override: 92%;
+  descent-override: 24%;
+  line-gap-override: 0%;
+}
+
 :root {
   /* Palette */
   --color-ink: #0F1417;

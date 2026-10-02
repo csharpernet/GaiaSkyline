@@ -88,3 +88,100 @@ jobs:
             exit 1
           fi
           echo "No High/Critical vulnerabilities found."
+
+  browser-quality:
+    # Core Web Vitals (Lighthouse CI) and accessibility (Playwright + axe) against the running app.
+    # Windows runner so the app can use SQL Server LocalDB, matching build-and-test (see ADR 0004).
+    needs: build-and-test
+    runs-on: windows-latest
+
+    defaults:
+      run:
+        shell: bash
+
+    env:
+      DOTNET_NOLOGO: "true"
+      DOTNET_CLI_TELEMETRY_OPTOUT: "true"
+      DOTNET_SKIP_FIRST_TIME_EXPERIENCE: "true"
+      ASPNETCORE_ENVIRONMENT: "Development"
+      # Dev seeding migrates, seeds canonical content and generates the raster variants on startup.
+      Features__SeedContentOnStartup: "true"
+      ConnectionStrings__Default: "Server=(localdb)\\mssqllocaldb;Database=GaiaSkyline_CI;Trusted_Connection=True;TrustServerCertificate=True;MultipleActiveResultSets=true"
+      BASE_URL: "http://localhost:5080"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up .NET (from global.json)
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Build (produces the front-end assets the app serves)
+        run: dotnet build src/GaiaSkyline.Web/GaiaSkyline.Web.csproj --configuration Release
+
+      - name: Start LocalDB
+        run: |
+          sqllocaldb info
+          sqllocaldb start MSSQLLocalDB
+
+      - name: Start the app
+        # Only an HTTP endpoint is bound, so UseHttpsRedirection finds no HTTPS port and does not
+        # redirect — Lighthouse and Playwright can hit plain HTTP.
+        run: |
+          dotnet run --project src/GaiaSkyline.Web/GaiaSkyline.Web.csproj \
+            --configuration Release --no-build --urls "$BASE_URL" > app.log 2>&1 &
+          echo "Started app (pid $!)"
+
+      - name: Wait for the app to be ready
+        run: |
+          for i in $(seq 1 90); do
+            if curl -sf "$BASE_URL/health/live" > /dev/null; then
+              echo "App is up after ${i} tries."
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::App did not become ready in time."
+          echo "----- app.log -----"
+          cat app.log || true
+          exit 1
+
+      - name: Lighthouse CI (Core Web Vitals budgets)
+        run: |
+          npm install -g @lhci/cli@0.14.x
+          lhci autorun --config=./lighthouserc.json
+
+      - name: Playwright + axe (zero serious/critical a11y violations)
+        working-directory: tests/e2e
+        run: |
+          npm install
+          npx playwright install --with-deps chromium
+          npx playwright test
+
+      - name: Upload Lighthouse report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-report
+          path: ./lighthouse-report
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: tests/e2e/playwright-report
+
+      - name: Upload app log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-log
+          path: app.log

@@ -19,7 +19,10 @@
                     <a href="/@slug/stories/@story.Slug" class="group block">
                         @if (story.Cover is not null)
                         {
-                            <img src="@story.Cover.BlobUri" alt="@story.Cover.Alt" width="@story.Cover.Width" height="@story.Cover.Height" loading="lazy" class="w-full aspect-[3/2] object-cover" />
+                            @await Html.PartialAsync("_Picture", ResponsiveImage.From(
+                                story.Cover,
+                                sizes: "(min-width: 768px) 33vw, 100vw",
+                                wrapperClass: "aspect-[3/2]"))
                         }
                         <div class="p-5">
                             <h2 class="font-display text-xl font-semibold group-hover:text-clay">@story.Title</h2>

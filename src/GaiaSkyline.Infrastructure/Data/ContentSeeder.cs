@@ -1,4 +1,3 @@
-using System.Text;
 using GaiaSkyline.Application.Content;
 using GaiaSkyline.Domain.Content;
 using GaiaSkyline.Domain.Entities;
@@ -8,6 +7,12 @@ using GaiaSkyline.Domain.Reviews;
 using GaiaSkyline.Domain.Stories;
 using GaiaSkyline.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats;
+using SixLabors.ImageSharp.Formats.Jpeg;
+using SixLabors.ImageSharp.Formats.Webp;
+using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp.Processing;
 
 namespace GaiaSkyline.Infrastructure.Data;
 
@@ -21,6 +26,15 @@ public sealed class ContentSeeder(AppDbContext dbContext, IContentRevision revis
 {
     private const string Actor = "seed";
     private const int GalleryImageCount = 10;
+
+    // Responsive raster pipeline (see ADR 0008). The seeder writes deterministic placeholder
+    // rasters — WebP + JPEG at each width, plus an inline LQIP — so the <picture> markup, srcset
+    // selection and LCP behaviour are all exercised in dev. Real photography (and AVIF) arrives via
+    // the Stage 7 upload pipeline; the markup already carries the AVIF-ready <picture> structure.
+    private const int MasterWidth = 1600;
+    private const int MasterHeight = 1066; // 3:2
+    private static readonly int[] RasterWidths = [400, 800, 1600];
+
     private static readonly DateTime SeedTimestampUtc = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
     private static readonly (string Language, string Prefix)[] PlaceholderLanguages =
@@ -110,16 +124,16 @@ public sealed class ContentSeeder(AppDbContext dbContext, IContentRevision revis
         var existing = (await _dbContext.MediaAssets.Select(a => a.Id).ToListAsync(cancellationToken)).ToHashSet();
 
         var posterId = MediaAssetId.From(DeterministicGuid.From("media:home.hero.poster"));
-        AddImageAsset(existing, posterId, "Hero poster", mediaPhysicalRoot);
+        AddImageAsset(existing, posterId, "home-hero-poster", "Hero poster", mediaPhysicalRoot);
 
         for (var i = 1; i <= GalleryImageCount; i++)
         {
             var id = MediaAssetId.From(DeterministicGuid.From($"media:home.gallery.{i}"));
-            AddImageAsset(existing, id, $"Gallery image {i}", mediaPhysicalRoot);
+            AddImageAsset(existing, id, $"home-gallery-{i}", $"Gallery image {i}", mediaPhysicalRoot);
         }
 
         // Hero video placeholder: no binary is generated in this stage; the owner uploads the real
-        // file via the admin in Stage 7. The poster points at the seeded poster image.
+        // file via the admin in Stage 7. The poster points at the seeded poster image's JPEG.
         var videoId = MediaAssetId.From(DeterministicGuid.From("media:home.hero.video"));
         if (!existing.Contains(videoId))
         {
@@ -127,7 +141,7 @@ public sealed class ContentSeeder(AppDbContext dbContext, IContentRevision revis
                 videoId,
                 MediaKind.Video,
                 blobUri: $"/media/{videoId.Value:N}.mp4",
-                posterBlobUri: $"/media/{posterId.Value:N}.svg",
+                posterBlobUri: $"/media/home-hero-poster-{MasterWidth}.jpg",
                 width: 1920,
                 height: 1080,
                 durationSec: 30,
@@ -141,39 +155,216 @@ public sealed class ContentSeeder(AppDbContext dbContext, IContentRevision revis
     private void AddImageAsset(
         HashSet<MediaAssetId> existing,
         MediaAssetId id,
+        string slug,
         string label,
         string? mediaPhysicalRoot)
     {
-        var fileName = $"{id.Value:N}.svg";
-        var svg = PlaceholderSvg(label);
+        var alreadySeeded = existing.Contains(id);
+        var masterPath = mediaPhysicalRoot is null
+            ? null
+            : Path.Combine(mediaPhysicalRoot, $"{slug}-{MasterWidth}.jpg");
 
-        if (mediaPhysicalRoot is not null)
+        // Idempotent fast path: the DB row exists and its rasters are on disk — nothing to do.
+        if (alreadySeeded && (masterPath is null || File.Exists(masterPath)))
         {
-            var path = Path.Combine(mediaPhysicalRoot, fileName);
-            if (!File.Exists(path))
-            {
-                File.WriteAllText(path, svg, Encoding.UTF8);
-            }
+            return;
         }
 
-        if (existing.Contains(id))
+        string? lqip = null;
+        long masterBytes = 0;
+        if (mediaPhysicalRoot is not null)
         {
+            (lqip, masterBytes) = GenerateRasterVariants(mediaPhysicalRoot, slug);
+        }
+
+        if (alreadySeeded)
+        {
+            // Rasters were regenerated above (e.g. the media folder was cleared); the row stays.
             return;
         }
 
         _dbContext.MediaAssets.Add(new MediaAsset(
             id,
             MediaKind.Image,
-            blobUri: $"/media/{fileName}",
+            blobUri: $"/media/{slug}-{MasterWidth}.jpg",
             posterBlobUri: null,
-            width: 1600,
-            height: 1066,
+            width: MasterWidth,
+            height: MasterHeight,
             durationSec: null,
-            byteSize: Encoding.UTF8.GetByteCount(svg),
-            contentType: "image/svg+xml",
+            byteSize: masterBytes,
+            contentType: "image/jpeg",
             uploadedAtUtc: SeedTimestampUtc,
             uploadedBy: Actor,
-            altText: $"Gaia Skyline apartment, Vila Nova de Gaia — {label.ToLowerInvariant()}"));
+            altText: $"Gaia Skyline apartment, Vila Nova de Gaia — {label.ToLowerInvariant()}",
+            lqip: lqip));
+    }
+
+    /// <summary>
+    /// Writes WebP + JPEG renditions at every <see cref="RasterWidths"/> width and returns the LQIP
+    /// data URI plus the byte size of the full-width JPEG (the canonical fallback / OG image).
+    /// </summary>
+    private static (string Lqip, long MasterBytes) GenerateRasterVariants(string root, string slug)
+    {
+        var (top, bottom) = GradientColors(slug);
+        using var master = CreateGradient(MasterWidth, MasterHeight, top, bottom);
+
+        var jpegEncoder = new JpegEncoder { Quality = 72 };
+        var webpEncoder = new WebpEncoder { Quality = 72, FileFormat = WebpFileFormatType.Lossy };
+
+        long masterBytes = 0;
+        foreach (var width in RasterWidths)
+        {
+            var height = (int)Math.Round((double)width * MasterHeight / MasterWidth);
+            using var variant = master.Clone(x => x.Resize(width, height));
+
+            var jpgPath = Path.Combine(root, $"{slug}-{width}.jpg");
+            var webpPath = Path.Combine(root, $"{slug}-{width}.webp");
+            WriteVariantAtomically(jpgPath, jpegEncoder, variant);
+            WriteVariantAtomically(webpPath, webpEncoder, variant);
+
+            if (width == MasterWidth)
+            {
+                try
+                {
+                    masterBytes = File.Exists(jpgPath) ? new FileInfo(jpgPath).Length : 0;
+                }
+                catch (IOException)
+                {
+                    masterBytes = 0;
+                }
+            }
+        }
+
+        // LQIP: a 24px-wide lossy WebP inlined as a data URI (a few hundred bytes).
+        var lqipHeight = Math.Max(1, (int)Math.Round(24.0 * MasterHeight / MasterWidth));
+        using var tiny = master.Clone(x => x.Resize(24, lqipHeight));
+        using var buffer = new MemoryStream();
+        tiny.Save(buffer, new WebpEncoder { Quality = 40, FileFormat = WebpFileFormatType.Lossy });
+        var lqip = "data:image/webp;base64," + Convert.ToBase64String(buffer.ToArray());
+
+        return (lqip, masterBytes);
+    }
+
+    /// <summary>
+    /// Writes an encoded rendition to a temp file and atomically moves it into place, skipping files
+    /// that already exist. The rasters are deterministic, so concurrent writers (e.g. parallel test
+    /// hosts seeding the same media folder) converge on identical bytes; a lost race is ignored.
+    /// </summary>
+    private static void WriteVariantAtomically(string finalPath, IImageEncoder encoder, Image<Rgba32> image)
+    {
+        if (File.Exists(finalPath))
+        {
+            return;
+        }
+
+        var tempPath = $"{finalPath}.{Guid.NewGuid():N}.tmp";
+        try
+        {
+            image.Save(tempPath, encoder);
+            File.Move(tempPath, finalPath, overwrite: true);
+        }
+        catch (IOException)
+        {
+            // Another seeder is producing the same file concurrently; its bytes are identical.
+        }
+        finally
+        {
+            if (File.Exists(tempPath))
+            {
+                try
+                {
+                    File.Delete(tempPath);
+                }
+                catch (IOException)
+                {
+                    // Best effort; a stray temp file is harmless and git-ignored.
+                }
+            }
+        }
+    }
+
+    private static Image<Rgba32> CreateGradient(int width, int height, Rgba32 top, Rgba32 bottom)
+    {
+        var image = new Image<Rgba32>(width, height);
+        image.ProcessPixelRows(accessor =>
+        {
+            for (var y = 0; y < accessor.Height; y++)
+            {
+                var t = accessor.Height == 1 ? 0f : (float)y / (accessor.Height - 1);
+                var pixel = new Rgba32(
+                    (byte)(top.R + ((bottom.R - top.R) * t)),
+                    (byte)(top.G + ((bottom.G - top.G) * t)),
+                    (byte)(top.B + ((bottom.B - top.B) * t)));
+                var row = accessor.GetRowSpan(y);
+                row.Fill(pixel);
+            }
+        });
+        return image;
+    }
+
+    // Deterministic muted two-colour gradient derived from the slug, so each placeholder is
+    // visually distinct but on-brand (low saturation, river/stone range).
+    private static (Rgba32 Top, Rgba32 Bottom) GradientColors(string slug)
+    {
+        var hash = 0;
+        foreach (var ch in slug)
+        {
+            hash = unchecked((hash * 31) + ch);
+        }
+
+        var hue = Math.Abs(hash) % 360;
+        return (HslToRgb(hue, 0.22f, 0.70f), HslToRgb((hue + 28) % 360, 0.32f, 0.48f));
+    }
+
+    private static Rgba32 HslToRgb(int hueDegrees, float saturation, float lightness)
+    {
+        var h = hueDegrees / 360f;
+        float r, g, b;
+
+        if (saturation == 0f)
+        {
+            r = g = b = lightness;
+        }
+        else
+        {
+            var q = lightness < 0.5f ? lightness * (1 + saturation) : lightness + saturation - (lightness * saturation);
+            var p = (2 * lightness) - q;
+            r = HueToChannel(p, q, h + (1f / 3f));
+            g = HueToChannel(p, q, h);
+            b = HueToChannel(p, q, h - (1f / 3f));
+        }
+
+        return new Rgba32((byte)Math.Round(r * 255), (byte)Math.Round(g * 255), (byte)Math.Round(b * 255));
+    }
+
+    private static float HueToChannel(float p, float q, float t)
+    {
+        if (t < 0f)
+        {
+            t += 1f;
+        }
+
+        if (t > 1f)
+        {
+            t -= 1f;
+        }
+
+        if (t < 1f / 6f)
+        {
+            return p + ((q - p) * 6 * t);
+        }
+
+        if (t < 1f / 2f)
+        {
+            return q;
+        }
+
+        if (t < 2f / 3f)
+        {
+            return p + ((q - p) * ((2f / 3f) - t) * 6);
+        }
+
+        return p;
     }
 
     private async Task EnsureGalleryAsync(CancellationToken cancellationToken)
@@ -321,12 +512,6 @@ public sealed class ContentSeeder(AppDbContext dbContext, IContentRevision revis
         ContentKind.Boolean => !string.IsNullOrWhiteSpace(text), // amenity labels
         _ => false,
     };
-
-    private static string PlaceholderSvg(string label) =>
-        "<svg xmlns='http://www.w3.org/2000/svg' width='1600' height='1066' viewBox='0 0 1600 1066'>" +
-        "<rect width='100%' height='100%' fill='#D9D2C5'/>" +
-        "<text x='50%' y='50%' font-family='sans-serif' font-size='56' fill='#2E4F60' " +
-        $"text-anchor='middle' dominant-baseline='middle'>{label}</text></svg>";
 
     private sealed record BlockSpec(
         string Section,

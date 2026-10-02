@@ -8,7 +8,6 @@
     var subheadline = home.Text("home.hero.subheadline");
     var ctaText = home.TextOr("home.hero.cta_text", "Check availability");
     var ctaHref = home.TextOr("home.hero.cta_href", "/book");
-    var overlay = (double?)home.Number("home.hero.overlay_opacity") ?? 0.35;
     var slug = SupportedCultures.SlugForCulture(System.Globalization.CultureInfo.CurrentUICulture.Name);
 
     var narratives = new[]
@@ -18,11 +17,8 @@
         ("home.layout.title", "home.layout.body"),
     };
     var amenityGroups = Model.Amenities.Items.GroupBy(kv => kv.Key.Split('.')[1]).OrderBy(g => g.Key).ToList();
-    var cspNonce = Context.Items[GaiaSkyline.Web.Middleware.SecurityHeadersMiddleware.NonceItemKey] as string ?? string.Empty;
-    var overlayCss = overlay.ToString(System.Globalization.CultureInfo.InvariantCulture);
 }
 
-<style nonce="@cspNonce">.gs-hero-scrim{opacity:@overlayCss}</style>
 <section class="relative h-[70vh] md:h-[100dvh] min-h-[32rem] flex items-end overflow-hidden" aria-label="Introduction">
     <video class="absolute inset-0 w-full h-full object-cover" playsinline muted loop autoplay
            preload="metadata" poster="@poster?.BlobUri" aria-hidden="true" tabindex="-1">
@@ -31,7 +27,7 @@
             <source src="@video.BlobUri" type="video/mp4" />
         }
     </video>
-    <div class="absolute inset-0 bg-ink gs-hero-scrim" aria-hidden="true"></div>
+    <div class="absolute inset-0 bg-ink/[0.35]" aria-hidden="true"></div>
     <div class="relative max-w-6xl mx-auto w-full px-6 pb-20 text-white">
         <h1 class="font-display font-semibold tracking-tight text-4xl sm:text-6xl md:text-7xl max-w-3xl">@headline</h1>
         @if (!string.IsNullOrWhiteSpace(subheadline))
@@ -60,13 +56,15 @@
             <ul id="gallery-grid" class="mt-8 grid gap-3 grid-cols-2 md:grid-cols-3" role="list">
                 @for (var i = 0; i < take; i++)
                 {
-                    var img = Model.Gallery[i].Asset;
+                    var pic = ResponsiveImage.From(
+                        Model.Gallery[i].Asset,
+                        sizes: "(min-width: 768px) 33vw, 50vw",
+                        wrapperClass: "aspect-[3/2] group-hover:scale-[1.02] transition-transform duration-200");
                     <li>
                         <button type="button" data-gallery-open="@i"
                                 class="block w-full overflow-hidden rounded-lg group focus-visible:outline focus-visible:outline-2 focus-visible:outline-clay"
                                 aria-label="Open photo @(i + 1)">
-                            <img src="@img.BlobUri" alt="@img.Alt" width="@img.Width" height="@img.Height" loading="lazy"
-                                 class="w-full aspect-[3/2] object-cover group-hover:scale-[1.02] transition-transform duration-200" />
+                            @await Html.PartialAsync("_Picture", pic)
                         </button>
                     </li>
                 }
@@ -169,6 +167,22 @@
     <section class="py-16 border-t border-fog" aria-labelledby="location-heading">
         <h2 id="location-heading" class="font-display text-3xl font-semibold">The neighbourhood</h2>
         <div class="mt-4 prose text-lg leading-relaxed text-ink/90">@Html.Raw(home.Text("home.location.blurb"))</div>
+        @if (Model.Property is not null)
+        {
+            var mapLat = Model.Property.Lat.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+            var mapLng = Model.Property.Lng.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+            <figure class="mt-8">
+                <div id="location-map"
+                     class="h-80 w-full overflow-hidden rounded-lg bg-fog"
+                     aria-label="Map of the approximate location in Vila Nova de Gaia, across the Douro from central Porto"
+                     data-lat="@mapLat" data-lng="@mapLng" data-zoom="13"
+                     data-tiles="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+                     data-attribution="&copy; OpenStreetMap contributors"
+                     data-css="@Url.Content("~/css/vendor/maplibre-gl.css")"
+                     data-js="@Url.Content("~/js/vendor/maplibre-gl.js")"></div>
+                <figcaption class="mt-2 text-sm text-river">Approximate location — the exact address is shared after booking.</figcaption>
+            </figure>
+        }
     </section>
 
     @if (Model.Stories.Count > 0)
@@ -184,7 +198,10 @@
                     <a href="/@slug/stories/@story.Slug" class="group block bg-white rounded-lg overflow-hidden shadow-sm">
                         @if (story.Cover is not null)
                         {
-                            <img src="@story.Cover.BlobUri" alt="@story.Cover.Alt" width="@story.Cover.Width" height="@story.Cover.Height" loading="lazy" class="w-full aspect-[3/2] object-cover" />
+                            @await Html.PartialAsync("_Picture", ResponsiveImage.From(
+                                story.Cover,
+                                sizes: "(min-width: 768px) 33vw, 100vw",
+                                wrapperClass: "aspect-[3/2]"))
                         }
                         <div class="p-5">
                             <h3 class="font-display text-lg font-semibold group-hover:text-clay">@story.Title</h3>
@@ -199,6 +216,14 @@
 
 @await Html.PartialAsync("_Lightbox")
 
+@section Head {
+    @if (poster is not null)
+    {
+        <link rel="preload" as="image" href="@poster.BlobUri" fetchpriority="high" />
+    }
+}
+
 @section Scripts {
     <script src="~/js/gallery.js" defer></script>
+    <script src="~/js/map.js" defer></script>
 }

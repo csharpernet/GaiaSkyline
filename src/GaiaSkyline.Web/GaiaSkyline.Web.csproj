@@ -19,24 +19,24 @@
   </ItemGroup>
 
   <!--
-    Tailwind is compiled at build time via a Node step (see ADR 0001).
-    The compiled output (wwwroot/css/app.css) is generated, git-ignored, and produced
-    incrementally: MSBuild reruns Tailwind only when a source/markup file changes.
+    Front-end is compiled at build time via a Node step (see ADR 0001): Tailwind CSS plus
+    self-hosted vendor JS (web-vitals). The generated outputs are git-ignored and produced
+    incrementally: MSBuild reruns the step only when a source/markup file changes.
   -->
   <ItemGroup>
-    <TailwindInput Include="package.json;tailwind.config.js;Styles\app.css" />
-    <TailwindInput Include="Views\**\*.cshtml" />
+    <FrontendInput Include="package.json;tailwind.config.js;copy-vendor.js;Styles\app.css" />
+    <FrontendInput Include="Views\**\*.cshtml" />
   </ItemGroup>
 
-  <Target Name="TailwindBuild"
+  <Target Name="FrontendBuild"
           BeforeTargets="AssignTargetPaths;Build"
-          Inputs="@(TailwindInput)"
-          Outputs="wwwroot\css\app.css">
-    <Message Importance="high" Text="GaiaSkyline: compiling Tailwind CSS (npm run build:css)..." />
+          Inputs="@(FrontendInput)"
+          Outputs="wwwroot\css\app.css;wwwroot\js\vendor\web-vitals.iife.js;wwwroot\js\vendor\maplibre-gl.js">
+    <Message Importance="high" Text="GaiaSkyline: building front-end (npm run build)..." />
     <Exec Command="npm install --no-fund --no-audit --loglevel=error"
           Condition="!Exists('$(MSBuildProjectDirectory)\node_modules')"
           WorkingDirectory="$(MSBuildProjectDirectory)" />
-    <Exec Command="npm run build:css"
+    <Exec Command="npm run build"
           WorkingDirectory="$(MSBuildProjectDirectory)" />
   </Target>
 

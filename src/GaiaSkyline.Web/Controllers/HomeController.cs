@@ -69,6 +69,6 @@ public sealed class HomeController(IContentService content) : PublicController
             ogImagePath: poster?.BlobUri,
             jsonLdBlocks: jsonLd));
 
-        return View(new HomeViewModel(home, amenities, rules, faq, reviews, stories, gallery));
+        return View(new HomeViewModel(home, amenities, rules, faq, reviews, stories, gallery, property));
     }
 }

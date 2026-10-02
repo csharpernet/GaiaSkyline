@@ -2,10 +2,12 @@ using System.Globalization;
 using GaiaSkyline.Web.Localization;
 using GaiaSkyline.Web.Seo;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.OutputCaching;
 
 namespace GaiaSkyline.Web.Controllers;
 
 /// <summary>Base for the language-segmented public pages. Builds and stashes the SEO <see cref="PageMeta"/>.</summary>
+[OutputCache(PolicyName = "public")]
 public abstract class PublicController : Controller
 {
     protected const string BrandName = "Gaia Skyline";

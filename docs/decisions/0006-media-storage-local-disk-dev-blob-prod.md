@@ -16,8 +16,9 @@ Model storage behind an **`IMediaStorage`** abstraction (declared in the Applica
 implemented with the upload flow in Stage 7).
 
 - **Dev:** media bytes live on local disk under `wwwroot/media/`, served as static files.
-  `BlobUri` is a **relative path** (`/media/{guid}.{ext}`). The seeder writes placeholder SVGs there
-  on Development startup.
+  `BlobUri` is a **relative path** (`/media/{slug}-1600.jpg`). The seeder writes placeholder rasters
+  (WebP + JPEG at several widths, plus an inline LQIP) there on Development startup; see
+  [0008](0008-responsive-images-and-map-tiles.md).
 - **Prod:** an Azure Blob implementation of `IMediaStorage` stores bytes and `BlobUri` becomes the
   blob URL. Nothing above the storage seam changes.
 

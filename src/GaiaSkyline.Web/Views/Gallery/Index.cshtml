@@ -12,14 +12,16 @@
         <ul id="gallery-grid" class="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3" role="list">
             @for (var i = 0; i < Model.Images.Count; i++)
             {
-                var img = Model.Images[i].Asset;
+                var pic = ResponsiveImage.From(
+                    Model.Images[i].Asset,
+                    sizes: "(min-width: 1024px) 360px, (min-width: 640px) 45vw, 90vw",
+                    wrapperClass: "aspect-[3/2] group-hover:scale-[1.02] transition-transform duration-200",
+                    eager: i == 0);
                 <li>
                     <button type="button" data-gallery-open="@i"
                             class="block w-full overflow-hidden rounded-lg group focus-visible:outline focus-visible:outline-2 focus-visible:outline-clay"
                             aria-label="Open photo @(i + 1) of @Model.Images.Count">
-                        <img src="@img.BlobUri" alt="@img.Alt" width="@img.Width" height="@img.Height"
-                             loading="@(i == 0 ? "eager" : "lazy")"
-                             class="w-full aspect-[3/2] object-cover group-hover:scale-[1.02] transition-transform duration-200" />
+                        @await Html.PartialAsync("_Picture", pic)
                     </button>
                 </li>
             }

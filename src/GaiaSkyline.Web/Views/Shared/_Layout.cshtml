@@ -17,7 +17,6 @@
     string? ogImage = meta?.OgImagePath is { Length: > 0 } img
         ? (img.StartsWith("http", StringComparison.OrdinalIgnoreCase) ? img : baseUrl + img)
         : null;
-    var cspNonce = Context.Items[GaiaSkyline.Web.Middleware.SecurityHeadersMiddleware.NonceItemKey] as string ?? string.Empty;
     var fonts = "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@@9..144,400;9..144,600;9..144,700&family=Inter:wght@@400;500;600&display=swap";
 }<!DOCTYPE html>
 <html lang="@culture">
@@ -58,15 +57,20 @@
     <link rel="stylesheet" href="@fonts" />
     <link rel="stylesheet" href="~/css/tokens.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/app.css" asp-append-version="true" />
-    <link rel="icon" href="~/favicon.ico" />
+    <link rel="icon" href="~/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="~/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" sizes="32x32" href="~/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="~/favicon-192.png" />
+    <link rel="apple-touch-icon" href="~/apple-touch-icon.png" />
 
     @if (meta is not null)
     {
-        // Emit the whole <script> via Html.Raw so the MIME type keeps its literal '+'
-        // (Razor would otherwise HTML-encode "application/ld+json" to "application/ld&#x2B;json").
+        // JSON-LD scripts are data (type="application/ld+json"), not executable, so they are not
+        // subject to CSP script-src and need no nonce — which also keeps them safely cacheable.
+        // Emit via Html.Raw so the MIME type keeps a literal '+'.
         foreach (var block in meta.JsonLdBlocks)
         {
-            @Html.Raw($"<script type=\"application/ld+json\" nonce=\"{cspNonce}\">{block}</script>")
+            @Html.Raw($"<script type=\"application/ld+json\">{block}</script>")
         }
         if (meta.Breadcrumbs.Count > 0)
         {
@@ -75,16 +79,25 @@
                     ? (string?)null
                     : (c.RelativePath.Length == 0 ? $"{baseUrl}/{slug}" : $"{baseUrl}/{slug}/{c.RelativePath}")))
                 .ToList();
-            @Html.Raw($"<script type=\"application/ld+json\" nonce=\"{cspNonce}\">{GaiaSkyline.Web.Seo.JsonLd.BreadcrumbList(crumbs)}</script>")
+            @Html.Raw($"<script type=\"application/ld+json\">{GaiaSkyline.Web.Seo.JsonLd.BreadcrumbList(crumbs)}</script>")
         }
     }
+
+    @* Per-page head additions, e.g. an LCP image preload. *@
+    @await RenderSectionAsync("Head", required: false)
 </head>
 <body class="font-body bg-stone text-ink antialiased min-h-screen flex flex-col">
     <a href="#main" class="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:top-2 focus:left-2 focus:bg-white focus:text-ink focus:px-4 focus:py-2 focus:rounded-md">Skip to content</a>
 
     <header class="sticky top-0 z-40 bg-stone/80 backdrop-blur border-b border-fog">
         <nav class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between" aria-label="Main">
-            <a href="@PathFor(slug)" class="font-display text-ink text-xl font-semibold tracking-tight">Gaia&nbsp;Skyline</a>
+            <a href="@PathFor(slug)" class="flex items-center gap-2 font-display text-ink text-xl font-semibold tracking-tight">
+                <svg viewBox="0 0 48 48" class="w-6 h-6 text-clay" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true">
+                    <path d="M6 32 Q24 8 42 32" />
+                    <path d="M6 38 Q24 14 42 38" />
+                </svg>
+                <span>Gaia&nbsp;Skyline</span>
+            </a>
             <div class="flex items-center gap-4">
                 <ul class="hidden sm:flex items-center gap-4 text-sm" aria-label="Sections">
                     <li><a class="hover:text-clay" href="/@slug/gallery">Gallery</a></li>
@@ -137,5 +150,9 @@
     @await Component.InvokeAsync("SiteFooter")
 
     @await RenderSectionAsync("Scripts", required: false)
+
+    <!-- Core Web Vitals field reporting (self-hosted, deferred; off the critical path). -->
+    <script src="~/js/vendor/web-vitals.iife.js" defer></script>
+    <script src="~/js/vitals.js" defer></script>
 </body>
 </html>

@@ -23,6 +23,14 @@
     <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.12" />
 
     <!--
+      ImageSharp generates the responsive raster variants (WebP + JPEG at 400/800/1600w) and the
+      LQIP previews in the dev seeder. Pinned to the 2.1.x line, which is Apache-2.0 (3.x moved to
+      the Six Labors Split License). AVIF has no managed encoder here, so real AVIF is deferred to
+      the Stage 7 asset pipeline; see ADR 0008.
+    -->
+    <PackageReference Include="SixLabors.ImageSharp" Version="2.1.11" />
+
+    <!--
       Security override: EF Core Design (design-time only) pulls in a transitive
       System.Security.Cryptography.Xml 9.0.0 which has known high-severity advisories.
       Pin the patched 10.0.x so the vulnerable-package scan stays clean.

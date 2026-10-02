@@ -2,12 +2,16 @@
   "name": "gaiaskyline-web",
   "version": "1.0.0",
   "private": true,
-  "description": "Tailwind CSS build for the GaiaSkyline web front-end (compiled at build time via MSBuild).",
+  "description": "Front-end build for GaiaSkyline: Tailwind CSS + self-hosted vendor JS (compiled at build time via MSBuild).",
   "scripts": {
     "build:css": "tailwindcss -i ./Styles/app.css -o ./wwwroot/css/app.css --minify",
-    "watch:css": "tailwindcss -i ./Styles/app.css -o ./wwwroot/css/app.css --watch"
+    "watch:css": "tailwindcss -i ./Styles/app.css -o ./wwwroot/css/app.css --watch",
+    "build:vendor": "node copy-vendor.js",
+    "build": "npm run build:css && npm run build:vendor"
   },
   "devDependencies": {
-    "tailwindcss": "^3.4.17"
+    "maplibre-gl": "^4.7.1",
+    "tailwindcss": "^3.4.17",
+    "web-vitals": "^4.2.4"
   }
 }

@@ -9,7 +9,8 @@ public sealed record HomeViewModel(
     ContentPayload Faq,
     IReadOnlyList<ReviewDto> Reviews,
     IReadOnlyList<StoryDto> Stories,
-    IReadOnlyList<GalleryImageDto> Gallery);
+    IReadOnlyList<GalleryImageDto> Gallery,
+    PropertyDto? Property);
 
 public sealed record GalleryViewModel(IReadOnlyList<GalleryImageDto> Images);
 

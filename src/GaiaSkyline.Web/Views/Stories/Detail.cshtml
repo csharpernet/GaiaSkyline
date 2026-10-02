@@ -15,7 +15,12 @@
 
     @if (story.Cover is not null)
     {
-        <img src="@story.Cover.BlobUri" alt="@story.Cover.Alt" width="@story.Cover.Width" height="@story.Cover.Height" loading="eager" class="mt-8 w-full rounded-lg object-cover" />
+        @await Html.PartialAsync("_Picture", ResponsiveImage.From(
+            story.Cover,
+            sizes: "(min-width: 768px) 768px, 100vw",
+            wrapperClass: "mt-8 rounded-lg aspect-[3/2]",
+            eager: true,
+            highPriority: true))
     }
 
     <div class="mt-8 prose prose-lg max-w-none text-ink/90 leading-relaxed">

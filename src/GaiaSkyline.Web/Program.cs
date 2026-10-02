@@ -37,6 +37,20 @@ builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddBackgroundJobs(builder.Configuration);
 
+// --- Output caching: public pages cached 10 min, keyed by {lang} + the content revision
+//     (a revision bump changes the key, so published content invalidates the cache). ---
+builder.Services.AddOutputCache(options =>
+    options.AddPolicy("public", policy => policy
+        .Expire(TimeSpan.FromMinutes(10))
+        .SetVaryByRouteValue("lang")
+        .VaryByValue(static (context, _) =>
+        {
+            var revision = context.RequestServices
+                .GetRequiredService<GaiaSkyline.Application.Content.IContentRevision>().Current;
+            return ValueTask.FromResult(
+                new KeyValuePair<string, string>("rev", revision.ToString(CultureInfo.InvariantCulture)));
+        })));
+
 // --- Localization: URL-based (/{lang}/...). Resolve route -> ?lang (API) -> cookie -> Accept-Language -> en ---
 builder.Services.Configure<RouteOptions>(options =>
     options.ConstraintMap["culture"] = typeof(CultureRouteConstraint));
@@ -129,6 +143,7 @@ app.Use(async (context, next) =>
 
 app.UseRouting();
 app.UseRequestLocalization();
+app.UseOutputCache();
 app.UseCookiePolicy();
 app.UseAuthorization();
 

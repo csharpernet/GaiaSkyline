@@ -19,9 +19,10 @@ module.exports = {
         white: '#FFFFFF',
       },
       fontFamily: {
-        // The variable web fonts are loaded from Google Fonts in _Layout.cshtml.
-        display: ['Fraunces', 'ui-serif', 'Georgia', 'serif'],
-        body: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        // Web fonts from Google Fonts; the "*. Fallback" faces (tokens.css) carry size-adjust
+        // metrics so the swap from fallback to web font does not shift layout (CLS).
+        display: ['Fraunces', 'Fraunces Fallback', 'ui-serif', 'Georgia', 'serif'],
+        body: ['Inter', 'Inter Fallback', 'ui-sans-serif', 'system-ui', 'sans-serif'],
       },
       borderRadius: {
         // 6 / 12 / 24 px scale.

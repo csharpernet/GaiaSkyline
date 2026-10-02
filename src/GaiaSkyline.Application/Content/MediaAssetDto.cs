@@ -13,4 +13,5 @@ public sealed record MediaAssetDto(
     int? DurationSec,
     long ByteSize,
     string ContentType,
-    string? Alt);
+    string? Alt,
+    string? Lqip = null);

@@ -7,7 +7,8 @@ using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace GaiaSkyline.Web.Tests;
 
-public class PublicSiteTests(PublicSiteFactory factory) : IClassFixture<PublicSiteFactory>
+[Collection(PublicSiteCollection.Name)]
+public class PublicSiteTests(PublicSiteFactory factory)
 {
     private static readonly string[] Slugs = ["en", "pt-pt", "es", "fr", "de"];
     private static readonly string[] Paths =
