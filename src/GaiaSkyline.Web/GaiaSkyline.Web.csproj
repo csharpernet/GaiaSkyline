@@ -1,9 +1,10 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <!-- Keep the Node toolchain out of the C# compilation / content globs. -->
     <DefaultItemExcludes>$(DefaultItemExcludes);node_modules\**</DefaultItemExcludes>
+    <UserSecretsId>f4d3f5cc-7a82-464b-9137-4aeb60246d96</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
@@ -28,16 +29,10 @@
     <FrontendInput Include="Views\**\*.cshtml" />
   </ItemGroup>
 
-  <Target Name="FrontendBuild"
-          BeforeTargets="AssignTargetPaths;Build"
-          Inputs="@(FrontendInput)"
-          Outputs="wwwroot\css\app.css;wwwroot\js\vendor\web-vitals.iife.js;wwwroot\js\vendor\maplibre-gl.js">
+  <Target Name="FrontendBuild" BeforeTargets="AssignTargetPaths;Build" Inputs="@(FrontendInput)" Outputs="wwwroot\css\app.css;wwwroot\js\vendor\web-vitals.iife.js;wwwroot\js\vendor\maplibre-gl.js">
     <Message Importance="high" Text="GaiaSkyline: building front-end (npm run build)..." />
-    <Exec Command="npm install --no-fund --no-audit --loglevel=error"
-          Condition="!Exists('$(MSBuildProjectDirectory)\node_modules')"
-          WorkingDirectory="$(MSBuildProjectDirectory)" />
-    <Exec Command="npm run build"
-          WorkingDirectory="$(MSBuildProjectDirectory)" />
+    <Exec Command="npm install --no-fund --no-audit --loglevel=error" Condition="!Exists('$(MSBuildProjectDirectory)\node_modules')" WorkingDirectory="$(MSBuildProjectDirectory)" />
+    <Exec Command="npm run build" WorkingDirectory="$(MSBuildProjectDirectory)" />
   </Target>
 
 </Project>

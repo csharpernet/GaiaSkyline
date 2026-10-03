@@ -162,6 +162,18 @@ app.MapControllers();
 
 // Hangfire is wired via AddBackgroundJobs. The dashboard is intentionally NOT mapped yet — it
 // needs authentication, which arrives with the admin area in a later stage.
+// Unpaid-hold expiry runs every 5 minutes as a safety net alongside webhook handling. Use the
+// DI-based IRecurringJobManager (not the static RecurringJob) so it binds to the configured storage.
+if (GaiaSkyline.BackgroundJobs.DependencyInjection.IsEnabled(builder.Configuration))
+{
+    using var jobsScope = app.Services.CreateScope();
+    var recurringJobs = jobsScope.ServiceProvider.GetRequiredService<Hangfire.IRecurringJobManager>();
+    Hangfire.RecurringJobManagerExtensions.AddOrUpdate<GaiaSkyline.Application.Bookings.IBookingExpiryService>(
+        recurringJobs,
+        "unpaid-hold-expiry",
+        service => service.ExpireUnpaidHoldsAsync(CancellationToken.None),
+        "*/5 * * * *");
+}
 
 app.Run();
 

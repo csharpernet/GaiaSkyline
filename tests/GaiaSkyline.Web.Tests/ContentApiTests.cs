@@ -21,7 +21,12 @@ public sealed class ContentApiTests : IDisposable
         {
             webHost.UseEnvironment("Development");
             webHost.ConfigureAppConfiguration((_, cfg) => cfg.AddInMemoryCollection(
-                new Dictionary<string, string?> { ["Features:SeedContentOnStartup"] = "false" }));
+                new Dictionary<string, string?>
+                {
+                    ["Features:SeedContentOnStartup"] = "false",
+                    // Fake-store API tests must not spin up Hangfire against a real database.
+                    ["BackgroundJobs:Enabled"] = "false",
+                }));
             webHost.ConfigureTestServices(services =>
             {
                 services.RemoveAll<IContentReadStore>();
