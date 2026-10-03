@@ -37,6 +37,28 @@ public sealed class OwnerBlockServiceTests(LocalDbFixture fixture) : IClassFixtu
     }
 
     [Fact]
+    public async Task Duplicate_report_lists_external_booking_blocks_matching_an_imported_block()
+    {
+        await using var context = _fixture.CreateContext();
+        // ExternalBooking owner block [1 Jul, 4 Jul) — a manual copy of a Hostify reservation.
+        context.OwnerBlocks.Add(new OwnerBlock(OwnerBlockId.New(), new DateOnly(2029, 7, 1), new DateOnly(2029, 7, 4),
+            OwnerBlockKind.ExternalBooking, "Hostify copy", DateTime.UtcNow, "owner"));
+        // A non-matching ExternalBooking block.
+        context.OwnerBlocks.Add(new OwnerBlock(OwnerBlockId.New(), new DateOnly(2029, 8, 1), new DateOnly(2029, 8, 4),
+            OwnerBlockKind.ExternalBooking, "other", DateTime.UtcNow, "owner"));
+        // The imported block (inclusive end 3 Jul) matches the first owner block (exclusive end 4 Jul).
+        context.ExternalCalendarBlocks.Add(new ExternalCalendarBlock(
+            ExternalCalendarBlockId.New(), "Hostify", new DateOnly(2029, 7, 1), new DateOnly(2029, 7, 3), DateTime.UtcNow, "h1@hostify.com"));
+        await context.SaveChangesAsync();
+
+        var (_, service) = Build(context);
+
+        var duplicates = await service.ListImportedDuplicatesAsync(CancellationToken.None);
+
+        duplicates.Should().ContainSingle(d => d.StartDate == new DateOnly(2029, 7, 1) && d.EndDate == new DateOnly(2029, 7, 4));
+    }
+
+    [Fact]
     public async Task Overlapping_an_active_booking_is_rejected_naming_the_reference()
     {
         await using var context = _fixture.CreateContext();

@@ -24,4 +24,10 @@ public interface IOwnerBlockService
     Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken);
 
     Task<IReadOnlyList<OwnerBlockDto>> ListAsync(DateOnly from, DateOnly to, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// ExternalBooking owner blocks whose dates exactly match an imported external-calendar block —
+    /// i.e. manual copies that can be deleted once iCal sync is connected.
+    /// </summary>
+    Task<IReadOnlyList<OwnerBlockDto>> ListImportedDuplicatesAsync(CancellationToken cancellationToken);
 }

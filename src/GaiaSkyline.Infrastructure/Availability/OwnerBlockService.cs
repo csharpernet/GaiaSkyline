@@ -64,4 +64,28 @@ internal sealed class OwnerBlockService(
             .Select(b => new OwnerBlockDto(b.Id.Value, b.StartDate, b.EndDate, b.Kind, b.Note, b.CreatedAtUtc, b.CreatedBy))
             .ToListAsync(cancellationToken);
     }
+
+    public async Task<IReadOnlyList<OwnerBlockDto>> ListImportedDuplicatesAsync(CancellationToken cancellationToken)
+    {
+        var externalBookings = await dbContext.OwnerBlocks.AsNoTracking()
+            .Where(b => b.Kind == OwnerBlockKind.ExternalBooking)
+            .ToListAsync(cancellationToken);
+        if (externalBookings.Count == 0)
+        {
+            return [];
+        }
+
+        var imported = await dbContext.ExternalCalendarBlocks.AsNoTracking()
+            .Where(b => b.IsActive)
+            .Select(b => new { b.StartDate, b.EndDate })
+            .ToListAsync(cancellationToken);
+        // ExternalCalendarBlock end is inclusive; OwnerBlock end is exclusive.
+        var importedRanges = imported.Select(b => (b.StartDate, b.EndDate)).ToHashSet();
+
+        return externalBookings
+            .Where(b => importedRanges.Contains((b.StartDate, b.EndDate.AddDays(-1))))
+            .OrderBy(b => b.StartDate)
+            .Select(b => new OwnerBlockDto(b.Id.Value, b.StartDate, b.EndDate, b.Kind, b.Note, b.CreatedAtUtc, b.CreatedBy))
+            .ToList();
+    }
 }

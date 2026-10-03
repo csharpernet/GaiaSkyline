@@ -52,6 +52,47 @@ BASE_URL=https://localhost:7443 STRIPE_E2E=1 npx playwright test booking.spec.js
 To run them in CI, add `Stripe:PublishableKey`/`SecretKey`/`WebhookSecret` as repository secrets and set
 `STRIPE_E2E=1` for the browser-quality job.
 
+## Calendar sync (Stage 5)
+
+The property is managed by a company using **Hostify** (API-connected to Airbnb). Until an
+iCal URL is available, sync is **manual, in both directions**.
+
+### Manual procedure (now)
+- **A direct booking comes in** (or is cancelled): the owner notification email leads with
+  "Action needed: ask the management company to block/unblock <dates> in Hostify". If
+  `PropertyManager:NotificationEmails` is set, the management company is emailed directly
+  (with an .ics). Forward/act on it so Hostify blocks those nights.
+- **Hostify/Airbnb has a reservation we must not double-book**: the owner enters an
+  `OwnerBlock` of kind **ExternalBooking** for those dates (admin UI in Stage 7; API:
+  `POST /api/admin/owner-blocks`). These block our calendar but are **not** exported.
+- **Owner holds dates** (maintenance, personal use): enter an `OwnerBlock` of kind
+  **OwnerUnavailable** — these ARE exported in our .ics.
+
+### What to ask the management company
+- A **read-only iCal export URL** for this listing (Hostify can provide one). It is a
+  credential — share it securely.
+
+### Enabling iCal import once you have the URL (no code change)
+Add it to User Secrets (or Key Vault) and restart:
+```bash
+dotnet user-secrets set "ExternalCalendars:Sources:0:Name" "Hostify"
+dotnet user-secrets set "ExternalCalendars:Sources:0:IcsUrl" "https://…ics"
+dotnet user-secrets set "ExternalCalendars:Sources:0:IsEnabled" "true"
+```
+The import job (every 15 min) then populates external blocks automatically; the health
+check flips from "Manual mode" to reporting sync status. Replace the placeholder fixture
+in the tests with a real Hostify export to lock in parsing.
+
+### Cleaning up manual duplicates after switching to iCal
+Once import is live, `GET /api/admin/owner-blocks/duplicates` lists ExternalBooking owner
+blocks whose dates exactly match an imported block — delete those manual copies (they're
+now maintained by the feed).
+
+### Our calendar export
+`GET /calendar/{token}/gaia-skyline.ics` (token from `Ics:ExportToken`) exports active
+bookings + OwnerUnavailable blocks (never ExternalBooking blocks, to avoid echo). Give
+this URL to the management company so Hostify can import our direct bookings.
+
 ## Accounts & auth (Stage 6)
 
 - **Owner**: seeded in Development from `Owner:Email` + `Owner:Password` (User Secrets).

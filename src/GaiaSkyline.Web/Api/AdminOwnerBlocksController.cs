@@ -33,6 +33,10 @@ public sealed class AdminOwnerBlocksController(IOwnerBlockService ownerBlocks, I
         return Ok(blocks);
     }
 
+    [HttpGet("duplicates")]
+    public async Task<IActionResult> Duplicates(CancellationToken cancellationToken) =>
+        Ok(await ownerBlocks.ListImportedDuplicatesAsync(cancellationToken));
+
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateOwnerBlockRequest request, CancellationToken cancellationToken)
     {
