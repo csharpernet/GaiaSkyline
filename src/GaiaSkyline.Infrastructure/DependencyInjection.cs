@@ -70,8 +70,26 @@ public static class DependencyInjection
         services.AddScoped<IStripeWebhookHandler, StripeWebhookHandler>();
         services.AddScoped<IBookingExpiryService, BookingExpiryService>();
 
-        // Notification + ICS seams: no-ops now; real email arrives in Increment D, ICS in Stage 5.
-        services.AddScoped<IBookingNotificationService, NoOpBookingNotificationService>();
+        // Email (Stage 4 / Increment D). Provider selected by config; dev uses SMTP (smtp4dev).
+        services.AddOptions<EmailOptions>().Bind(configuration.GetSection(EmailOptions.SectionName));
+        var emailProvider = configuration[$"{EmailOptions.SectionName}:Provider"] ?? "Smtp";
+        if (string.Equals(emailProvider, "SendGrid", StringComparison.OrdinalIgnoreCase))
+        {
+            services.AddScoped<IEmailSender, SendGridEmailSender>();
+        }
+        else
+        {
+            services.AddScoped<IEmailSender, SmtpEmailSender>();
+        }
+
+        services.AddScoped<BookingEmailComposer>();
+        services.AddScoped<IBookingEmailDispatcher, BookingEmailDispatcher>();
+        services.AddScoped<IBookingTokenService, BookingTokenService>();
+        // Inline by default; AddBackgroundJobs overrides with the Hangfire scheduler when enabled.
+        services.AddScoped<IEmailJobScheduler, InlineEmailJobScheduler>();
+        services.AddScoped<IBookingNotificationService, EmailBookingNotificationService>();
+
+        // ICS cache seam stays a no-op until Stage 5.
         services.AddSingleton<IIcsCacheInvalidator, NoOpIcsCacheInvalidator>();
 
         return services;

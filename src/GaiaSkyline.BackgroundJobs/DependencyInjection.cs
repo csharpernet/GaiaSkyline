@@ -54,7 +54,8 @@ public static class DependencyInjection
 
         services.AddHangfireServer();
 
-        // Recurring/queued jobs are registered here in later stages.
+        // Dispatch booking emails via Hangfire (overrides the inline fallback from AddInfrastructure).
+        services.AddScoped<GaiaSkyline.Application.Notifications.IEmailJobScheduler, HangfireEmailJobScheduler>();
 
         return services;
     }

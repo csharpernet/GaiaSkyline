@@ -89,12 +89,38 @@ Front-end iteration (live Tailwind rebuilds):
 cd src/GaiaSkyline.Web && npm run watch:css
 ```
 
-### Local email sink (later stages)
+### Local email sink (booking emails)
 
-Transactional email arrives in a later stage. For local development we'll use
-[**smtp4dev**](https://github.com/rnwood/smtp4dev) — a local SMTP server with a web UI, installable
-as a .NET global tool (`dotnet tool install -g Rnwood.Smtp4dev`), no Docker required. It is **not
-needed yet**.
+Transactional booking emails (confirmation, Multibanco reference, refund, …) are sent over SMTP in
+development via [**smtp4dev**](https://github.com/rnwood/smtp4dev) — a local SMTP server with a web
+UI, no Docker required:
+
+```bash
+dotnet tool install -g Rnwood.Smtp4dev   # once
+smtp4dev                                 # SMTP on localhost:2525, web UI at http://localhost:5000
+```
+
+The dev `IEmailSender` posts to `localhost:2525` (see the `Email` section in `appsettings.json`);
+production selects SendGrid via `Email:Provider=SendGrid`. Emails are dispatched through Hangfire.
+
+### Stripe (booking payments)
+
+Put the Stripe **test** keys in User Secrets (never in source):
+
+```bash
+cd src/GaiaSkyline.Web
+dotnet user-secrets set "Stripe:PublishableKey" "pk_test_…"
+dotnet user-secrets set "Stripe:SecretKey"      "sk_test_…"
+```
+
+For local webhooks, forward events with the [Stripe CLI](https://stripe.com/docs/stripe-cli) and set
+the signing secret it prints:
+
+```bash
+stripe login
+stripe listen --forward-to https://localhost:7443/webhooks/stripe
+dotnet user-secrets set "Stripe:WebhookSecret" "whsec_…"
+```
 
 ---
 

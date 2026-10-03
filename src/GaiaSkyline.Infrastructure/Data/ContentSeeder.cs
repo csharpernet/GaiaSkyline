@@ -732,5 +732,51 @@ public sealed class ContentSeeder(AppDbContext dbContext, IContentRevision revis
         new("amenities", "amenities.not_available.smoke_alarm", ContentKind.Boolean, "Not available: Smoke alarm", Text: "Smoke alarm", Boolean: false),
         new("amenities", "amenities.not_available.carbon_monoxide_alarm", ContentKind.Boolean, "Not available: Carbon monoxide alarm", Text: "Carbon monoxide alarm", Boolean: false),
         new("amenities", "amenities.not_available.private_entrance", ContentKind.Boolean, "Not available: Private entrance", Text: "Private entrance", Boolean: false),
+
+        // ----- transactional emails (EN authoritative; other languages get [XX] placeholders).
+        //       Bodies are HTML with {tokens} filled by BookingEmailComposer. -----
+        new("email", "email.confirmation.subject", ContentKind.ShortText, "Email: confirmation subject",
+            Text: "Your Gaia Skyline booking {reference} is confirmed"),
+        new("email", "email.confirmation.body", ContentKind.RichText, "Email: confirmation body",
+            Text: "<p>Hi {guestName},</p><p>Your stay is confirmed — reference <strong>{reference}</strong>.</p>" +
+                  "<ul><li>Check-in: {checkIn}</li><li>Check-out: {checkOut}</li><li>Nights: {nights}</li>" +
+                  "<li>Total paid: {total}</li></ul><p><a href=\"{confirmationUrl}\">View your booking</a></p>"),
+
+        new("email", "email.multibanco_reference.subject", ContentKind.ShortText, "Email: Multibanco reference subject",
+            Text: "Your Multibanco reference for booking {reference}"),
+        new("email", "email.multibanco_reference.body", ContentKind.RichText, "Email: Multibanco reference body",
+            Text: "<p>Hi {guestName},</p><p>To confirm booking <strong>{reference}</strong>, pay by Multibanco:</p>" +
+                  "<ul><li>Entity: <strong>{multibancoEntity}</strong></li><li>Reference: <strong>{multibancoReference}</strong></li>" +
+                  "<li>Amount: {total}</li><li>Pay before: {paymentExpiry}</li></ul>" +
+                  "<p>We'll confirm your booking automatically once payment is received.</p>"),
+
+        new("email", "email.payment_expired.subject", ContentKind.ShortText, "Email: payment expired subject",
+            Text: "Your Gaia Skyline booking {reference} has expired"),
+        new("email", "email.payment_expired.body", ContentKind.RichText, "Email: payment expired body",
+            Text: "<p>Hi {guestName},</p><p>We didn't receive payment in time, so booking {reference} has been released. " +
+                  "You're very welcome to book again.</p>"),
+
+        new("email", "email.refund.subject", ContentKind.ShortText, "Email: refund subject",
+            Text: "Refund processed for booking {reference}"),
+        new("email", "email.refund.body", ContentKind.RichText, "Email: refund body",
+            Text: "<p>Hi {guestName},</p><p>A refund has been processed for booking {reference}.</p>"),
+
+        new("email", "email.cancellation.subject", ContentKind.ShortText, "Email: cancellation subject",
+            Text: "Your Gaia Skyline booking {reference} is cancelled"),
+        new("email", "email.cancellation.body", ContentKind.RichText, "Email: cancellation body",
+            Text: "<p>Hi {guestName},</p><p>Booking {reference} has been cancelled.</p>"),
+
+        new("email", "email.owner_notification.subject", ContentKind.ShortText, "Email: owner notification subject",
+            Text: "New booking {reference} — {checkIn} to {checkOut}"),
+        new("email", "email.owner_notification.body", ContentKind.RichText, "Email: owner notification body",
+            Text: "<p>New confirmed booking:</p><ul><li>Reference: {reference}</li><li>Guest: {guestName}</li>" +
+                  "<li>Dates: {checkIn} – {checkOut} ({nights} nights)</li>" +
+                  "<li>Guests: {adults} adults, {children} children, {infants} infants</li><li>Total: {total}</li></ul>"),
+
+        new("email", "email.dispute_alert.subject", ContentKind.ShortText, "Email: dispute alert subject",
+            Text: "Dispute opened on booking {reference}"),
+        new("email", "email.dispute_alert.body", ContentKind.RichText, "Email: dispute alert body",
+            Text: "<p>A payment dispute has been opened for booking {reference} ({guestName}, {total}). " +
+                  "Review it in the Stripe dashboard immediately.</p>"),
     ];
 }
