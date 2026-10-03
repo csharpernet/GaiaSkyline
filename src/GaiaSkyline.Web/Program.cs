@@ -287,6 +287,9 @@ if (!string.IsNullOrWhiteSpace(connectionString))
     healthChecks.AddSqlServer(connectionString, name: "sql-server", tags: ["ready"]);
 }
 
+healthChecks.AddTypeActivatedCheck<GaiaSkyline.Web.Health.ExternalCalendarsHealthCheck>(
+    "external-calendars", failureStatus: null, tags: ["ready"]);
+
 var app = builder.Build();
 
 // One-off CLI: `dotnet run -- create-owner --email ... --password ...` (prod Owner provisioning).
@@ -311,6 +314,11 @@ if (app.Environment.IsDevelopment() && seedOnStartup)
 
     var bookingSeeder = scope.ServiceProvider.GetRequiredService<BookingSeeder>();
     await bookingSeeder.SeedAsync(CancellationToken.None);
+
+    // External calendar sources from config (ExternalCalendars:Sources); empty by default = manual mode.
+    var calendarSeeder = scope.ServiceProvider
+        .GetRequiredService<GaiaSkyline.Infrastructure.Availability.ExternalCalendarSourceSeeder>();
+    await calendarSeeder.SeedAsync(CancellationToken.None);
 
     // Roles always exist in Development; the Owner is seeded when Owner:Email + Owner:Password are set
     // (put them in User Secrets). There is no self-registration into the Owner role.
@@ -383,6 +391,14 @@ if (GaiaSkyline.BackgroundJobs.DependencyInjection.IsEnabled(builder.Configurati
         "unpaid-hold-expiry",
         service => service.ExpireUnpaidHoldsAsync(CancellationToken.None),
         "*/5 * * * *");
+
+    // External calendar import (manual mode until a source is configured): every 15 minutes.
+    var icsIntervalMinutes = int.TryParse(builder.Configuration["IcsImport:IntervalMinutes"], out var m) ? m : 15;
+    Hangfire.RecurringJobManagerExtensions.AddOrUpdate<GaiaSkyline.Application.Availability.IExternalCalendarImporter>(
+        recurringJobs,
+        "external-calendar-import",
+        importer => importer.ImportAllAsync(CancellationToken.None),
+        $"*/{icsIntervalMinutes} * * * *");
 }
 
 app.Run();

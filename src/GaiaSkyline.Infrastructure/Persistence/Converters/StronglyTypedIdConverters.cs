@@ -155,3 +155,19 @@ internal sealed class OwnerBlockIdConverter : ValueConverter<OwnerBlockId, Guid>
     {
     }
 }
+
+internal sealed class ExternalCalendarSourceIdConverter : ValueConverter<ExternalCalendarSourceId, Guid>
+{
+    public ExternalCalendarSourceIdConverter()
+        : base(id => id.Value, value => ExternalCalendarSourceId.From(value))
+    {
+    }
+}
+
+internal sealed class BookingConflictIdConverter : ValueConverter<BookingConflictId, Guid>
+{
+    public BookingConflictIdConverter()
+        : base(id => id.Value, value => BookingConflictId.From(value))
+    {
+    }
+}

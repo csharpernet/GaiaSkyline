@@ -59,6 +59,15 @@ public static class DependencyInjection
         services.AddScoped<IQuoteService, GaiaSkyline.Application.Pricing.QuoteService>();
         services.AddScoped<IAvailabilityService, AvailabilityService>();
         services.AddScoped<GaiaSkyline.Application.Availability.IOwnerBlockService, GaiaSkyline.Infrastructure.Availability.OwnerBlockService>();
+
+        // External calendar import (Stage 5 item 1b; dormant until a source is configured).
+        services.AddOptions<GaiaSkyline.Application.Availability.ExternalCalendarsOptions>()
+            .Bind(configuration.GetSection(GaiaSkyline.Application.Availability.ExternalCalendarsOptions.SectionName));
+        services.AddScoped<GaiaSkyline.Infrastructure.Availability.ExternalCalendarUrlProtector>();
+        services.AddScoped<GaiaSkyline.Infrastructure.Availability.ExternalCalendarSourceSeeder>();
+        services.AddHttpClient<GaiaSkyline.Application.Availability.IExternalCalendarImporter,
+            GaiaSkyline.Infrastructure.Availability.ExternalCalendarImporter>(client =>
+                client.Timeout = TimeSpan.FromSeconds(35));
         services.AddScoped<IBookingCreationService, BookingCreationService>();
         services.AddScoped<IBookingLifecycleService, BookingLifecycleService>();
         services.AddScoped<ICheckoutService, GaiaSkyline.Infrastructure.Bookings.CheckoutService>();

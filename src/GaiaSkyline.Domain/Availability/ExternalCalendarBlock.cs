@@ -22,7 +22,8 @@ public sealed class ExternalCalendarBlock : Entity<ExternalCalendarBlockId>
         DateOnly endDate,
         DateTime createdAtUtc,
         string? externalUid = null,
-        string? summary = null)
+        string? summary = null,
+        ExternalCalendarSourceId? sourceId = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(source);
         if (endDate < startDate)
@@ -32,6 +33,7 @@ public sealed class ExternalCalendarBlock : Entity<ExternalCalendarBlockId>
 
         Id = id;
         Source = source.Trim();
+        SourceId = sourceId;
         StartDate = startDate;
         EndDate = endDate;
         ExternalUid = string.IsNullOrWhiteSpace(externalUid) ? null : externalUid.Trim();
@@ -41,8 +43,11 @@ public sealed class ExternalCalendarBlock : Entity<ExternalCalendarBlockId>
         LastSeenAtUtc = createdAtUtc;
     }
 
-    /// <summary>The originating calendar (e.g. "Airbnb", "Booking.com").</summary>
+    /// <summary>The originating calendar name (e.g. "Hostify"); a snapshot of the source's name.</summary>
     public string Source { get; private set; } = null!;
+
+    /// <summary>The configured source this block was imported from (null for legacy/seeded rows).</summary>
+    public ExternalCalendarSourceId? SourceId { get; private set; }
 
     public DateOnly StartDate { get; private set; }
 
@@ -59,6 +64,24 @@ public sealed class ExternalCalendarBlock : Entity<ExternalCalendarBlockId>
 
     public DateTime CreatedAtUtc { get; private set; }
 
-    /// <summary>When this block was last seen in a sync (used by Stage 5 to expire stale rows).</summary>
+    /// <summary>When this block was last seen in a sync (used to expire stale rows).</summary>
     public DateTime LastSeenAtUtc { get; private set; }
+
+    /// <summary>Refreshes the range/summary from the source feed and marks it seen + active.</summary>
+    public void Refresh(DateOnly startDate, DateOnly endDate, string? summary, DateTime seenAtUtc)
+    {
+        if (endDate < startDate)
+        {
+            throw new ArgumentException("External block end date must be on or after the start date.", nameof(endDate));
+        }
+
+        StartDate = startDate;
+        EndDate = endDate;
+        Summary = string.IsNullOrWhiteSpace(summary) ? null : summary.Trim();
+        IsActive = true;
+        LastSeenAtUtc = seenAtUtc;
+    }
+
+    /// <summary>Soft-deletes the block when it has disappeared from the source feed.</summary>
+    public void Deactivate() => IsActive = false;
 }

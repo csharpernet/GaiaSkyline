@@ -14,6 +14,7 @@ internal sealed class ExternalCalendarBlockConfiguration : IEntityTypeConfigurat
         builder.Property(b => b.Id).ValueGeneratedNever();
 
         builder.Property(b => b.Source).HasMaxLength(50).IsRequired();
+        builder.Property(b => b.SourceId);
         builder.Property(b => b.StartDate).IsRequired();
         builder.Property(b => b.EndDate).IsRequired();
         builder.Property(b => b.ExternalUid).HasMaxLength(255);
@@ -24,6 +25,6 @@ internal sealed class ExternalCalendarBlockConfiguration : IEntityTypeConfigurat
 
         // The availability query filters active blocks overlapping a date window.
         builder.HasIndex(b => new { b.IsActive, b.StartDate, b.EndDate });
-        builder.HasIndex(b => b.ExternalUid);
+        builder.HasIndex(b => new { b.SourceId, b.ExternalUid });
     }
 }

@@ -69,6 +69,10 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
 
     public DbSet<OwnerBlock> OwnerBlocks => Set<OwnerBlock>();
 
+    public DbSet<ExternalCalendarSource> ExternalCalendarSources => Set<ExternalCalendarSource>();
+
+    public DbSet<BookingConflict> BookingConflicts => Set<BookingConflict>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -104,6 +108,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
 
         // Stage 5 identities.
         configurationBuilder.Properties<OwnerBlockId>().HaveConversion<OwnerBlockIdConverter>();
+        configurationBuilder.Properties<ExternalCalendarSourceId>().HaveConversion<ExternalCalendarSourceIdConverter>();
+        configurationBuilder.Properties<BookingConflictId>().HaveConversion<BookingConflictIdConverter>();
 
         // Money persists as integer minor units (cents); EUR is re-attached on read.
         configurationBuilder.Properties<Money>().HaveConversion<MoneyToCentsConverter>();
