@@ -52,6 +52,29 @@ BASE_URL=https://localhost:7443 STRIPE_E2E=1 npx playwright test booking.spec.js
 To run them in CI, add `Stripe:PublishableKey`/`SecretKey`/`WebhookSecret` as repository secrets and set
 `STRIPE_E2E=1` for the browser-quality job.
 
+## Accounts & auth (Stage 6)
+
+- **Owner**: seeded in Development from `Owner:Email` + `Owner:Password` (User Secrets).
+  In production: `dotnet run -- create-owner --email you@example.com --password ****`
+  (password may instead be the `Owner:Password` secret). First login at `/admin/login`
+  forces TOTP enrolment (scan the QR, save the 10 recovery codes).
+- **Owner IP allowlist**: set `Owner:AllowedIps` (array) to restrict `/admin`; empty =
+  no restriction (the Development default).
+- **Partner JWT**: set `Jwt:SigningKey` (≥ 32 chars) in User Secrets for stable tokens.
+  `POST /api/partner/token` → access + refresh; `POST /api/partner/token/refresh`;
+  `GET /api/partner/me` with `Authorization: Bearer`.
+
+### Manual browser auth tests
+
+The xUnit suite covers TOTP verify + recovery codes, lockout, the IP allowlist, magic
+links and JWT rotation/reuse at the service level. To exercise the full browser flows:
+1. **Owner TOTP**: seed an Owner, open `/admin/login`, sign in, scan the QR into an
+   authenticator app, enter the code, confirm you reach `/admin`; sign out and confirm a
+   second login requires the code.
+2. **Guest magic link**: book a stay, then at `/en/account/magic-link` enter the
+   reference + email; open the link from smtp4dev and confirm `/en/my/booking/{ref}`
+   loads and that the link fails on a second use.
+
 ## Unpaid-hold expiry
 
 Card/wallet holds are released 30 minutes after creation; Multibanco holds at their voucher expiry. A
