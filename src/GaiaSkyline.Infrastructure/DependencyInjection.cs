@@ -68,6 +68,11 @@ public static class DependencyInjection
         services.AddOptions<StripeOptions>().Bind(configuration.GetSection(StripeOptions.SectionName));
         services.AddSingleton<IStripeClient>(sp =>
             new StripeClient(sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<StripeOptions>>().Value.SecretKey));
+        // Resolve the client lazily so the app boots and serves non-payment endpoints when no Stripe
+        // key is configured (e.g. CI). Constructing a StripeClient with an empty key throws, so an
+        // actual payment/refund is the first thing that requires a real key — which is correct.
+        services.AddSingleton(sp =>
+            new Lazy<IStripeClient>(sp.GetRequiredService<IStripeClient>));
         services.AddScoped<IPaymentService, StripePaymentService>();
         services.AddScoped<IRefundService, StripeRefundService>();
         services.AddScoped<IStripeWebhookHandler, StripeWebhookHandler>();

@@ -11,7 +11,7 @@ namespace GaiaSkyline.Infrastructure.Payments;
 /// Issues Stripe refunds. The resulting <c>charge.refunded</c> webhook drives the booking to
 /// Refunded / PartiallyRefunded and sends the refund email, so this method only creates the refund.
 /// </summary>
-internal sealed class StripeRefundService(IStripeClient client, AppDbContext dbContext) : IRefundService
+internal sealed class StripeRefundService(Lazy<IStripeClient> client, AppDbContext dbContext) : IRefundService
 {
     public async Task RefundAsync(BookingId bookingId, decimal? amountEur, string reason, CancellationToken cancellationToken)
     {
@@ -40,7 +40,7 @@ internal sealed class StripeRefundService(IStripeClient client, AppDbContext dbC
             amountKey = cents.ToString(CultureInfo.InvariantCulture);
         }
 
-        var refundService = new RefundService(client);
+        var refundService = new RefundService(client.Value);
         await refundService.CreateAsync(
             createOptions,
             new RequestOptions { IdempotencyKey = $"booking-{bookingId}-refund-{amountKey}" },

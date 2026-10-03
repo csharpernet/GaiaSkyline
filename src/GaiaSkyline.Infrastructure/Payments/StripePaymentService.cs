@@ -13,7 +13,7 @@ namespace GaiaSkyline.Infrastructure.Payments;
 /// explicit card-only method list when check-in is too close.
 /// </summary>
 internal sealed class StripePaymentService(
-    IStripeClient client,
+    Lazy<IStripeClient> client,
     IOptions<StripeOptions> options,
     TimeProvider clock) : IPaymentService
 {
@@ -54,7 +54,7 @@ internal sealed class StripePaymentService(
             createOptions.ExcludedPaymentMethodTypes = ["multibanco"];
         }
 
-        var intentService = new PaymentIntentService(client);
+        var intentService = new PaymentIntentService(client.Value);
         var intent = await intentService.CreateAsync(
             createOptions,
             new RequestOptions { IdempotencyKey = $"booking-{booking.Id}-pi" },
@@ -65,7 +65,7 @@ internal sealed class StripePaymentService(
 
     private async Task<string> GetOrCreateCustomerAsync(Booking booking, CancellationToken cancellationToken)
     {
-        var customerService = new CustomerService(client);
+        var customerService = new CustomerService(client.Value);
         var existing = await customerService.ListAsync(
             new CustomerListOptions { Email = booking.GuestEmail, Limit = 1 },
             cancellationToken: cancellationToken);

@@ -1,6 +1,8 @@
 using System.Net;
 using FluentAssertions;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.Configuration;
 
 namespace GaiaSkyline.Web.Tests;
 
@@ -70,8 +72,28 @@ public class BookingFlowTests(PublicSiteFactory factory)
         using var client = Client();
         using var response = await client.GetAsync(new Uri("/api/book/status/GS-NOPE?token=forged", UriKind.Relative));
 
-        var body = await response.Content.ReadAsStringAsync();
-        response.StatusCode.Should().Be(HttpStatusCode.NotFound, "server said: {0}", body);
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task Status_api_does_not_500_when_stripe_is_not_configured()
+    {
+        // Reproduces CI, where no Stripe key is set: the booking controller must still construct and
+        // serve the status poll. An actual payment is the first thing that needs a real key, since the
+        // Stripe client is resolved lazily. Without that, resolving the controller threw and returned 500.
+        using var unconfigured = factory.WithWebHostBuilder(builder =>
+            builder.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(
+                new Dictionary<string, string?>
+                {
+                    ["Stripe:SecretKey"] = string.Empty,
+                    ["Stripe:PublishableKey"] = string.Empty,
+                })));
+        using var client = unconfigured.CreateClient(
+            new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        using var response = await client.GetAsync(
+            new Uri("/api/book/status/GS-NOPE?token=forged", UriKind.Relative));
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
     [Fact]
