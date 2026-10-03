@@ -33,8 +33,14 @@ public class PricingCalculatorTests
         PromoCode? promo = null,
         DateOnly? today = null,
         int window = 7,
-        int lastMin = 1) =>
-        new(rules.ToList(), (fees ?? []).ToList(), promo, today ?? FarPastToday, window, lastMin);
+        int lastMin = 1,
+        IReadOnlyDictionary<DateOnly, DailyRateValue>? dailyRates = null,
+        Money? baseRate = null,
+        int? baseMinNights = null) =>
+        new(rules.ToList(), (fees ?? []).ToList(), promo, today ?? FarPastToday, window, lastMin,
+            dailyRates, baseRate, baseMinNights);
+
+    private static DailyRateValue Daily(decimal rate, int? minNights = null) => new(Eur(rate), minNights);
 
     private static QuoteRequest Request(
         DateOnly checkIn, DateOnly checkOut,
@@ -302,5 +308,75 @@ public class PricingCalculatorTests
         var act = () => _calculator.Quote(request, Ctx([YearRule(100m)]));
 
         act.Should().Throw<ArgumentException>();
+    }
+
+    // --- Per-date daily rates (Stage 5 item 2): daily rate → season rule → base rate ---
+
+    [Fact]
+    public void A_daily_rate_overrides_the_season_rule_for_that_night()
+    {
+        var dailyRates = new Dictionary<DateOnly, DailyRateValue> { [new DateOnly(2026, 6, 2)] = Daily(200m) };
+        var request = Request(new DateOnly(2026, 6, 1), new DateOnly(2026, 6, 4)); // 3 nights
+
+        var quote = _calculator.Quote(request, Ctx([YearRule(100m)], dailyRates: dailyRates));
+
+        // 6/1 + 6/3 from the season rule (100), 6/2 from the daily rate (200).
+        quote.NightlySubtotal.Amount.Should().Be(400m);
+    }
+
+    [Fact]
+    public void A_mixed_stay_resolves_each_night_daily_then_season_then_base()
+    {
+        var season = Rule(new DateOnly(2026, 6, 1), new DateOnly(2026, 6, 2), 100m); // covers 6/1 only (checkout 6/4)
+        var dailyRates = new Dictionary<DateOnly, DailyRateValue> { [new DateOnly(2026, 6, 2)] = Daily(250m) };
+        var request = Request(new DateOnly(2026, 6, 1), new DateOnly(2026, 6, 4)); // nights 6/1, 6/2, 6/3
+
+        var quote = _calculator.Quote(request, Ctx([season], dailyRates: dailyRates, baseRate: Eur(80m)));
+
+        // 6/1 season (100) + 6/2 daily (250) + 6/3 base (80).
+        quote.NightlySubtotal.Amount.Should().Be(430m);
+    }
+
+    [Fact]
+    public void Falls_back_to_the_base_rate_when_no_daily_or_season_rule_covers_a_night()
+    {
+        var request = Request(new DateOnly(2026, 6, 1), new DateOnly(2026, 6, 4)); // 3 nights
+
+        var quote = _calculator.Quote(request, Ctx([], baseRate: Eur(90m)));
+
+        quote.NightlySubtotal.Amount.Should().Be(270m);
+    }
+
+    [Fact]
+    public void A_night_with_no_daily_season_or_base_rate_is_an_error()
+    {
+        var request = Request(new DateOnly(2026, 6, 1), new DateOnly(2026, 6, 4));
+
+        var act = () => _calculator.Quote(request, Ctx([]));
+
+        act.Should().Throw<NoPriceForDateException>();
+    }
+
+    [Fact]
+    public void The_daily_rate_min_nights_on_the_check_in_night_overrides_the_season_minimum()
+    {
+        // Season minimum is 3, but the check-in night's daily rate allows 2.
+        var dailyRates = new Dictionary<DateOnly, DailyRateValue> { [new DateOnly(2026, 6, 1)] = Daily(120m, minNights: 2) };
+        var request = Request(new DateOnly(2026, 6, 1), new DateOnly(2026, 6, 3)); // 2 nights
+
+        var quote = _calculator.Quote(request, Ctx([YearRule(100m, minNights: 3)], dailyRates: dailyRates));
+
+        quote.Nights.Should().Be(2);
+        quote.EffectiveMinNights.Should().Be(2);
+    }
+
+    [Fact]
+    public void The_base_min_nights_applies_when_no_daily_or_season_rule()
+    {
+        var shortStay = Request(new DateOnly(2026, 6, 1), new DateOnly(2026, 6, 2)); // 1 night
+
+        var act = () => _calculator.Quote(shortStay, Ctx([], baseRate: Eur(100m), baseMinNights: 2));
+
+        act.Should().Throw<BelowMinimumNightsException>().Which.MinimumNights.Should().Be(2);
     }
 }

@@ -63,6 +63,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
 
     public DbSet<PromoCode> PromoCodes => Set<PromoCode>();
 
+    public DbSet<DailyRate> DailyRates => Set<DailyRate>();
+
     public DbSet<StripeEventLog> StripeEventLogs => Set<StripeEventLog>();
 
     public DbSet<ExternalCalendarBlock> ExternalCalendarBlocks => Set<ExternalCalendarBlock>();

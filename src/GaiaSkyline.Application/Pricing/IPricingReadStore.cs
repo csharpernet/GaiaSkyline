@@ -14,4 +14,7 @@ public interface IPricingReadStore
     Task<PromoCode?> GetPromoCodeAsync(string code, CancellationToken cancellationToken);
 
     Task<CancellationPolicy?> GetCancellationPolicyAsync(CancellationToken cancellationToken);
+
+    /// <summary>Per-date rates covering the stay [<paramref name="from"/>, <paramref name="to"/>).</summary>
+    Task<IReadOnlyList<DailyRate>> GetDailyRatesAsync(DateOnly from, DateOnly to, CancellationToken cancellationToken);
 }

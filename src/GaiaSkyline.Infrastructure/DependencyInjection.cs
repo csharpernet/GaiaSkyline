@@ -57,6 +57,7 @@ public static class DependencyInjection
         services.AddSingleton<IBookingReferenceGenerator, BookingReferenceGenerator>();
         services.AddScoped<IPricingReadStore, PricingReadStore>();
         services.AddScoped<IQuoteService, GaiaSkyline.Application.Pricing.QuoteService>();
+        services.AddScoped<GaiaSkyline.Application.Pricing.IDailyRateService, GaiaSkyline.Infrastructure.Pricing.DailyRateService>();
         services.AddScoped<IAvailabilityService, AvailabilityService>();
         services.AddScoped<GaiaSkyline.Application.Availability.IOwnerBlockService, GaiaSkyline.Infrastructure.Availability.OwnerBlockService>();
 
@@ -68,6 +69,13 @@ public static class DependencyInjection
         services.AddHttpClient<GaiaSkyline.Application.Availability.IExternalCalendarImporter,
             GaiaSkyline.Infrastructure.Availability.ExternalCalendarImporter>(client =>
                 client.Timeout = TimeSpan.FromSeconds(35));
+        // Automatic nightly-price import (Stage 5 item 2; dormant until a provider is configured).
+        // No real PriceLabs/Hostify adapter ships yet — see ADR 0014 — so no IRateProvider is
+        // registered here. When one exists, register it and set Pricing:Provider to activate the job.
+        services.AddOptions<PricingProviderOptions>()
+            .Bind(configuration.GetSection(PricingProviderOptions.SectionName));
+        services.AddScoped<GaiaSkyline.Application.Pricing.IRateSyncService, GaiaSkyline.Infrastructure.Pricing.RateSyncService>();
+
         services.AddScoped<IBookingCreationService, BookingCreationService>();
         services.AddScoped<IBookingLifecycleService, BookingLifecycleService>();
         services.AddScoped<ICheckoutService, GaiaSkyline.Infrastructure.Bookings.CheckoutService>();

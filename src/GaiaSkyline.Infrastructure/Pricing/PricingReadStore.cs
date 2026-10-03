@@ -33,4 +33,10 @@ internal sealed class PricingReadStore(AppDbContext dbContext) : IPricingReadSto
 
     public async Task<CancellationPolicy?> GetCancellationPolicyAsync(CancellationToken cancellationToken) =>
         await _dbContext.CancellationPolicies.AsNoTracking().FirstOrDefaultAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<DailyRate>> GetDailyRatesAsync(DateOnly from, DateOnly to, CancellationToken cancellationToken) =>
+        await _dbContext.DailyRates
+            .AsNoTracking()
+            .Where(d => d.Date >= from && d.Date < to)
+            .ToListAsync(cancellationToken);
 }

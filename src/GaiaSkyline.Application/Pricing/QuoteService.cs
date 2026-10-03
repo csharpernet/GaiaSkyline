@@ -1,3 +1,4 @@
+using GaiaSkyline.Domain.ValueObjects;
 using Microsoft.Extensions.Options;
 
 namespace GaiaSkyline.Application.Pricing;
@@ -25,13 +26,20 @@ public sealed class QuoteService(
             ? null
             : await readStore.GetPromoCodeAsync(request.PromoCode, cancellationToken);
 
+        // Per-date rates (always read from storage; never an external API during a request).
+        var dailyRates = await readStore.GetDailyRatesAsync(request.CheckIn, request.CheckOut, cancellationToken);
+        var dailyMap = dailyRates.ToDictionary(d => d.Date, d => new DailyRateValue(d.NightlyRate, d.MinNights));
+
         var context = new PricingContext(
             rules,
             fees,
             promo,
             LisbonClock.Today(clock),
             _options.LastMinuteWindowDays,
-            _options.LastMinuteMinNights);
+            _options.LastMinuteMinNights,
+            DailyRates: dailyMap,
+            BaseNightlyRate: new Money(_options.BaseNightlyRateEur, "EUR"),
+            BaseMinNights: _options.StandardMinNights);
 
         return calculator.Quote(request, context);
     }

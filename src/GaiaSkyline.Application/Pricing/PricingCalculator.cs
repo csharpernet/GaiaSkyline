@@ -27,18 +27,17 @@ public sealed class PricingCalculator : IPricingCalculator
 
         var nights = request.CheckOut.DayNumber - request.CheckIn.DayNumber;
 
-        // Per-night rates — each night is priced from the rule covering it, so a stay can span seasons.
+        // Per-night rates — resolution per night is daily rate → season rule → base rate.
         var nightly = new List<NightlyCharge>(nights);
         var nightlySubtotal = Money.Zero(Currency);
         for (var night = request.CheckIn; night < request.CheckOut; night = night.AddDays(1))
         {
-            var rule = context.Rules.FirstOrDefault(r => r.Covers(night))
-                ?? throw new NoPriceForDateException(night);
-            nightly.Add(new NightlyCharge(night, rule.NightlyRate));
-            nightlySubtotal += rule.NightlyRate;
+            var rate = ResolveNightlyRate(night, context);
+            nightly.Add(new NightlyCharge(night, rate));
+            nightlySubtotal += rate;
         }
 
-        var checkInRule = context.Rules.First(r => r.Covers(request.CheckIn));
+        var checkInRule = context.Rules.FirstOrDefault(r => r.Covers(request.CheckIn));
         EnsureMeetsMinimumNights(request, context, checkInRule, nights, out var effectiveMinNights);
 
         var (discount, promoInvalid) = ResolveDiscount(request, context, checkInRule, nights, nightlySubtotal);
@@ -60,16 +59,41 @@ public sealed class PricingCalculator : IPricingCalculator
             promoInvalid);
     }
 
+    private static Money ResolveNightlyRate(DateOnly night, PricingContext context)
+    {
+        if (context.DailyRates is not null && context.DailyRates.TryGetValue(night, out var daily))
+        {
+            return daily.NightlyRate;
+        }
+
+        var rule = context.Rules.FirstOrDefault(r => r.Covers(night));
+        if (rule is not null)
+        {
+            return rule.NightlyRate;
+        }
+
+        return context.BaseNightlyRate ?? throw new NoPriceForDateException(night);
+    }
+
     private static void EnsureMeetsMinimumNights(
         QuoteRequest request,
         PricingContext context,
-        PricingRule checkInRule,
+        PricingRule? checkInRule,
         int nights,
         out int effectiveMinNights)
     {
         var leadDays = request.CheckIn.DayNumber - context.Today.DayNumber;
         var lastMinute = leadDays <= context.LastMinuteWindowDays;
-        effectiveMinNights = lastMinute ? context.LastMinuteMinNights : checkInRule.MinNights;
+
+        // Minimum-nights resolution: daily rate (check-in) → season rule → base → 1.
+        int? dailyMinNights = null;
+        if (context.DailyRates is not null && context.DailyRates.TryGetValue(request.CheckIn, out var daily))
+        {
+            dailyMinNights = daily.MinNights;
+        }
+
+        var standardMinNights = dailyMinNights ?? checkInRule?.MinNights ?? context.BaseMinNights ?? 1;
+        effectiveMinNights = lastMinute ? context.LastMinuteMinNights : standardMinNights;
 
         if (nights < effectiveMinNights)
         {
@@ -80,7 +104,7 @@ public sealed class PricingCalculator : IPricingCalculator
     private static (DiscountLine Discount, bool PromoInvalid) ResolveDiscount(
         QuoteRequest request,
         PricingContext context,
-        PricingRule checkInRule,
+        PricingRule? checkInRule,
         int nights,
         Money nightlySubtotal)
     {
@@ -126,8 +150,13 @@ public sealed class PricingCalculator : IPricingCalculator
         return (new DiscountLine(kind, percent, amount), promoInvalid);
     }
 
-    private static (DiscountKind Kind, int Percent) LengthOfStayDiscount(PricingRule rule, int nights)
+    private static (DiscountKind Kind, int Percent) LengthOfStayDiscount(PricingRule? rule, int nights)
     {
+        if (rule is null)
+        {
+            return (DiscountKind.None, 0);
+        }
+
         if (nights >= MonthlyThreshold && rule.MonthlyDiscountPct > 0)
         {
             return (DiscountKind.Monthly, rule.MonthlyDiscountPct);

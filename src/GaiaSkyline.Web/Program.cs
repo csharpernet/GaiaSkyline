@@ -290,6 +290,9 @@ if (!string.IsNullOrWhiteSpace(connectionString))
 healthChecks.AddTypeActivatedCheck<GaiaSkyline.Web.Health.ExternalCalendarsHealthCheck>(
     "external-calendars", failureStatus: null, tags: ["ready"]);
 
+healthChecks.AddTypeActivatedCheck<GaiaSkyline.Web.Health.PricingHealthCheck>(
+    "pricing-sync", failureStatus: null, tags: ["ready"]);
+
 var app = builder.Build();
 
 // One-off CLI: `dotnet run -- create-owner --email ... --password ...` (prod Owner provisioning).
@@ -399,6 +402,14 @@ if (GaiaSkyline.BackgroundJobs.DependencyInjection.IsEnabled(builder.Configurati
         "external-calendar-import",
         importer => importer.ImportAllAsync(CancellationToken.None),
         $"*/{icsIntervalMinutes} * * * *");
+
+    // Automatic nightly-price sync (manual mode until a provider is configured): every N hours.
+    var rateSyncHours = int.TryParse(builder.Configuration[$"{GaiaSkyline.Application.Pricing.PricingProviderOptions.SectionName}:SyncIntervalHours"], out var h) && h > 0 ? h : 4;
+    Hangfire.RecurringJobManagerExtensions.AddOrUpdate<GaiaSkyline.Application.Pricing.IRateSyncService>(
+        recurringJobs,
+        "rate-sync",
+        service => service.SyncAsync(CancellationToken.None),
+        $"0 */{rateSyncHours} * * *");
 }
 
 app.Run();

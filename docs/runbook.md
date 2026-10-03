@@ -93,6 +93,56 @@ now maintained by the feed).
 bookings + OwnerUnavailable blocks (never ExternalBooking blocks, to avoid echo). Give
 this URL to the management company so Hostify can import our direct bookings.
 
+## Nightly prices (Stage 5 item 2)
+
+Like the calendar, prices are **owner-managed (manual)** until a pricing provider API is
+available. The management company runs **PriceLabs** (dynamic pricing) on top of Hostify,
+but we have no verified API access yet, so there is **no automatic adapter** — see
+[ADR 0014](decisions/0014-automatic-pricing-provider-dormant.md). A per-date rate
+(`DailyRate`) takes precedence over the season rules and the base rate (ADR 0009); if a
+date has no daily rate it falls back to the season, then the base.
+
+### Setting prices manually (now)
+All endpoints are Owner-only and audited. Dates are inclusive.
+- **Set a range**: `PUT /api/admin/pricing/rates` `{ "from": "2026-07-01", "to":
+  "2026-08-31", "nightlyRate": 140, "minNights": 3 }`.
+- **Clear a range** (fall back to season/base): `DELETE /api/admin/pricing/rates?from=…&to=…`.
+- **Lock/unlock** (locked dates are never overwritten by a future import):
+  `POST /api/admin/pricing/rates/lock` `{ "from": …, "to": …, "locked": true }`.
+- **CSV import**: `POST /api/admin/pricing/rates/csv` `{ "csv": "date,price,min_nights\n2026-07-01,140,3" }`.
+  Default is a **dry-run** that returns the parsed rows (`set` / `invalid: …`) without
+  saving; add `?apply=true` to commit the valid rows. CSV columns: `date,price[,min_nights]`;
+  a `date,…` header row is ignored.
+
+Mirror the owner's Airbnb/PriceLabs nightly prices here. Any change takes effect on the
+next quote and invalidates the availability/quote/output caches (including the JSON-LD
+"from €X"). An existing booking keeps the price it was quoted — changing a daily rate never
+re-prices a confirmed stay.
+
+### What to ask the management company
+- Whether **PriceLabs or Hostify exposes a rates API** for this listing, plus official
+  docs and an API key. Until then, pricing stays manual.
+- A sensible **direct-booking discount** to pass on (we take no platform fee): decide a
+  percentage for `Pricing:DirectBookingAdjustmentPct` to apply to imported prices later.
+
+### Enabling automatic sync once an adapter exists (future)
+No adapter ships today. When one is built against official docs (implement `IRateProvider`
+— see ADR 0014), configure and restart:
+```bash
+dotnet user-secrets set "Pricing:Provider" "PriceLabs"   # or Hostify
+dotnet user-secrets set "Pricing:ApiKey" "…"             # credential — User Secrets/Key Vault only
+dotnet user-secrets set "Pricing:ListingId" "…"
+dotnet user-secrets set "Pricing:DirectBookingAdjustmentPct" "-10"   # optional, whole-euro rounding
+dotnet user-secrets set "Pricing:FloorPrice" "40"        # reject imports below this
+dotnet user-secrets set "Pricing:CeilingPrice" "500"     # reject imports above this
+```
+The `rate-sync` Hangfire job (every `Pricing:SyncIntervalHours`, default 4) then imports
+the next 18 months: it **skips owner-locked dates**, applies the direct-booking adjustment
+(rounded to whole euros), **rejects** prices outside the floor/ceiling (keeps the previous
+value and emails the owner), and upserts only changed dates. With no provider configured it
+logs "manual pricing mode" and the health check reports Healthy ("Manual pricing mode");
+once configured, the check goes **Degraded** if no rate has synced in 24 hours.
+
 ## Accounts & auth (Stage 6)
 
 - **Owner**: seeded in Development from `Owner:Email` + `Owner:Password` (User Secrets).
