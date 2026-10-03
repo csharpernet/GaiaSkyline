@@ -14,6 +14,9 @@ const copies = [
   // script/style is in the critical path; the tile source is configured per environment.
   ['node_modules/maplibre-gl/dist/maplibre-gl.js', path.join(jsDir, 'maplibre-gl.js')],
   ['node_modules/maplibre-gl/dist/maplibre-gl.css', path.join(cssDir, 'maplibre-gl.css')],
+  // Flatpickr powers the booking calendars — self-hosted, lazy-loaded on /book only.
+  ['node_modules/flatpickr/dist/flatpickr.min.js', path.join(jsDir, 'flatpickr.min.js')],
+  ['node_modules/flatpickr/dist/flatpickr.min.css', path.join(cssDir, 'flatpickr.min.css')],
 ];
 
 for (const [src, dest] of copies) {

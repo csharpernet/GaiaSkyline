@@ -21,3 +21,6 @@ public sealed record StoryDetailViewModel(StoryDto Story, IReadOnlyList<StoryDto
 public sealed record LegalViewModel(string Page, string Heading, string RegistrationValue);
 
 public sealed record BookViewModel(string Heading, string Message);
+
+/// <summary>The public /book page: calendars, guest picker and live quote (copy from content blocks).</summary>
+public sealed record BookPageViewModel(ContentPayload Copy, int MaxGuests);

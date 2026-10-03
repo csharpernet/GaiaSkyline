@@ -778,5 +778,62 @@ public sealed class ContentSeeder(AppDbContext dbContext, IContentRevision revis
         new("email", "email.dispute_alert.body", ContentKind.RichText, "Email: dispute alert body",
             Text: "<p>A payment dispute has been opened for booking {reference} ({guestName}, {total}). " +
                   "Review it in the Stripe dashboard immediately.</p>"),
+
+        // ----- booking: /book -----
+        new("book", "book.title", ContentKind.PlainText, "Book: title", Text: "Book your stay"),
+        new("book", "book.subtitle", ContentKind.PlainText, "Book: subtitle",
+            Text: "Pick your dates and guests to see the total — then reserve in a couple of minutes."),
+        new("book", "book.checkin_label", ContentKind.ShortText, "Book: check-in label", Text: "Check-in"),
+        new("book", "book.checkout_label", ContentKind.ShortText, "Book: check-out label", Text: "Check-out"),
+        new("book", "book.guests_label", ContentKind.ShortText, "Book: guests label", Text: "Guests"),
+        new("book", "book.adults_label", ContentKind.ShortText, "Book: adults label", Text: "Adults"),
+        new("book", "book.children_label", ContentKind.ShortText, "Book: children label", Text: "Children"),
+        new("book", "book.infants_label", ContentKind.ShortText, "Book: infants label", Text: "Infants"),
+        new("book", "book.sofa_note", ContentKind.PlainText, "Book: sofa-bed note",
+            Text: "Above 4 guests, the fifth and sixth sleep on the living-room sofa bed."),
+        new("book", "book.reserve_cta", ContentKind.ShortText, "Book: reserve button", Text: "Reserve"),
+        new("book", "book.min_nights_note", ContentKind.PlainText, "Book: minimum nights note",
+            Text: "Minimum 3 nights (1 night for last-minute stays within 7 days)."),
+        new("book", "book.payment_methods_note", ContentKind.PlainText, "Book: payment methods note",
+            Text: "Pay by card, Apple Pay, Google Pay or Multibanco."),
+        new("book", "book.total_label", ContentKind.ShortText, "Book: total label", Text: "Total"),
+        new("book", "book.promo_label", ContentKind.ShortText, "Book: promo code label", Text: "Promo code"),
+
+        // ----- booking: /book/checkout -----
+        new("checkout", "checkout.title", ContentKind.PlainText, "Checkout: title", Text: "Your details"),
+        new("checkout", "checkout.name_label", ContentKind.ShortText, "Checkout: name", Text: "Full name"),
+        new("checkout", "checkout.email_label", ContentKind.ShortText, "Checkout: email", Text: "Email"),
+        new("checkout", "checkout.phone_label", ContentKind.ShortText, "Checkout: phone", Text: "Phone"),
+        new("checkout", "checkout.country_label", ContentKind.ShortText, "Checkout: country", Text: "Country"),
+        new("checkout", "checkout.arrival_label", ContentKind.ShortText, "Checkout: arrival estimate", Text: "Estimated arrival time"),
+        new("checkout", "checkout.special_requests_label", ContentKind.ShortText, "Checkout: special requests", Text: "Special requests"),
+        new("checkout", "checkout.create_account_label", ContentKind.PlainText, "Checkout: create account",
+            Text: "Create an account to manage this booking (optional)."),
+        new("checkout", "checkout.pay_cta", ContentKind.ShortText, "Checkout: pay button", Text: "Pay and confirm"),
+        new("checkout", "checkout.late_checkin_note", ContentKind.PlainText, "Checkout: late check-in note",
+            Text: "Arrivals after 23:00 incur a €30 late check-in fee, paid in cash on arrival."),
+
+        // ----- booking: /book/confirmation -----
+        new("confirmation", "confirmation.confirmed_heading", ContentKind.PlainText, "Confirmation: confirmed heading",
+            Text: "Your stay is confirmed"),
+        new("confirmation", "confirmation.awaiting_heading", ContentKind.PlainText, "Confirmation: awaiting heading",
+            Text: "Almost there — complete your Multibanco payment"),
+        new("confirmation", "confirmation.multibanco_note", ContentKind.PlainText, "Confirmation: Multibanco note",
+            Text: "Pay at any ATM or through your bank app using the reference below. We'll confirm automatically."),
+        new("confirmation", "confirmation.add_to_calendar", ContentKind.ShortText, "Confirmation: add to calendar", Text: "Add to calendar"),
+        new("confirmation", "confirmation.invoice_link", ContentKind.ShortText, "Confirmation: invoice link", Text: "Download invoice"),
+        new("confirmation", "confirmation.checkin_heading", ContentKind.PlainText, "Confirmation: check-in heading", Text: "Before you arrive"),
+
+        // ----- check-in instructions (shown on the confirmation page) -----
+        new("checkin", "checkin.welcome", ContentKind.RichText, "Check-in: welcome",
+            Text: "Welcome to Gaia Skyline. Check-in is from 16:00; check-out by 10:00."),
+        new("checkin", "checkin.parking", ContentKind.RichText, "Check-in: parking",
+            Text: "Free parking is available on the premises — details are sent the day before arrival."),
+        new("checkin", "checkin.smart_lock", ContentKind.RichText, "Check-in: smart lock",
+            Text: "The apartment has a smart lock; your personal entry code arrives by email on the morning of check-in."),
+        new("checkin", "checkin.hot_tub", ContentKind.RichText, "Check-in: hot tub",
+            Text: "The private hot tub is ready year-round — set the temperature between 27 °C and 33 °C."),
+        new("checkin", "checkin.contact", ContentKind.RichText, "Check-in: contact",
+            Text: "Questions during your stay? Message the host any time; we usually reply within the hour."),
     ];
 }

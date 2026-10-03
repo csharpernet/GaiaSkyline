@@ -29,7 +29,7 @@
     <FrontendInput Include="Views\**\*.cshtml" />
   </ItemGroup>
 
-  <Target Name="FrontendBuild" BeforeTargets="AssignTargetPaths;Build" Inputs="@(FrontendInput)" Outputs="wwwroot\css\app.css;wwwroot\js\vendor\web-vitals.iife.js;wwwroot\js\vendor\maplibre-gl.js">
+  <Target Name="FrontendBuild" BeforeTargets="AssignTargetPaths;Build" Inputs="@(FrontendInput)" Outputs="wwwroot\css\app.css;wwwroot\js\vendor\web-vitals.iife.js;wwwroot\js\vendor\maplibre-gl.js;wwwroot\js\vendor\flatpickr.min.js">
     <Message Importance="high" Text="GaiaSkyline: building front-end (npm run build)..." />
     <Exec Command="npm install --no-fund --no-audit --loglevel=error" Condition="!Exists('$(MSBuildProjectDirectory)\node_modules')" WorkingDirectory="$(MSBuildProjectDirectory)" />
     <Exec Command="npm run build" WorkingDirectory="$(MSBuildProjectDirectory)" />
