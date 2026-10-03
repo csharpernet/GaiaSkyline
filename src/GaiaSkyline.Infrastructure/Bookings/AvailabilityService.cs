@@ -80,12 +80,27 @@ internal sealed class AvailabilityService(
             .Select(x => new { x.StartDate, x.EndDate })
             .ToListAsync(cancellationToken);
 
+        // External-calendar blocks use an INCLUSIVE end date.
         var set = new HashSet<DateOnly>(occupied);
         foreach (var block in externalBlocks)
         {
             var start = block.StartDate < monthStart ? monthStart : block.StartDate;
             var end = block.EndDate > monthEnd ? monthEnd : block.EndDate;
             for (var d = start; d <= end; d = d.AddDays(1))
+            {
+                set.Add(d);
+            }
+        }
+
+        // Owner blocks use an EXCLUSIVE end date (half-open [Start, End)).
+        var ownerBlocks = await dbContext.OwnerBlocks.AsNoTracking()
+            .Where(x => x.StartDate <= monthEnd && x.EndDate > monthStart)
+            .Select(x => new { x.StartDate, x.EndDate })
+            .ToListAsync(cancellationToken);
+        foreach (var block in ownerBlocks)
+        {
+            var start = block.StartDate < monthStart ? monthStart : block.StartDate;
+            for (var d = start; d < block.EndDate && d <= monthEnd; d = d.AddDays(1))
             {
                 set.Add(d);
             }

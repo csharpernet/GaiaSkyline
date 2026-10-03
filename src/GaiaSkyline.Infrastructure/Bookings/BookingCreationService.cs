@@ -63,6 +63,14 @@ internal sealed class BookingCreationService(
                 throw new DatesUnavailableException();
             }
 
+            // Owner blocks use an exclusive end date.
+            var ownerBlocked = await dbContext.OwnerBlocks.AsNoTracking()
+                .AnyAsync(b => b.StartDate <= lastNight && b.EndDate > command.CheckIn, cancellationToken);
+            if (ownerBlocked)
+            {
+                throw new DatesUnavailableException();
+            }
+
             var newBooking = BuildBooking(command, quote, promoId, nowUtc);
             dbContext.Bookings.Add(newBooking);
             foreach (var night in nights)

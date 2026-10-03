@@ -145,3 +145,13 @@ internal sealed class AuditEventIdConverter : ValueConverter<AuditEventId, Guid>
     {
     }
 }
+
+// Stage 5 (calendars).
+
+internal sealed class OwnerBlockIdConverter : ValueConverter<OwnerBlockId, Guid>
+{
+    public OwnerBlockIdConverter()
+        : base(id => id.Value, value => OwnerBlockId.From(value))
+    {
+    }
+}

@@ -67,6 +67,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
 
     public DbSet<ExternalCalendarBlock> ExternalCalendarBlocks => Set<ExternalCalendarBlock>();
 
+    public DbSet<OwnerBlock> OwnerBlocks => Set<OwnerBlock>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -99,6 +101,9 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
 
         // Stage 6 identities.
         configurationBuilder.Properties<AuditEventId>().HaveConversion<AuditEventIdConverter>();
+
+        // Stage 5 identities.
+        configurationBuilder.Properties<OwnerBlockId>().HaveConversion<OwnerBlockIdConverter>();
 
         // Money persists as integer minor units (cents); EUR is re-attached on read.
         configurationBuilder.Properties<Money>().HaveConversion<MoneyToCentsConverter>();
