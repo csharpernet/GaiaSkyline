@@ -22,7 +22,7 @@ public sealed class LocalDbFixture : IDisposable
 
         var databaseName = $"GaiaSkyline_Tests_{Guid.NewGuid():N}";
         ConnectionString =
-            $@"Server=(localdb)\mssqllocaldb;Database={databaseName};Trusted_Connection=True;TrustServerCertificate=True;MultipleActiveResultSets=true";
+            $@"Server=(localdb)\mssqllocaldb;Database={databaseName};Trusted_Connection=True;TrustServerCertificate=True;MultipleActiveResultSets=true;Connect Timeout=60";
 
         using var context = CreateContext();
         context.Database.Migrate(); // creates the database and applies 0001_Init

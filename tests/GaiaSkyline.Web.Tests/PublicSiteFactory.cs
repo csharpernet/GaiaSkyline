@@ -15,7 +15,10 @@ public sealed class PublicSiteFactory : WebApplicationFactory<Program>
     private readonly string _databaseName = $"GaiaSkyline_Web_{Guid.NewGuid():N}";
 
     private string ConnectionString =>
-        $@"Server=(localdb)\mssqllocaldb;Database={_databaseName};Trusted_Connection=True;TrustServerCertificate=True;MultipleActiveResultSets=true";
+        // Connect Timeout is generous: under a full-solution run the shared LocalDB instance is busy
+        // (Infrastructure.Tests churns throwaway DBs), and a short open-timeout was the cause of the
+        // occasional non-200 on a localized home page. 60s gives the instance room without masking bugs.
+        $@"Server=(localdb)\mssqllocaldb;Database={_databaseName};Trusted_Connection=True;TrustServerCertificate=True;MultipleActiveResultSets=true;Connect Timeout=60";
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {

@@ -36,7 +36,10 @@ public class PublicSiteTests(PublicSiteFactory factory)
 
         using var response = await client.GetAsync(new Uri(url, UriKind.Relative));
 
-        response.StatusCode.Should().Be(HttpStatusCode.OK, $"{url} should resolve");
+        var body = response.StatusCode == HttpStatusCode.OK
+            ? string.Empty
+            : await response.Content.ReadAsStringAsync();
+        response.StatusCode.Should().Be(HttpStatusCode.OK, $"{url} should resolve. Server said: {body}");
     }
 
     [Theory]
