@@ -23,6 +23,27 @@ internal sealed class SmtpEmailSender(IOptions<EmailOptions> options) : IEmailSe
         };
         mail.To.Add(new MailAddress(message.ToAddress, message.ToName));
 
-        await client.SendMailAsync(mail, cancellationToken);
+        var streams = new List<MemoryStream>();
+        if (message.Attachments is not null)
+        {
+            foreach (var attachment in message.Attachments)
+            {
+                var stream = new MemoryStream(attachment.Content);
+                streams.Add(stream);
+                mail.Attachments.Add(new Attachment(stream, attachment.FileName, attachment.ContentType));
+            }
+        }
+
+        try
+        {
+            await client.SendMailAsync(mail, cancellationToken);
+        }
+        finally
+        {
+            foreach (var stream in streams)
+            {
+                await stream.DisposeAsync();
+            }
+        }
     }
 }

@@ -88,6 +88,7 @@ public static class DependencyInjection
 
         // Email (Stage 4 / Increment D). Provider selected by config; dev uses SMTP (smtp4dev).
         services.AddOptions<EmailOptions>().Bind(configuration.GetSection(EmailOptions.SectionName));
+        services.AddOptions<PropertyManagerOptions>().Bind(configuration.GetSection(PropertyManagerOptions.SectionName));
         var emailProvider = configuration[$"{EmailOptions.SectionName}:Provider"] ?? "Smtp";
         if (string.Equals(emailProvider, "SendGrid", StringComparison.OrdinalIgnoreCase))
         {

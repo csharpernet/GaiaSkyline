@@ -27,4 +27,7 @@ internal sealed class EmailBookingNotificationService(IEmailJobScheduler schedul
 
     public Task SendDisputeAlertAsync(Booking booking, CancellationToken cancellationToken) =>
         scheduler.EnqueueAsync(booking.Id.Value, BookingEmailKind.DisputeAlert, cancellationToken);
+
+    public Task SendPropertyManagerNotificationAsync(Booking booking, CancellationToken cancellationToken) =>
+        scheduler.EnqueueAsync(booking.Id.Value, BookingEmailKind.PropertyManager, cancellationToken);
 }

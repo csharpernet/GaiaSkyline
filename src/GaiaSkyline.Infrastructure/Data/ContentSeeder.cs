@@ -779,6 +779,18 @@ public sealed class ContentSeeder(AppDbContext dbContext, IContentRevision revis
             Text: "<p>A payment dispute has been opened for booking {reference} ({guestName}, {total}). " +
                   "Review it in the Stripe dashboard immediately.</p>"),
 
+        new("email", "email.property_manager.subject", ContentKind.ShortText, "Email: property manager subject",
+            Text: "Direct booking {reference} — please block {checkIn} to {checkOut} in Hostify"),
+        new("email", "email.property_manager.body", ContentKind.RichText, "Email: property manager body",
+            Text: "<p><strong>Please block these dates in Hostify.</strong></p>" +
+                  "<ul><li>Reference: {reference}</li><li>Status: {status}</li>" +
+                  "<li>Dates: {checkIn} – {checkOut} ({nights} nights)</li>" +
+                  "<li>Guests: {adults} adults, {children} children, {infants} infants</li>" +
+                  "<li>Guest: {guestName}</li><li>Email: {guestEmail}</li><li>Phone: {guestPhone}</li>" +
+                  "<li>Country: {guestCountry}</li><li>Arrival estimate: {arrivalEstimate}</li>" +
+                  "<li>Special requests: {specialRequests}</li></ul>" +
+                  "<p>The booking is attached as an .ics.</p>"),
+
         // ----- authentication emails (Stage 6). Tokens filled by AuthEmailComposer. -----
         new("email", "email.auth.confirm_email.subject", ContentKind.ShortText, "Email: confirm email subject",
             Text: "Confirm your email for Gaia Skyline"),

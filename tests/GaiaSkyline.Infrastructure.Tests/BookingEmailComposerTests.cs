@@ -62,6 +62,45 @@ public sealed class BookingEmailComposerTests(LocalDbFixture fixture) : IClassFi
         message.HtmlBody.Should().Contain("999888777");
     }
 
+    [Fact]
+    public async Task Owner_notification_leads_with_the_block_action_line()
+    {
+        var booking = Build("GS-ACT1", "guest@example.com", "Guest", "en");
+
+        var message = await Composer().ComposeAsync(booking, BookingEmailKind.OwnerNotification, CancellationToken.None);
+
+        message.HtmlBody.Should().Contain("Action needed: ask the management company to block");
+        message.HtmlBody.Should().Contain("in Hostify");
+    }
+
+    [Fact]
+    public async Task Owner_notification_says_unblock_when_the_booking_is_cancelled()
+    {
+        var booking = Build("GS-ACT2", "guest@example.com", "Guest", "en");
+        booking.Cancel("guest cancellation", DateTime.UtcNow);
+
+        var message = await Composer().ComposeAsync(booking, BookingEmailKind.OwnerNotification, CancellationToken.None);
+
+        message.HtmlBody.Should().Contain("Action needed: ask the management company to unblock");
+    }
+
+    [Fact]
+    public async Task Property_manager_email_has_guest_details_and_an_ics_but_no_payment_data()
+    {
+        var booking = Build("GS-PM1", "guest@example.com", "Guest", "en");
+
+        var message = await Composer().ComposeAsync(booking, BookingEmailKind.PropertyManager, CancellationToken.None);
+
+        message.HtmlBody.Should().Contain("Please block these dates in Hostify");
+        message.HtmlBody.Should().Contain("guest@example.com");
+        message.HtmlBody.Should().Contain("+351 912 345 678");
+        message.HtmlBody.Should().NotContain("€"); // no payment data
+        message.Attachments.Should().NotBeNull();
+        message.Attachments!.Should().ContainSingle(a => a.ContentType == "text/calendar");
+        // The dispatcher fills the recipient from PropertyManager:NotificationEmails.
+        message.ToAddress.Should().BeEmpty();
+    }
+
     private BookingEmailComposer Composer()
     {
         var content = new ContentService(new ContentReadStore(_fixture.CreateContext()), _cache, new ContentRevision());

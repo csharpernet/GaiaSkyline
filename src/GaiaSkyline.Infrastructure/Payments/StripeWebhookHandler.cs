@@ -133,6 +133,7 @@ internal sealed class StripeWebhookHandler(
         icsCache.Invalidate();
         await notifications.SendGuestConfirmationAsync(booking, cancellationToken);
         await notifications.SendOwnerNotificationAsync(booking, cancellationToken);
+        await notifications.SendPropertyManagerNotificationAsync(booking, cancellationToken);
     }
 
     private async Task OnPaymentProcessingAsync(PaymentIntent intent, CancellationToken cancellationToken)

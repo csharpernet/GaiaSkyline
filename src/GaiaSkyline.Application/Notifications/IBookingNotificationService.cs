@@ -20,4 +20,7 @@ public interface IBookingNotificationService
     Task SendRefundAsync(Booking booking, CancellationToken cancellationToken);
 
     Task SendDisputeAlertAsync(Booking booking, CancellationToken cancellationToken);
+
+    /// <summary>Copies the direct booking to the management company (skipped silently if none configured).</summary>
+    Task SendPropertyManagerNotificationAsync(Booking booking, CancellationToken cancellationToken);
 }

@@ -10,4 +10,5 @@ public enum BookingEmailKind
     Cancellation,
     OwnerNotification,
     DisputeAlert,
+    PropertyManager,
 }

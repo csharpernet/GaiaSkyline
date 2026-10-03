@@ -70,6 +70,7 @@ public sealed class StripeLifecycleTests(LocalDbFixture fixture) : IClassFixture
 
         notifications.GuestConfirmations.Should().Be(1);
         notifications.OwnerNotifications.Should().Be(1);
+        notifications.PropertyManagerNotifications.Should().Be(1);
     }
 
     [Fact]
@@ -252,6 +253,8 @@ public sealed class StripeLifecycleTests(LocalDbFixture fixture) : IClassFixture
 
         public int DisputeAlerts { get; private set; }
 
+        public int PropertyManagerNotifications { get; private set; }
+
         public Task SendGuestConfirmationAsync(Booking booking, CancellationToken cancellationToken)
         {
             GuestConfirmations++;
@@ -285,6 +288,12 @@ public sealed class StripeLifecycleTests(LocalDbFixture fixture) : IClassFixture
         public Task SendDisputeAlertAsync(Booking booking, CancellationToken cancellationToken)
         {
             DisputeAlerts++;
+            return Task.CompletedTask;
+        }
+
+        public Task SendPropertyManagerNotificationAsync(Booking booking, CancellationToken cancellationToken)
+        {
+            PropertyManagerNotifications++;
             return Task.CompletedTask;
         }
     }

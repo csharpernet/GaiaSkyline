@@ -22,8 +22,11 @@ internal sealed class BookingEmailComposer(
 
     public async Task<EmailMessage> ComposeAsync(Booking booking, BookingEmailKind kind, CancellationToken cancellationToken)
     {
-        var ownerBound = kind is BookingEmailKind.OwnerNotification or BookingEmailKind.DisputeAlert;
-        var language = ownerBound ? "en" : booking.GuestLanguage;
+        // Owner, dispute and property-manager emails are English; guest emails use the guest's language.
+        var english = kind is BookingEmailKind.OwnerNotification
+            or BookingEmailKind.DisputeAlert
+            or BookingEmailKind.PropertyManager;
+        var language = english ? "en" : booking.GuestLanguage;
         var payload = await content.GetSectionAsync("email", language, cancellationToken);
 
         var keyBase = $"email.{KindKey(kind)}";
@@ -33,13 +36,46 @@ internal sealed class BookingEmailComposer(
 
         var replacements = BuildReplacements(booking, language);
         var subject = Apply(subjectTemplate, replacements);
-        var body = WrapInLayout(Apply(bodyTemplate, replacements));
+        var innerHtml = Apply(bodyTemplate, replacements);
 
-        return new EmailMessage(
-            ownerBound ? _options.OwnerAddress : booking.GuestEmail,
-            ownerBound ? _options.FromName : booking.GuestName,
-            subject,
-            body);
+        // The owner acts on each booking by hand in Hostify until iCal sync is connected: lead with it.
+        if (kind == BookingEmailKind.OwnerNotification)
+        {
+            var verb = IsCancelled(booking.Status) ? "unblock" : "block";
+            innerHtml =
+                $"<p style=\"font-weight:bold;color:#A04A28;\">Action needed: ask the management company to {verb} " +
+                $"{replacements["{checkIn}"]} – {replacements["{checkOut}"]} in Hostify.</p>" + innerHtml;
+        }
+
+        var body = WrapInLayout(innerHtml);
+
+        var (toAddress, toName) = kind switch
+        {
+            BookingEmailKind.PropertyManager => (string.Empty, "Property manager"),
+            _ when english => (_options.OwnerAddress, _options.FromName),
+            _ => (booking.GuestEmail, booking.GuestName),
+        };
+
+        // The property-manager copy carries the booking as an .ics (no payment data).
+        IReadOnlyList<EmailAttachment>? attachments = kind == BookingEmailKind.PropertyManager
+            ? [new EmailAttachment($"gaia-skyline-{booking.ReferenceCode}.ics", "text/calendar", BuildIcs(booking))]
+            : null;
+
+        return new EmailMessage(toAddress, toName, subject, body, attachments);
+    }
+
+    private static bool IsCancelled(BookingStatus status) =>
+        status is BookingStatus.Cancelled or BookingStatus.Refunded or BookingStatus.PartiallyRefunded;
+
+    private static byte[] BuildIcs(Booking booking)
+    {
+        static string D(DateOnly d) => d.ToString("yyyyMMdd", CultureInfo.InvariantCulture);
+        var ics = string.Join("\r\n",
+            "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//GaiaSkyline//v1//EN", "CALSCALE:GREGORIAN", "METHOD:PUBLISH",
+            "BEGIN:VEVENT", $"UID:booking-{booking.ReferenceCode}@gaiaskyline",
+            $"DTSTART;VALUE=DATE:{D(booking.CheckIn)}", $"DTEND;VALUE=DATE:{D(booking.CheckOut)}",
+            "SUMMARY:Gaia Skyline — direct booking", "END:VEVENT", "END:VCALENDAR", string.Empty);
+        return System.Text.Encoding.UTF8.GetBytes(ics);
     }
 
     private static string Resolve(ContentPayload payload, string key, string fallback) =>
@@ -60,6 +96,12 @@ internal sealed class BookingEmailComposer(
         {
             ["{reference}"] = booking.ReferenceCode,
             ["{guestName}"] = booking.GuestName,
+            ["{guestEmail}"] = booking.GuestEmail,
+            ["{guestPhone}"] = booking.GuestPhone,
+            ["{guestCountry}"] = booking.GuestCountry,
+            ["{status}"] = booking.Status.ToString(),
+            ["{arrivalEstimate}"] = booking.ArrivalEstimateLocal?.ToString("HH:mm", CultureInfo.InvariantCulture) ?? "—",
+            ["{specialRequests}"] = string.IsNullOrWhiteSpace(booking.SpecialRequests) ? "—" : booking.SpecialRequests,
             ["{nights}"] = booking.Nights.ToString(CultureInfo.InvariantCulture),
             ["{checkIn}"] = booking.CheckIn.ToString("dd MMM yyyy", culture),
             ["{checkOut}"] = booking.CheckOut.ToString("dd MMM yyyy", culture),
@@ -111,6 +153,7 @@ internal sealed class BookingEmailComposer(
         BookingEmailKind.Cancellation => "cancellation",
         BookingEmailKind.OwnerNotification => "owner_notification",
         BookingEmailKind.DisputeAlert => "dispute_alert",
+        BookingEmailKind.PropertyManager => "property_manager",
         _ => "confirmation",
     };
 
@@ -156,5 +199,15 @@ internal sealed class BookingEmailComposer(
             "Dispute opened on booking {reference}",
             "<p>A payment dispute has been opened for booking {reference} ({guestName}, {total}). " +
             "Review it in the Stripe dashboard immediately.</p>"),
+        [BookingEmailKind.PropertyManager] = (
+            "Direct booking {reference} — please block {checkIn} to {checkOut} in Hostify",
+            "<p><strong>Please block these dates in Hostify.</strong></p>" +
+            "<ul><li>Reference: {reference}</li><li>Status: {status}</li>" +
+            "<li>Dates: {checkIn} – {checkOut} ({nights} nights)</li>" +
+            "<li>Guests: {adults} adults, {children} children, {infants} infants</li>" +
+            "<li>Guest: {guestName}</li><li>Email: {guestEmail}</li><li>Phone: {guestPhone}</li>" +
+            "<li>Country: {guestCountry}</li><li>Arrival estimate: {arrivalEstimate}</li>" +
+            "<li>Special requests: {specialRequests}</li></ul>" +
+            "<p>The booking is attached as an .ics.</p>"),
     };
 }

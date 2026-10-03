@@ -19,6 +19,14 @@ internal sealed class SendGridEmailSender(IOptions<EmailOptions> options) : IEma
         var to = new EmailAddress(message.ToAddress, message.ToName);
         var email = MailHelper.CreateSingleEmail(from, to, message.Subject, plainTextContent: null, message.HtmlBody);
 
+        if (message.Attachments is not null)
+        {
+            foreach (var attachment in message.Attachments)
+            {
+                email.AddAttachment(attachment.FileName, Convert.ToBase64String(attachment.Content), attachment.ContentType);
+            }
+        }
+
         var response = await client.SendEmailAsync(email, cancellationToken);
         if ((int)response.StatusCode >= 400)
         {

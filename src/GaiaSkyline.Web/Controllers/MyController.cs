@@ -3,6 +3,7 @@ using System.Text;
 using GaiaSkyline.Application.Auditing;
 using GaiaSkyline.Application.Bookings;
 using GaiaSkyline.Application.Content;
+using GaiaSkyline.Application.Notifications;
 using GaiaSkyline.Application.Payments;
 using GaiaSkyline.Application.Pricing;
 using GaiaSkyline.Domain.Bookings;
@@ -29,6 +30,7 @@ public sealed class MyController(
     IInvoiceService invoiceService,
     IContentService content,
     BookingAccessCookie bookingAccess,
+    IEmailJobScheduler emailScheduler,
     IAuditLog audit,
     TimeProvider clock) : PublicController
 {
@@ -129,6 +131,10 @@ public sealed class MyController(
 
             await lifecycleService.CancelAndReleaseAsync(bookingId, "Guest cancellation", cancellationToken);
             await audit.WriteAsync("booking.cancelled", null, Ip, "Booking", reference, new { pct, amount }, cancellationToken);
+
+            // Manual-sync alerts: the owner must unblock these dates in Hostify (and the PM, if configured).
+            await emailScheduler.EnqueueAsync(dto.Id, BookingEmailKind.OwnerNotification, cancellationToken);
+            await emailScheduler.EnqueueAsync(dto.Id, BookingEmailKind.PropertyManager, cancellationToken);
         }
 
         return LocalRedirect($"/{CurrentSlug}/my/booking/{reference}");
