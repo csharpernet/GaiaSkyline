@@ -70,7 +70,8 @@ public class BookingFlowTests(PublicSiteFactory factory)
         using var client = Client();
         using var response = await client.GetAsync(new Uri("/api/book/status/GS-NOPE?token=forged", UriKind.Relative));
 
-        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        var body = await response.Content.ReadAsStringAsync();
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound, "server said: {0}", body);
     }
 
     [Fact]
