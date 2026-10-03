@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GaiaSkyline.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20261003163152_0007_Identity")]
+    [Migration("20261003164835_0007_Identity")]
     partial class _0007_Identity
     {
         /// <inheritdoc />
@@ -20,7 +20,7 @@ namespace GaiaSkyline.Infrastructure.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.1")
+                .HasAnnotation("ProductVersion", "10.0.12")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -1061,7 +1061,9 @@ namespace GaiaSkyline.Infrastructure.Migrations
 
                             b1.ToTable("CancellationPolicies");
 
-                            b1.ToJson("Tiers");
+                            b1
+                                .ToJson("Tiers")
+                                .HasColumnType("nvarchar(max)");
 
                             b1.WithOwner()
                                 .HasForeignKey("CancellationPolicyId");

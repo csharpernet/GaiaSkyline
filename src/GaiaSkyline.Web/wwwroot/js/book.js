@@ -124,6 +124,15 @@
         window.location.href = '/' + slug + '/book/checkout?' + params.toString();
     }
 
+    // Flatpickr renders non-selectable days (past / blocked) at a very low-contrast grey. They are
+    // genuinely disabled, so mark them aria-disabled: assistive tech and the axe contrast rule both
+    // treat disabled controls as exempt, which keeps the calendar accessible without faking contrast.
+    function markDisabledDays(dObj, dStr, fp, dayElem) {
+        if (dayElem.classList.contains('flatpickr-disabled')) {
+            dayElem.setAttribute('aria-disabled', 'true');
+        }
+    }
+
     function initCalendars(blockedDates) {
         var today = new Date();
         checkInPicker = flatpickr('#checkin-cal', {
@@ -131,6 +140,7 @@
             dateFormat: 'Y-m-d',
             minDate: today,
             disable: blockedDates,
+            onDayCreate: markDisabledDays,
             onChange: function (dates) {
                 state.checkIn = dates.length ? iso(dates[0]) : null;
                 if (state.checkIn && checkOutPicker) {
@@ -146,6 +156,7 @@
             dateFormat: 'Y-m-d',
             minDate: today,
             disable: blockedDates,
+            onDayCreate: markDisabledDays,
             onChange: function (dates) {
                 state.checkOut = dates.length ? iso(dates[0]) : null;
                 updateQuote();
