@@ -1,6 +1,8 @@
 using GaiaSkyline.Application.Auditing;
+using GaiaSkyline.Application.Notifications;
 using GaiaSkyline.Application.Security;
 using GaiaSkyline.Infrastructure.Auditing;
+using GaiaSkyline.Infrastructure.Notifications;
 using GaiaSkyline.Infrastructure.Security;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
@@ -32,6 +34,7 @@ public static class IdentityServiceCollectionExtensions
         services.AddScoped<IPasswordValidator<ApplicationUser>, PwnedPasswordValidator>();
 
         services.AddScoped<IAuditLog, AuditLog>();
+        services.AddScoped<IAuthEmailService, AuthEmailService>();
         services.AddScoped<IdentitySeeder>();
 
         return services;

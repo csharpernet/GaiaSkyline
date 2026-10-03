@@ -1,0 +1,30 @@
+@model EnrollTwoFactorViewModel
+@{
+    Layout = "_AdminLayout";
+    ViewData["Title"] = "Set up two-factor";
+}
+
+<h1 class="font-display text-2xl font-semibold">Set up two-factor</h1>
+<p class="mt-2 text-sm text-ink/70">
+    Scan this QR code with an authenticator app (Google Authenticator, 1Password, Authy…), then enter the code it shows.
+</p>
+
+<div class="mt-6 bg-white border border-fog rounded-md p-4 w-fit">
+    @Html.Raw(Model.QrSvg)
+</div>
+
+<p class="mt-4 text-sm text-ink/70">Or enter this key manually:</p>
+<p class="font-mono text-sm bg-white border border-fog rounded px-3 py-2 inline-block">@Model.SharedKey</p>
+
+<form asp-action="EnrollTwoFactor" method="post" class="mt-6 space-y-5">
+    <div asp-validation-summary="ModelOnly" class="text-clay text-sm"></div>
+    <div>
+        <label asp-for="Code" class="block text-sm font-semibold text-river">Verification code</label>
+        <input asp-for="Code" autocomplete="one-time-code" inputmode="numeric"
+               class="mt-1 w-full rounded-md border border-fog px-3 py-2 bg-white" />
+        <span asp-validation-for="Code" class="text-clay text-sm"></span>
+    </div>
+    <button type="submit" class="w-full bg-clay text-white px-6 py-3 rounded-md hover:opacity-90 transition-opacity">
+        Enable two-factor
+    </button>
+</form>

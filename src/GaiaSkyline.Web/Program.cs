@@ -165,6 +165,21 @@ builder.Services.AddRateLimiter(options =>
             PermitLimit = 5,
             Window = TimeSpan.FromMinutes(10),
         }));
+    // Auth abuse protection (Stage 6): login/register and the token-sending endpoints.
+    options.AddPolicy("login", httpContext => System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
+        partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        factory: _ => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 10,
+            Window = TimeSpan.FromMinutes(15),
+        }));
+    options.AddPolicy("auth", httpContext => System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
+        partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        factory: _ => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 5,
+            Window = TimeSpan.FromMinutes(15),
+        }));
 });
 builder.Services.AddValidatorsFromAssemblyContaining<GaiaSkyline.Web.Api.CheckoutRequest>();
 // Antiforgery token sent as a header by the checkout fetch() (JSON POST, not a form post).

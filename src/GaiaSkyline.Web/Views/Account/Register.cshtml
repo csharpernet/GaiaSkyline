@@ -1,0 +1,51 @@
+@model RegisterViewModel
+@{
+    Layout = "_Layout";
+}
+
+<div class="max-w-md mx-auto px-6 py-16">
+    <h1 class="font-display text-3xl font-semibold">Create an account</h1>
+
+    <form asp-action="Register" method="post" class="mt-8 space-y-5">
+        <div asp-validation-summary="ModelOnly" class="text-clay text-sm"></div>
+
+        <div>
+            <label asp-for="Email" class="block text-sm font-semibold text-river">Email</label>
+            <input asp-for="Email" type="email" autocomplete="email"
+                   class="mt-1 w-full rounded-md border border-fog px-3 py-2 bg-white" />
+            <span asp-validation-for="Email" class="text-clay text-sm"></span>
+        </div>
+
+        <div>
+            <label asp-for="Password" class="block text-sm font-semibold text-river">Password</label>
+            <input asp-for="Password" type="password" autocomplete="new-password"
+                   class="mt-1 w-full rounded-md border border-fog px-3 py-2 bg-white" />
+            <p class="mt-1 text-xs text-ink/60">At least 12 characters. We check it against known breaches.</p>
+            <span asp-validation-for="Password" class="text-clay text-sm"></span>
+        </div>
+
+        <div>
+            <label asp-for="ConfirmPassword" class="block text-sm font-semibold text-river">Confirm password</label>
+            <input asp-for="ConfirmPassword" type="password" autocomplete="new-password"
+                   class="mt-1 w-full rounded-md border border-fog px-3 py-2 bg-white" />
+            <span asp-validation-for="ConfirmPassword" class="text-clay text-sm"></span>
+        </div>
+
+        <fieldset class="space-y-2">
+            <legend class="text-sm font-semibold text-river">Account type</legend>
+            <label class="flex items-center gap-2 text-sm text-ink/80">
+                <input asp-for="AccountType" type="radio" value="Guest" checked /> Guest — manage your bookings
+            </label>
+            <label class="flex items-center gap-2 text-sm text-ink/80">
+                <input asp-for="AccountType" type="radio" value="Partner" /> Partner — cleaning or co-host
+            </label>
+        </fieldset>
+
+        <button type="submit"
+                class="w-full bg-clay text-white px-6 py-3 rounded-md hover:opacity-90 transition-opacity">
+            Create account
+        </button>
+    </form>
+
+    <p class="mt-6 text-sm text-ink/80">Already registered? <a asp-action="Login" class="text-river hover:underline">Sign in</a></p>
+</div>

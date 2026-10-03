@@ -1,0 +1,22 @@
+@model string[]
+@{
+    Layout = "_AdminLayout";
+    ViewData["Title"] = "Recovery codes";
+}
+
+<h1 class="font-display text-2xl font-semibold">Save your recovery codes</h1>
+<p class="mt-2 text-sm text-ink/70">
+    Two-factor is now enabled. Store these one-time codes somewhere safe — each works once if you lose your authenticator.
+    They won't be shown again.
+</p>
+
+<ul class="mt-6 grid grid-cols-2 gap-2 font-mono text-sm">
+    @foreach (var code in Model)
+    {
+        <li class="bg-white border border-fog rounded px-3 py-2">@code</li>
+    }
+</ul>
+
+<a href="/admin" class="mt-8 inline-block bg-clay text-white px-6 py-3 rounded-md hover:opacity-90 transition-opacity">
+    Continue to admin
+</a>

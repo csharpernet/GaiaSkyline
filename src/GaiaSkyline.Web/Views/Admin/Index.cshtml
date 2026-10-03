@@ -1,0 +1,15 @@
+@{
+    Layout = "_AdminLayout";
+    ViewData["Title"] = "Admin";
+}
+
+<h1 class="font-display text-2xl font-semibold">Admin</h1>
+<p class="mt-2 text-sm text-ink/70">
+    You're signed in as the Owner with two-factor. The content, media and booking tools arrive in Stage 7.
+</p>
+
+<form asp-controller="Account" asp-action="Logout" asp-route-lang="en" method="post" class="mt-8">
+    <button type="submit" class="bg-river text-white px-6 py-3 rounded-md hover:opacity-90 transition-opacity">
+        Sign out
+    </button>
+</form>

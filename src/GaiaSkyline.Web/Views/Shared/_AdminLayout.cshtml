@@ -1,0 +1,21 @@
+@{
+    var title = ViewData["Title"] as string ?? "Admin";
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>@title — Gaia Skyline</title>
+    <link rel="stylesheet" href="~/css/tokens.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/app.css" asp-append-version="true" />
+</head>
+<body class="bg-stone text-ink font-body min-h-screen">
+    <main class="max-w-md mx-auto px-6 py-16">
+        <a href="/en" class="font-display text-2xl font-semibold text-clay">Gaia Skyline</a>
+        <p class="text-xs text-ink/60 mb-8">Owner administration</p>
+        @RenderBody()
+    </main>
+</body>
+</html>

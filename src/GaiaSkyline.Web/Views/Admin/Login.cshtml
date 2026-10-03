@@ -1,0 +1,27 @@
+@model AdminLoginViewModel
+@{
+    Layout = "_AdminLayout";
+    ViewData["Title"] = "Sign in";
+}
+
+<h1 class="font-display text-2xl font-semibold">Owner sign-in</h1>
+<p class="mt-2 text-sm text-ink/70">Password, then your authenticator code.</p>
+
+<form asp-action="Login" method="post" class="mt-6 space-y-5">
+    <div asp-validation-summary="ModelOnly" class="text-clay text-sm"></div>
+    <div>
+        <label asp-for="Email" class="block text-sm font-semibold text-river">Email</label>
+        <input asp-for="Email" type="email" autocomplete="username"
+               class="mt-1 w-full rounded-md border border-fog px-3 py-2 bg-white" />
+        <span asp-validation-for="Email" class="text-clay text-sm"></span>
+    </div>
+    <div>
+        <label asp-for="Password" class="block text-sm font-semibold text-river">Password</label>
+        <input asp-for="Password" type="password" autocomplete="current-password"
+               class="mt-1 w-full rounded-md border border-fog px-3 py-2 bg-white" />
+        <span asp-validation-for="Password" class="text-clay text-sm"></span>
+    </div>
+    <button type="submit" class="w-full bg-clay text-white px-6 py-3 rounded-md hover:opacity-90 transition-opacity">
+        Continue
+    </button>
+</form>

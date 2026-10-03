@@ -1,0 +1,39 @@
+@model LoginViewModel
+@{
+    Layout = "_Layout";
+}
+
+<div class="max-w-md mx-auto px-6 py-16">
+    <h1 class="font-display text-3xl font-semibold">Sign in</h1>
+
+    <form asp-action="Login" method="post" class="mt-8 space-y-5">
+        <input type="hidden" asp-for="ReturnUrl" />
+        <div asp-validation-summary="ModelOnly" class="text-clay text-sm"></div>
+
+        <div>
+            <label asp-for="Email" class="block text-sm font-semibold text-river">Email</label>
+            <input asp-for="Email" type="email" autocomplete="email"
+                   class="mt-1 w-full rounded-md border border-fog px-3 py-2 bg-white" />
+            <span asp-validation-for="Email" class="text-clay text-sm"></span>
+        </div>
+
+        <div>
+            <label asp-for="Password" class="block text-sm font-semibold text-river">Password</label>
+            <input asp-for="Password" type="password" autocomplete="current-password"
+                   class="mt-1 w-full rounded-md border border-fog px-3 py-2 bg-white" />
+            <span asp-validation-for="Password" class="text-clay text-sm"></span>
+        </div>
+
+        <label class="flex items-center gap-2 text-sm text-ink/80">
+            <input asp-for="RememberMe" type="checkbox" /> Keep me signed in
+        </label>
+
+        <button type="submit"
+                class="w-full bg-clay text-white px-6 py-3 rounded-md hover:opacity-90 transition-opacity">
+            Sign in
+        </button>
+    </form>
+
+    <p class="mt-6 text-sm"><a asp-action="ForgotPassword" class="text-river hover:underline">Forgot your password?</a></p>
+    <p class="mt-2 text-sm text-ink/80">No account? <a asp-action="Register" class="text-river hover:underline">Create one</a></p>
+</div>
