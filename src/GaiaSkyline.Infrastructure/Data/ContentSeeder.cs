@@ -779,6 +779,36 @@ public sealed class ContentSeeder(AppDbContext dbContext, IContentRevision revis
             Text: "<p>A payment dispute has been opened for booking {reference} ({guestName}, {total}). " +
                   "Review it in the Stripe dashboard immediately.</p>"),
 
+        // ----- authentication emails (Stage 6). Tokens filled by AuthEmailComposer. -----
+        new("email", "email.auth.confirm_email.subject", ContentKind.ShortText, "Email: confirm email subject",
+            Text: "Confirm your email for Gaia Skyline"),
+        new("email", "email.auth.confirm_email.body", ContentKind.RichText, "Email: confirm email body",
+            Text: "<p>Hi {name},</p><p>Please confirm your email address to activate your Gaia Skyline account.</p>" +
+                  "<p><a href=\"{actionUrl}\">Confirm my email</a></p>" +
+                  "<p>If you didn't create an account, you can ignore this message.</p>"),
+
+        new("email", "email.auth.password_reset.subject", ContentKind.ShortText, "Email: password reset subject",
+            Text: "Reset your Gaia Skyline password"),
+        new("email", "email.auth.password_reset.body", ContentKind.RichText, "Email: password reset body",
+            Text: "<p>Hi {name},</p><p>We received a request to reset your password. This link is valid for one hour.</p>" +
+                  "<p><a href=\"{actionUrl}\">Reset my password</a></p>" +
+                  "<p>If you didn't request this, no action is needed — your password stays the same.</p>"),
+
+        new("email", "email.auth.set_password.subject", ContentKind.ShortText, "Email: set password subject",
+            Text: "Set your password for Gaia Skyline"),
+        new("email", "email.auth.set_password.body", ContentKind.RichText, "Email: set password body",
+            Text: "<p>Hi {name},</p><p>An account was created for your booking so you can manage it online. " +
+                  "Set a password to finish — this link is valid for one hour.</p>" +
+                  "<p><a href=\"{actionUrl}\">Set my password</a></p>"),
+
+        new("email", "email.auth.magic_link.subject", ContentKind.ShortText, "Email: magic link subject",
+            Text: "Your Gaia Skyline booking access link"),
+        new("email", "email.auth.magic_link.body", ContentKind.RichText, "Email: magic link body",
+            Text: "<p>Hi,</p><p>Here is your secure link to view booking <strong>{reference}</strong>. " +
+                  "It is valid for 30 minutes and can be used once.</p>" +
+                  "<p><a href=\"{actionUrl}\">View my booking</a></p>" +
+                  "<p>If you didn't request this, you can ignore this message.</p>"),
+
         // ----- booking: /book -----
         new("book", "book.title", ContentKind.PlainText, "Book: title", Text: "Book your stay"),
         new("book", "book.subtitle", ContentKind.PlainText, "Book: subtitle",
