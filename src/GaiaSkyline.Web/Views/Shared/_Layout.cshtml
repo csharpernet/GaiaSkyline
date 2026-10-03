@@ -25,12 +25,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@title</title>
     <meta name="description" content="@description" />
-    <link rel="canonical" href="@canonical" />
-    @foreach (var c in SupportedCultures.All)
+    @if (meta?.NoIndex == true)
     {
-        <link rel="alternate" hreflang="@c.Culture" href="@AbsFor(c.Slug)" />
+        <meta name="robots" content="noindex, nofollow" />
     }
-    <link rel="alternate" hreflang="x-default" href="@AbsFor(SupportedCultures.DefaultSlug)" />
+    else
+    {
+        <link rel="canonical" href="@canonical" />
+        foreach (var c in SupportedCultures.All)
+        {
+            <link rel="alternate" hreflang="@c.Culture" href="@AbsFor(c.Slug)" />
+        }
+        <link rel="alternate" hreflang="x-default" href="@AbsFor(SupportedCultures.DefaultSlug)" />
+    }
 
     <meta property="og:site_name" content="Gaia Skyline" />
     <meta property="og:title" content="@title" />

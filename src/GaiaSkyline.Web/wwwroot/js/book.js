@@ -153,6 +153,21 @@
         });
     }
 
+    function applyPrefill() {
+        var params = new URLSearchParams(window.location.search);
+        var a = params.get('adults');
+        if (a) { adults.value = a; }
+        var c = params.get('children');
+        if (c) { children.value = c; }
+        var inf = params.get('infants');
+        if (inf) { infants.value = inf; }
+        if (params.get('promo')) { promo.value = params.get('promo'); }
+        // Setting dates triggers onChange, which refreshes the quote.
+        if (params.get('checkIn') && checkInPicker) { checkInPicker.setDate(params.get('checkIn'), true); }
+        if (params.get('checkOut') && checkOutPicker) { checkOutPicker.setDate(params.get('checkOut'), true); }
+        toggleSofaNote();
+    }
+
     function loadAvailabilityThenInit() {
         var from = new Date();
         var to = new Date();
@@ -163,8 +178,8 @@
             body: JSON.stringify({ from: iso(from), to: iso(to) }),
         })
             .then(function (r) { return r.ok ? r.json() : { blockedDates: [] }; })
-            .then(function (data) { initCalendars(data.blockedDates || []); })
-            .catch(function () { initCalendars([]); });
+            .then(function (data) { initCalendars(data.blockedDates || []); applyPrefill(); })
+            .catch(function () { initCalendars([]); applyPrefill(); });
     }
 
     [adults, children, infants].forEach(function (el) { el.addEventListener('change', updateQuote); });

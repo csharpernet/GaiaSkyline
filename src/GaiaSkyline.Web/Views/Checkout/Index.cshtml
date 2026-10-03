@@ -1,0 +1,110 @@
+@model CheckoutPageViewModel
+@{
+    Layout = "_Layout";
+    var copy = Model.Copy;
+    var q = Model.Quote;
+    var cultureInfo = System.Globalization.CultureInfo.CurrentUICulture;
+    var culture = cultureInfo.Name;
+    var slug = SupportedCultures.SlugForCulture(culture);
+    string Eur(decimal amount) => "€" + amount.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
+}
+
+<div id="checkout" class="max-w-5xl mx-auto px-6 py-12"
+     data-pk="@Model.PublishableKey"
+     data-amount="@Model.AmountCents"
+     data-checkin="@Model.CheckIn.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture)"
+     data-checkout="@Model.CheckOut.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture)"
+     data-adults="@Model.Adults" data-children="@Model.Children" data-infants="@Model.Infants"
+     data-promo="@(Model.PromoCode ?? string.Empty)" data-language="@culture">
+    <h1 class="font-display text-4xl font-semibold">@copy.TextOr("checkout.title", "Your details")</h1>
+
+    <div class="mt-10 grid gap-10 lg:grid-cols-[3fr,2fr]">
+        <form id="checkout-form" novalidate class="space-y-5">
+            @Html.AntiForgeryToken()
+            <div>
+                <label for="name" class="block text-sm font-semibold text-river">@copy.TextOr("checkout.name_label", "Full name")</label>
+                <input id="name" name="name" type="text" required autocomplete="name"
+                       class="mt-1 w-full rounded-md border border-fog px-3 py-2 bg-white" />
+            </div>
+            <div class="grid gap-5 sm:grid-cols-2">
+                <div>
+                    <label for="email" class="block text-sm font-semibold text-river">@copy.TextOr("checkout.email_label", "Email")</label>
+                    <input id="email" name="email" type="email" required autocomplete="email"
+                           class="mt-1 w-full rounded-md border border-fog px-3 py-2 bg-white" />
+                </div>
+                <div>
+                    <label for="phone" class="block text-sm font-semibold text-river">@copy.TextOr("checkout.phone_label", "Phone")</label>
+                    <input id="phone" name="phone" type="tel" required autocomplete="tel"
+                           class="mt-1 w-full rounded-md border border-fog px-3 py-2 bg-white" />
+                </div>
+            </div>
+            <div class="grid gap-5 sm:grid-cols-2">
+                <div>
+                    <label for="country" class="block text-sm font-semibold text-river">@copy.TextOr("checkout.country_label", "Country")</label>
+                    <input id="country" name="country" type="text" required autocomplete="country-name" value="Portugal"
+                           class="mt-1 w-full rounded-md border border-fog px-3 py-2 bg-white" />
+                </div>
+                <div>
+                    <label for="arrival" class="block text-sm font-semibold text-river">@copy.TextOr("checkout.arrival_label", "Estimated arrival time")</label>
+                    <input id="arrival" name="arrival" type="time"
+                           class="mt-1 w-full rounded-md border border-fog px-3 py-2 bg-white" />
+                </div>
+            </div>
+            <div>
+                <label for="requests" class="block text-sm font-semibold text-river">@copy.TextOr("checkout.special_requests_label", "Special requests")</label>
+                <textarea id="requests" name="requests" rows="3" maxlength="2000"
+                          class="mt-1 w-full rounded-md border border-fog px-3 py-2 bg-white"></textarea>
+            </div>
+            <label class="flex items-start gap-2 text-sm text-ink/80">
+                <input id="create-account" type="checkbox" class="mt-1" />
+                <span>@copy.TextOr("checkout.create_account_label", "Create an account to manage this booking (optional).")</span>
+            </label>
+
+            <div class="pt-2">
+                <h2 class="text-sm font-semibold text-river">Payment</h2>
+                <div id="payment-element" class="mt-3"></div>
+                <p id="payment-error" class="mt-2 text-sm text-clay" role="alert" aria-live="assertive"></p>
+            </div>
+
+            <button id="pay" type="submit"
+                    class="w-full bg-clay text-white px-6 py-3 rounded-md text-lg hover:opacity-90 transition-opacity duration-200 disabled:opacity-40">
+                @copy.TextOr("checkout.pay_cta", "Pay and confirm") · @Eur(q.Total.Amount)
+            </button>
+            <p class="text-xs text-ink/60">@copy.TextOr("checkout.late_checkin_note", "Arrivals after 23:00 incur a €30 late check-in fee, paid in cash on arrival.")</p>
+        </form>
+
+        <aside class="lg:sticky lg:top-24 h-fit">
+            <div class="rounded-lg border border-fog bg-white p-6 shadow-sm text-sm">
+                <h2 class="font-display text-lg font-semibold">Your stay</h2>
+                <dl class="mt-4 space-y-1">
+                    <div class="flex justify-between"><dt class="text-ink/70">Dates</dt><dd>@Model.CheckIn.ToString("d MMM", cultureInfo) – @Model.CheckOut.ToString("d MMM yyyy", cultureInfo)</dd></div>
+                    <div class="flex justify-between"><dt class="text-ink/70">Nights</dt><dd>@q.Nights</dd></div>
+                    <div class="flex justify-between"><dt class="text-ink/70">Accommodation</dt><dd>@Eur(q.NightlySubtotal.Amount)</dd></div>
+                    @if (q.Discount.Amount.Amount > 0)
+                    {
+                        <div class="flex justify-between text-clay"><dt>Discount (@q.Discount.Percent%)</dt><dd>−@Eur(q.Discount.Amount.Amount)</dd></div>
+                    }
+                    @if (q.CleaningFee.Amount > 0)
+                    {
+                        <div class="flex justify-between"><dt class="text-ink/70">Cleaning fee</dt><dd>@Eur(q.CleaningFee.Amount)</dd></div>
+                    }
+                    @if (q.TouristTax.Amount > 0)
+                    {
+                        <div class="flex justify-between"><dt class="text-ink/70">Tourist tax</dt><dd>@Eur(q.TouristTax.Amount)</dd></div>
+                    }
+                </dl>
+                <div class="mt-3 pt-3 border-t border-fog flex justify-between font-semibold text-base">
+                    <span>Total</span><span>@Eur(q.Total.Amount)</span>
+                </div>
+            </div>
+        </aside>
+    </div>
+</div>
+
+@section Head {
+    <script src="https://js.stripe.com/v3/"></script>
+}
+
+@section Scripts {
+    <script src="~/js/checkout.js" defer></script>
+}

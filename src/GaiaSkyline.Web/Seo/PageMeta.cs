@@ -25,6 +25,9 @@ public sealed class PageMeta
 
     public string OgType { get; init; } = "website";
 
+    /// <summary>When true, emit robots noindex and skip canonical/hreflang (checkout, confirmation).</summary>
+    public bool NoIndex { get; init; }
+
     /// <summary>Page-specific OpenGraph image (relative path such as /media/...); made absolute in the layout.</summary>
     public string? OgImagePath { get; init; }
 

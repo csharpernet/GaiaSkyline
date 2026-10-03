@@ -1,0 +1,92 @@
+@using GaiaSkyline.Domain.Bookings
+@model ConfirmationPageViewModel
+@{
+    Layout = "_Layout";
+    var copy = Model.Copy;
+    var checkin = Model.CheckInInfo;
+    var b = Model.Booking;
+    var cultureInfo = System.Globalization.CultureInfo.CurrentUICulture;
+    var culture = cultureInfo.Name;
+    var slug = SupportedCultures.SlugForCulture(culture);
+    var confirmed = b.Status is BookingStatus.Confirmed or BookingStatus.CheckedIn or BookingStatus.Completed;
+    var multibancoPending = b.Status == BookingStatus.AwaitingPayment && !string.IsNullOrEmpty(b.MultibancoReference);
+    var awaiting = b.Status == BookingStatus.AwaitingPayment;
+    string Eur(decimal amount) => "€" + amount.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
+    var icsHref = $"/{slug}/book/confirmation/{b.ReferenceCode}/calendar.ics?token={Uri.EscapeDataString(Model.Token)}";
+}
+
+<div id="confirmation" class="max-w-3xl mx-auto px-6 py-12"
+     data-reference="@b.ReferenceCode" data-token="@Model.Token" data-status="@b.Status">
+
+    @if (confirmed)
+    {
+        <h1 class="font-display text-4xl font-semibold text-river">@copy.TextOr("confirmation.confirmed_heading", "Your stay is confirmed")</h1>
+    }
+    else if (multibancoPending)
+    {
+        <h1 class="font-display text-4xl font-semibold">@copy.TextOr("confirmation.awaiting_heading", "Complete your Multibanco payment")</h1>
+    }
+    else
+    {
+        <h1 class="font-display text-4xl font-semibold">Finishing your payment…</h1>
+    }
+
+    <p class="mt-3 text-ink/70">Booking reference <strong>@b.ReferenceCode</strong></p>
+
+    <div class="mt-8 rounded-lg border border-fog bg-white p-6 shadow-sm text-sm">
+        <dl class="space-y-1">
+            <div class="flex justify-between"><dt class="text-ink/70">Dates</dt><dd>@b.CheckIn.ToString("d MMM", cultureInfo) – @b.CheckOut.ToString("d MMM yyyy", cultureInfo) (@b.Nights nights)</dd></div>
+            <div class="flex justify-between"><dt class="text-ink/70">Guests</dt><dd>@b.Adults adults@(b.Children > 0 ? $", {b.Children} children" : "")@(b.Infants > 0 ? $", {b.Infants} infant" : "")</dd></div>
+            <div class="flex justify-between font-semibold text-base pt-2"><dt>Total</dt><dd>@Eur(b.Total)</dd></div>
+        </dl>
+    </div>
+
+    @if (multibancoPending)
+    {
+        <div class="mt-8 rounded-lg border-2 border-clay bg-stone p-6 print:border-ink">
+            <p class="text-sm text-ink/80">@copy.TextOr("confirmation.multibanco_note", "Pay at any ATM or through your bank app using the reference below.")</p>
+            <dl class="mt-4 grid grid-cols-2 gap-3 text-lg">
+                <dt class="text-river">Entity</dt><dd class="font-mono font-semibold">@b.MultibancoEntity</dd>
+                <dt class="text-river">Reference</dt><dd class="font-mono font-semibold">@b.MultibancoReference</dd>
+                <dt class="text-river">Amount</dt><dd class="font-semibold">@Eur(b.Total)</dd>
+                @if (b.PaymentExpiresAtUtc is { } expiry)
+                {
+                    <dt class="text-river">Pay before</dt><dd>@expiry.ToString("d MMM yyyy HH:mm 'UTC'", cultureInfo)</dd>
+                }
+            </dl>
+        </div>
+    }
+
+    @if (awaiting)
+    {
+        <p class="mt-6 text-sm text-ink/60" id="poll-note">This page updates automatically once your payment is confirmed.</p>
+    }
+
+    @if (confirmed)
+    {
+        <div class="mt-8 flex flex-wrap gap-3">
+            <a href="@icsHref" class="inline-block border border-clay text-clay px-5 py-2 rounded-md hover:bg-clay hover:text-white transition-colors">@copy.TextOr("confirmation.add_to_calendar", "Add to calendar")</a>
+        </div>
+
+        <section class="mt-10">
+            <h2 class="font-display text-2xl font-semibold">@copy.TextOr("confirmation.checkin_heading", "Before you arrive")</h2>
+            <div class="mt-4 space-y-3 text-ink/90 prose max-w-none">
+                @foreach (var key in new[] { "checkin.welcome", "checkin.parking", "checkin.smart_lock", "checkin.hot_tub", "checkin.contact" })
+                {
+                    var text = checkin.TextOr(key, string.Empty);
+                    if (!string.IsNullOrWhiteSpace(text))
+                    {
+                        <p>@Html.Raw(text)</p>
+                    }
+                }
+            </div>
+        </section>
+    }
+</div>
+
+@section Scripts {
+    @if (awaiting)
+    {
+        <script src="~/js/confirmation.js" defer></script>
+    }
+}

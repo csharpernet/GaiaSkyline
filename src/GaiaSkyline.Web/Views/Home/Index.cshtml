@@ -44,6 +44,8 @@
     <p class="max-w-6xl mx-auto px-6 py-4 text-center text-sm sm:text-base">@home.TextOr("home.snapshot.line", "2 bedrooms · 4 beds · 2 baths · Sleeps 6 · Vila Nova de Gaia")</p>
 </section>
 
+@await Html.PartialAsync("_BookingWidget")
+
 <div class="max-w-6xl mx-auto px-6">
     <section class="py-16" aria-labelledby="photos-heading">
         <div class="flex items-center justify-between">
@@ -227,4 +229,5 @@
 @section Scripts {
     <script src="~/js/gallery.js" defer></script>
     <script src="~/js/map.js" defer></script>
+    <script src="~/js/booking-widget.js" defer></script>
 }

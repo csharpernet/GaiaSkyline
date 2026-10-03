@@ -20,6 +20,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Serialize test classes (disable xUnit collection parallelism) so the LocalDB-heavy
+         integration tests don't thrash the single LocalDB instance. -->
+    <None Update="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\src\GaiaSkyline.Infrastructure\GaiaSkyline.Infrastructure.csproj" />
   </ItemGroup>
 

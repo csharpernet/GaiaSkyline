@@ -26,7 +26,8 @@ public abstract class PublicController : Controller
         string ogType = "website",
         string? ogImagePath = null,
         IReadOnlyList<Breadcrumb>? breadcrumbs = null,
-        IReadOnlyList<string>? jsonLdBlocks = null) => new()
+        IReadOnlyList<string>? jsonLdBlocks = null,
+        bool noIndex = false) => new()
         {
             Culture = CurrentCulture,
             Slug = CurrentSlug,
@@ -37,6 +38,7 @@ public abstract class PublicController : Controller
             OgImagePath = ogImagePath,
             Breadcrumbs = breadcrumbs ?? [],
             JsonLdBlocks = jsonLdBlocks ?? [],
+            NoIndex = noIndex,
         };
 
     /// <summary>Absolute base URL for the current request (used to build JSON-LD and OG URLs).</summary>

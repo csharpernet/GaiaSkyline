@@ -18,17 +18,33 @@ public sealed class SecurityHeadersMiddleware(RequestDelegate next)
         var nonce = GenerateNonce();
         context.Items[NonceItemKey] = nonce;
 
+        // The Stripe payment pages (checkout, confirmation) need narrow extra allowances for js.stripe.com
+        // and the Payment Request API (Apple Pay / Google Pay). See ADR 0011.
+        var needsStripe = NeedsStripe(context.Request.Path);
+
         var headers = context.Response.Headers;
         headers["X-Content-Type-Options"] = "nosniff";
         headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
         headers["X-Frame-Options"] = "DENY";
-        headers["Permissions-Policy"] =
-            "accelerometer=(), autoplay=(), camera=(), display-capture=(), encrypted-media=(), " +
-            "fullscreen=(self), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), " +
-            "midi=(), payment=(), usb=()";
-        headers["Content-Security-Policy"] = BuildContentSecurityPolicy(nonce);
+        headers["Permissions-Policy"] = BuildPermissionsPolicy(needsStripe);
+        headers["Content-Security-Policy"] = BuildContentSecurityPolicy(nonce, needsStripe);
 
         await next(context);
+    }
+
+    private static bool NeedsStripe(PathString path) =>
+        path.HasValue &&
+        (path.Value!.Contains("/book/checkout", StringComparison.OrdinalIgnoreCase)
+         || path.Value!.Contains("/book/confirmation", StringComparison.OrdinalIgnoreCase));
+
+    private static string BuildPermissionsPolicy(bool needsStripe)
+    {
+        // Apple Pay / Google Pay use the Payment Request API, which the payment directive gates.
+        var payment = needsStripe ? "payment=(self \"https://js.stripe.com\")" : "payment=()";
+        return
+            "accelerometer=(), autoplay=(), camera=(), display-capture=(), encrypted-media=(), " +
+            "fullscreen=(self), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), " +
+            $"midi=(), {payment}, usb=()";
     }
 
     private static string GenerateNonce()
@@ -43,9 +59,23 @@ public sealed class SecurityHeadersMiddleware(RequestDelegate next)
     // ADR 0008. Kept narrow: only the tile host is whitelisted, and only where it is actually needed
     // (img-src for the tiles, connect-src for the fetches, worker-src for the blob worker).
     private const string MapTileHost = "https://tile.openstreetmap.org";
+    private const string StripeJs = "https://js.stripe.com";
+    private const string StripeApi = "https://api.stripe.com";
+    private const string StripeHooks = "https://hooks.stripe.com";
 
-    private static string BuildContentSecurityPolicy(string nonce) =>
-        string.Join("; ",
+    private static string BuildContentSecurityPolicy(string nonce, bool needsStripe)
+    {
+        var scriptSrc = needsStripe
+            ? $"script-src 'self' 'nonce-{nonce}' {StripeJs}"
+            : $"script-src 'self' 'nonce-{nonce}'";
+        var connectSrc = needsStripe
+            ? $"connect-src 'self' {MapTileHost} {StripeApi}"
+            : $"connect-src 'self' {MapTileHost}";
+        var frameSrc = needsStripe
+            ? $"frame-src {StripeJs} {StripeHooks}"
+            : "frame-src 'none'";
+
+        return string.Join("; ",
             "default-src 'self'",
             "base-uri 'self'",
             "object-src 'none'",
@@ -53,9 +83,11 @@ public sealed class SecurityHeadersMiddleware(RequestDelegate next)
             $"img-src 'self' data: blob: {MapTileHost}",
             "font-src 'self' https://fonts.gstatic.com",
             $"style-src 'self' https://fonts.googleapis.com 'nonce-{nonce}'",
-            $"script-src 'self' 'nonce-{nonce}'",
+            scriptSrc,
             "worker-src 'self' blob:",
-            $"connect-src 'self' {MapTileHost}",
+            connectSrc,
+            frameSrc,
             "form-action 'self'",
             "upgrade-insecure-requests");
+    }
 }

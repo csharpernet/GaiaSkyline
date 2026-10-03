@@ -1,0 +1,33 @@
+@{
+    var widgetSlug = SupportedCultures.SlugForCulture(System.Globalization.CultureInfo.CurrentUICulture.Name);
+}
+@*
+    Lightweight availability widget for the home page: native inputs only (no Flatpickr/fetch here, to
+    protect the home Core Web Vitals budget). It persists the selection to sessionStorage and links
+    into /book with the dates prefilled, where the full calendars + live quote take over.
+*@
+<section aria-label="Check availability" class="bg-white border-y border-fog">
+    <form id="booking-widget" data-slug="@widgetSlug"
+          class="max-w-6xl mx-auto px-6 py-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-[1fr,1fr,auto,auto] lg:items-end">
+        <div>
+            <label for="w-checkin" class="block text-xs font-semibold text-river">Check-in</label>
+            <input id="w-checkin" type="date" class="mt-1 w-full rounded-md border border-fog px-3 py-2 bg-white" />
+        </div>
+        <div>
+            <label for="w-checkout" class="block text-xs font-semibold text-river">Check-out</label>
+            <input id="w-checkout" type="date" class="mt-1 w-full rounded-md border border-fog px-3 py-2 bg-white" />
+        </div>
+        <div>
+            <label for="w-guests" class="block text-xs font-semibold text-river">Guests</label>
+            <select id="w-guests" class="mt-1 w-full rounded-md border border-fog px-3 py-2 bg-white">
+                @for (var i = 1; i <= 6; i++)
+                {
+                    <option value="@i" selected="@(i == 2 ? "selected" : null)">@i</option>
+                }
+            </select>
+        </div>
+        <button type="submit" class="bg-clay text-white px-6 py-2 rounded-md hover:opacity-90 transition-opacity duration-200">
+            Check availability
+        </button>
+    </form>
+</section>

@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json.Serialization;
+using FluentValidation;
 using GaiaSkyline.Application;
 using GaiaSkyline.BackgroundJobs;
 using GaiaSkyline.Infrastructure;
@@ -36,6 +37,29 @@ builder.Services
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddBackgroundJobs(builder.Configuration);
+
+// Per-IP rate limits on the booking endpoints (abuse protection; checkout is the stricter one).
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy("quote", httpContext => System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
+        partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        factory: _ => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 60,
+            Window = TimeSpan.FromMinutes(1),
+        }));
+    options.AddPolicy("checkout", httpContext => System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
+        partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        factory: _ => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 5,
+            Window = TimeSpan.FromMinutes(10),
+        }));
+});
+builder.Services.AddValidatorsFromAssemblyContaining<GaiaSkyline.Web.Api.CheckoutRequest>();
+// Antiforgery token sent as a header by the checkout fetch() (JSON POST, not a form post).
+builder.Services.AddAntiforgery(options => options.HeaderName = "RequestVerificationToken");
 
 // --- Output caching: public pages cached 10 min, keyed by {lang} + the content revision
 //     (a revision bump changes the key, so published content invalidates the cache). ---
@@ -147,6 +171,7 @@ app.Use(async (context, next) =>
 app.UseRouting();
 app.UseRequestLocalization();
 app.UseOutputCache();
+app.UseRateLimiter();
 app.UseCookiePolicy();
 app.UseAuthorization();
 

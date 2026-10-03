@@ -21,6 +21,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Serialize test classes (disable xUnit collection parallelism) so the shared-factory and
+         fake-store web tests don't hit LocalDB concurrently. -->
+    <None Update="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\src\GaiaSkyline.Web\GaiaSkyline.Web.csproj" />
   </ItemGroup>
 
