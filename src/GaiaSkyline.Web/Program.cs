@@ -3,12 +3,19 @@ using System.Text.Json.Serialization;
 using FluentValidation;
 using GaiaSkyline.Application;
 using GaiaSkyline.BackgroundJobs;
+using GaiaSkyline.Domain.Identity;
 using GaiaSkyline.Infrastructure;
 using GaiaSkyline.Infrastructure.Data;
+using GaiaSkyline.Infrastructure.Identity;
 using GaiaSkyline.Infrastructure.Persistence;
+using GaiaSkyline.Web.Identity;
 using GaiaSkyline.Web.Localization;
 using GaiaSkyline.Web.Middleware;
+using GaiaSkyline.Web.Security;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.CookiePolicy;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.AspNetCore.Routing;
@@ -38,6 +45,104 @@ builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddBackgroundJobs(builder.Configuration);
 builder.Services.AddScoped<GaiaSkyline.Application.Storage.IMediaStorage, GaiaSkyline.Web.Storage.LocalDiskMediaStorage>();
+
+// --- Identity, authentication & authorization (Stage 6) ---
+builder.Services.AddIdentity<ApplicationUser, ApplicationRole>(options =>
+    {
+        // NIST-style: length is the primary gate (12+), with the HIBP breach check (added below).
+        options.Password.RequiredLength = 12;
+        options.Password.RequireDigit = false;
+        options.Password.RequireLowercase = false;
+        options.Password.RequireUppercase = false;
+        options.Password.RequireNonAlphanumeric = false;
+        options.Password.RequiredUniqueChars = 1;
+
+        options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
+        options.Lockout.MaxFailedAccessAttempts = 5;
+        options.Lockout.AllowedForNewUsers = true;
+
+        options.User.RequireUniqueEmail = true;
+
+        // Email confirmation is enforced per-role at sign-in (Partner must be confirmed), not globally.
+        options.SignIn.RequireConfirmedEmail = false;
+    })
+    .AddEntityFrameworkStores<AppDbContext>()
+    .AddDefaultTokenProviders();
+
+builder.Services.AddGaiaIdentityStores();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddSingleton<IAuthorizationHandler, OwnerIpAllowlistHandler>();
+
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    options.Cookie.Name = "GaiaSkyline.Auth";
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    options.Cookie.SameSite = SameSiteMode.Lax;
+    // Guest/Partner: sliding 14 days. The Owner is pinned to an 8-hour absolute session in OnSigningIn.
+    options.ExpireTimeSpan = TimeSpan.FromDays(14);
+    options.SlidingExpiration = true;
+    options.LoginPath = "/en/account/login";
+    options.LogoutPath = "/en/account/logout";
+    options.AccessDeniedPath = "/en/account/denied";
+    options.Events = new CookieAuthenticationEvents
+    {
+        OnSigningIn = context =>
+        {
+            if (context.Principal?.IsInRole(UserRoles.Owner) == true)
+            {
+                context.Properties.IsPersistent = false;
+                context.Properties.AllowRefresh = false;
+                context.Properties.ExpiresUtc = DateTimeOffset.UtcNow.AddHours(8);
+            }
+
+            return Task.CompletedTask;
+        },
+        // API surfaces answer with status codes, never a login redirect.
+        OnRedirectToLogin = context =>
+        {
+            if (context.Request.Path.StartsWithSegments("/api"))
+            {
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                return Task.CompletedTask;
+            }
+
+            context.Response.Redirect(context.RedirectUri);
+            return Task.CompletedTask;
+        },
+        OnRedirectToAccessDenied = context =>
+        {
+            if (context.Request.Path.StartsWithSegments("/api"))
+            {
+                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                return Task.CompletedTask;
+            }
+
+            context.Response.Redirect(context.RedirectUri);
+            return Task.CompletedTask;
+        },
+    };
+});
+
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy(AuthorizationPolicies.Owner, policy =>
+    {
+        policy.RequireAuthenticatedUser();
+        policy.RequireRole(UserRoles.Owner);
+        policy.Requirements.Add(new OwnerIpAllowlistRequirement());
+    });
+    options.AddPolicy(AuthorizationPolicies.Partner, policy =>
+    {
+        policy.RequireAuthenticatedUser();
+        policy.RequireRole(UserRoles.Partner);
+    });
+    options.AddPolicy(AuthorizationPolicies.Guest, policy =>
+    {
+        policy.RequireAuthenticatedUser();
+        policy.RequireRole(UserRoles.Guest);
+    });
+});
 
 // QuestPDF Community licence (free for orgs under the revenue threshold); see ADR 0012.
 QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
@@ -130,6 +235,12 @@ if (!string.IsNullOrWhiteSpace(connectionString))
 
 var app = builder.Build();
 
+// One-off CLI: `dotnet run -- create-owner --email ... --password ...` (prod Owner provisioning).
+if (args.Length > 0 && string.Equals(args[0], OwnerCli.CommandName, StringComparison.OrdinalIgnoreCase))
+{
+    return await OwnerCli.RunAsync(app, args);
+}
+
 // Development convenience: apply migrations and seed canonical content on startup. Gated by a
 // flag so the test host (and any environment that opts out) never touches the database here.
 var seedOnStartup = bool.TryParse(app.Configuration["Features:SeedContentOnStartup"], out var seedFlag) && seedFlag;
@@ -146,6 +257,17 @@ if (app.Environment.IsDevelopment() && seedOnStartup)
 
     var bookingSeeder = scope.ServiceProvider.GetRequiredService<BookingSeeder>();
     await bookingSeeder.SeedAsync(CancellationToken.None);
+
+    // Roles always exist in Development; the Owner is seeded when Owner:Email + Owner:Password are set
+    // (put them in User Secrets). There is no self-registration into the Owner role.
+    var identitySeeder = scope.ServiceProvider.GetRequiredService<IdentitySeeder>();
+    await identitySeeder.EnsureRolesAsync();
+    var ownerEmail = app.Configuration["Owner:Email"];
+    var ownerPassword = app.Configuration["Owner:Password"];
+    if (!string.IsNullOrWhiteSpace(ownerEmail) && !string.IsNullOrWhiteSpace(ownerPassword))
+    {
+        await identitySeeder.EnsureOwnerAsync(ownerEmail, ownerPassword);
+    }
 }
 
 if (!app.Environment.IsDevelopment())
@@ -177,6 +299,7 @@ app.UseRequestLocalization();
 app.UseOutputCache();
 app.UseRateLimiter();
 app.UseCookiePolicy();
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false });
@@ -205,6 +328,7 @@ if (GaiaSkyline.BackgroundJobs.DependencyInjection.IsEnabled(builder.Configurati
 }
 
 app.Run();
+return 0;
 
 /// <summary>Exposed so <c>WebApplicationFactory&lt;Program&gt;</c> can host the app in tests.</summary>
 public partial class Program;

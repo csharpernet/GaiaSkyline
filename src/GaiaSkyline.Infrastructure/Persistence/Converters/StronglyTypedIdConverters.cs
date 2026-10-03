@@ -135,3 +135,13 @@ internal sealed class StripeEventLogIdConverter : ValueConverter<StripeEventLogI
     {
     }
 }
+
+// Stage 6 (identity / auditing).
+
+internal sealed class AuditEventIdConverter : ValueConverter<AuditEventId, Guid>
+{
+    public AuditEventIdConverter()
+        : base(id => id.Value, value => AuditEventId.From(value))
+    {
+    }
+}

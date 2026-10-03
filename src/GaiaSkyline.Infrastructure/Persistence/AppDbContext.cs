@@ -1,3 +1,4 @@
+using GaiaSkyline.Domain.Auditing;
 using GaiaSkyline.Domain.Availability;
 using GaiaSkyline.Domain.Bookings;
 using GaiaSkyline.Domain.Content;
@@ -9,18 +10,24 @@ using GaiaSkyline.Domain.Pricing;
 using GaiaSkyline.Domain.Reviews;
 using GaiaSkyline.Domain.Stories;
 using GaiaSkyline.Domain.ValueObjects;
+using GaiaSkyline.Infrastructure.Identity;
 using GaiaSkyline.Infrastructure.Persistence.Converters;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace GaiaSkyline.Infrastructure.Persistence;
 
 /// <summary>
-/// EF Core unit of work for GaiaSkyline. Entity mappings live in
-/// <c>Persistence/Configurations</c> and are applied by convention from this assembly.
-/// EF-specific types never leak past this project (Clean Architecture boundary).
+/// EF Core unit of work for GaiaSkyline. Also the ASP.NET Core Identity store (Stage 6), keyed by Guid
+/// to match the domain's strongly-typed ids. Entity mappings live in <c>Persistence/Configurations</c>
+/// and are applied by convention from this assembly. EF-specific types never leak past this project
+/// (Clean Architecture boundary).
 /// </summary>
-public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
+public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
+    : IdentityDbContext<ApplicationUser, ApplicationRole, Guid>(options)
 {
+    public DbSet<AuditEvent> AuditEvents => Set<AuditEvent>();
+
     public DbSet<Property> Properties => Set<Property>();
 
     public DbSet<ContentBlock> ContentBlocks => Set<ContentBlock>();
@@ -56,10 +63,10 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 
     public DbSet<ExternalCalendarBlock> ExternalCalendarBlocks => Set<ExternalCalendarBlock>();
 
-    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    protected override void OnModelCreating(ModelBuilder builder)
     {
-        base.OnModelCreating(modelBuilder);
-        modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
+        base.OnModelCreating(builder);
+        builder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
     }
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
@@ -85,6 +92,9 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
         configurationBuilder.Properties<PartnerId>().HaveConversion<PartnerIdConverter>();
         configurationBuilder.Properties<ExternalCalendarBlockId>().HaveConversion<ExternalCalendarBlockIdConverter>();
         configurationBuilder.Properties<StripeEventLogId>().HaveConversion<StripeEventLogIdConverter>();
+
+        // Stage 6 identities.
+        configurationBuilder.Properties<AuditEventId>().HaveConversion<AuditEventIdConverter>();
 
         // Money persists as integer minor units (cents); EUR is re-attached on read.
         configurationBuilder.Properties<Money>().HaveConversion<MoneyToCentsConverter>();

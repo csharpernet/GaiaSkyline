@@ -65,8 +65,11 @@ public sealed class SeoController(IContentService content) : Controller
             "Allow: /\n" +
             "Disallow: /admin/\n" +
             "Disallow: /api/\n" +
+            "Disallow: /account/\n" +
+            "Disallow: /*/account/\n" +
             "Disallow: /partners/dashboard/\n" +
             "Disallow: /my/\n" +
+            "Disallow: /*/my/\n" +
             "Disallow: /webhooks/\n" +
             "\n" +
             $"Sitemap: {baseUrl}/sitemap.xml\n";
