@@ -1,15 +1,31 @@
 @{
-    Layout = "_AdminLayout";
-    ViewData["Title"] = "Admin";
+    Layout = "_AdminShell";
+    ViewData["Title"] = "Dashboard";
 }
 
-<h1 class="font-display text-2xl font-semibold">Admin</h1>
-<p class="mt-2 text-sm text-ink/70">
-    You're signed in as the Owner with two-factor. The content, media and booking tools arrive in Stage 7.
-</p>
+<div class="max-w-5xl">
+    <h1 class="font-display text-2xl font-semibold">Dashboard</h1>
+    <p class="mt-1 text-sm text-ink/70">Run the whole property from here. Sections light up as each increment ships.</p>
 
-<form asp-controller="Account" asp-action="Logout" asp-route-lang="en" method="post" class="mt-8">
-    <button type="submit" class="bg-river text-white px-6 py-3 rounded-md hover:opacity-90 transition-opacity">
-        Sign out
-    </button>
-</form>
+    <div class="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        @foreach (var kpi in new[] { "Bookings this month", "Occupancy", "Revenue (MTD)", "Next check-in" })
+        {
+            <div class="bg-white border border-fog rounded-md p-4">
+                <p class="text-xs uppercase tracking-wide text-ink/50">@kpi</p>
+                <p class="mt-2 text-2xl font-display font-semibold text-ink/30">—</p>
+            </div>
+        }
+    </div>
+    <p class="mt-2 text-xs text-ink/50">KPIs, the colour-coded calendar and the manual-sync to-do arrive in increment 7C.</p>
+
+    <div class="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <a href="/admin/audit" class="block bg-white border border-fog rounded-md p-4 hover:border-river transition-colors">
+            <p class="font-semibold">Audit log</p>
+            <p class="mt-1 text-sm text-ink/60">Every login, 2FA event and owner write, filterable.</p>
+        </a>
+        <a href="/en" target="_blank" rel="noopener" class="block bg-white border border-fog rounded-md p-4 hover:border-river transition-colors">
+            <p class="font-semibold">View the public site</p>
+            <p class="mt-1 text-sm text-ink/60">Opens the live site in a new tab.</p>
+        </a>
+    </div>
+</div>

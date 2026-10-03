@@ -1,0 +1,108 @@
+@using GaiaSkyline.Web.Admin
+@{
+    var title = ViewData["Title"] as string ?? "Admin";
+    var path = Context.Request.Path.Value ?? "/admin";
+    bool IsActive(string href) => string.Equals(href, "/admin", StringComparison.OrdinalIgnoreCase)
+        ? string.Equals(path, "/admin", StringComparison.OrdinalIgnoreCase)
+        : path.StartsWith(href, StringComparison.OrdinalIgnoreCase);
+    var toast = TempData["Toast"] as string;
+    string? toastKind = null, toastMsg = null;
+    if (!string.IsNullOrEmpty(toast))
+    {
+        var i = toast.IndexOf(':');
+        toastKind = i > 0 ? toast[..i] : "success";
+        toastMsg = i > 0 ? toast[(i + 1)..] : toast;
+    }
+    var ownerEmail = User.Identity?.Name ?? "Owner";
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>@title — Gaia Skyline admin</title>
+    <link rel="stylesheet" href="~/css/tokens.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/app.css" asp-append-version="true" />
+</head>
+<body class="bg-stone text-ink font-body min-h-screen">
+    <a href="#admin-main" class="sr-only focus:not-sr-only focus:absolute focus:bg-white focus:p-3">Skip to content</a>
+    <div class="flex min-h-screen">
+        <aside class="w-56 shrink-0 bg-white border-r border-fog flex flex-col" aria-label="Admin sections">
+            <div class="px-4 py-4 border-b border-fog">
+                <a href="/admin" class="font-display text-lg font-semibold text-clay">Gaia Skyline</a>
+                <p class="text-[11px] uppercase tracking-wide text-ink/50">Owner admin</p>
+            </div>
+            <nav class="flex-1 overflow-y-auto py-2 text-sm">
+                @foreach (var item in AdminNav.Items)
+                {
+                    if (item.Enabled)
+                    {
+                        <a href="@item.Href"
+                           class="block px-4 py-2 border-l-2 @(IsActive(item.Href) ? "border-clay bg-stone font-semibold text-clay" : "border-transparent text-ink/80 hover:bg-stone")"
+                           aria-current="@(IsActive(item.Href) ? "page" : null)">
+                            @item.Label
+                        </a>
+                    }
+                    else
+                    {
+                        <span class="flex items-center justify-between px-4 py-2 border-l-2 border-transparent text-ink/35 cursor-not-allowed select-none"
+                              title="Ships in a later Stage 7 increment">
+                            <span>@item.Label</span>
+                            <span class="text-[10px] uppercase tracking-wide border border-fog rounded px-1">soon</span>
+                        </span>
+                    }
+                }
+            </nav>
+        </aside>
+
+        <div class="flex-1 flex flex-col min-w-0">
+            <header class="sticky top-0 z-30 bg-white/95 border-b border-fog px-6 py-3 flex items-center gap-4">
+                <input id="admin-search" type="search" placeholder="Search…  ( / )" autocomplete="off"
+                       class="flex-1 max-w-md rounded-md border border-fog px-3 py-1.5 text-sm bg-stone" />
+                <button type="button" id="admin-help-btn" class="text-xs text-river hover:underline" aria-haspopup="dialog">
+                    Shortcuts (?)
+                </button>
+                <span class="text-xs text-ink/60 hidden sm:inline">@ownerEmail</span>
+                <a href="/en" target="_blank" rel="noopener"
+                   class="text-xs border border-river text-river rounded px-2 py-1 hover:bg-river hover:text-white transition-colors">
+                    View site
+                </a>
+                <form asp-controller="Account" asp-action="Logout" asp-route-lang="en" method="post">
+                    <button type="submit" class="text-xs border border-fog rounded px-2 py-1 hover:bg-stone">Sign out</button>
+                </form>
+            </header>
+
+            <main id="admin-main" class="flex-1 px-6 py-6 min-w-0">
+                @RenderBody()
+            </main>
+        </div>
+    </div>
+
+    @if (toastMsg is not null)
+    {
+        <div data-toast data-kind="@toastKind"
+             class="fixed bottom-4 right-4 z-50 max-w-sm rounded-md border px-4 py-3 text-sm shadow-lg @(toastKind == "error" ? "bg-white border-clay text-clay" : "bg-white border-river text-ink")">
+            @toastMsg
+        </div>
+    }
+
+    <div id="admin-help" role="dialog" aria-modal="true" aria-label="Keyboard shortcuts"
+         class="hidden fixed inset-0 z-50 items-center justify-center bg-ink/40">
+        <div class="bg-white rounded-lg border border-fog p-6 w-80 text-sm">
+            <h2 class="font-display text-lg font-semibold mb-3">Keyboard shortcuts</h2>
+            <dl class="space-y-1">
+                <div class="flex justify-between"><dt>Focus search</dt><dd class="font-mono text-ink/70">/</dd></div>
+                <div class="flex justify-between"><dt>Dashboard</dt><dd class="font-mono text-ink/70">g h</dd></div>
+                <div class="flex justify-between"><dt>Calendar</dt><dd class="font-mono text-ink/70">g c</dd></div>
+                <div class="flex justify-between"><dt>Bookings</dt><dd class="font-mono text-ink/70">g b</dd></div>
+                <div class="flex justify-between"><dt>This help</dt><dd class="font-mono text-ink/70">?</dd></div>
+                <div class="flex justify-between"><dt>Close</dt><dd class="font-mono text-ink/70">Esc</dd></div>
+            </dl>
+            <button type="button" id="admin-help-close" class="mt-4 w-full bg-river text-white rounded-md py-2">Close</button>
+        </div>
+    </div>
+
+    <script src="~/js/admin.js" asp-append-version="true"></script>
+</body>
+</html>

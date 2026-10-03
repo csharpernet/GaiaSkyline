@@ -34,6 +34,7 @@ public static class IdentityServiceCollectionExtensions
         services.AddScoped<IPasswordValidator<ApplicationUser>, PwnedPasswordValidator>();
 
         services.AddScoped<IAuditLog, AuditLog>();
+        services.AddScoped<IAuditReadStore, AuditReadStore>();
         services.AddScoped<IAuthEmailService, AuthEmailService>();
         services.AddScoped<IdentitySeeder>();
 
