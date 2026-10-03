@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Json;
 using FluentAssertions;
 using Microsoft.AspNetCore.Mvc.Testing;
 
@@ -74,6 +75,25 @@ public class AuthPagesTests(PublicSiteFactory factory)
 
         response.StatusCode.Should().Be(HttpStatusCode.Redirect);
         response.Headers.Location!.ToString().Should().Contain("/account/login");
+    }
+
+    [Fact]
+    public async Task Partner_me_requires_a_bearer_token()
+    {
+        using var client = Client();
+        using var response = await client.GetAsync(new Uri("/api/partner/me", UriKind.Relative));
+
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task Partner_refresh_rejects_a_bogus_token()
+    {
+        using var client = Client();
+        using var response = await client.PostAsJsonAsync(
+            new Uri("/api/partner/token/refresh", UriKind.Relative), new { refreshToken = "nope" });
+
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
     [Fact]

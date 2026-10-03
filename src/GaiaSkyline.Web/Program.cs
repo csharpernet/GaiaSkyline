@@ -145,6 +145,33 @@ builder.Services.AddAuthorization(options =>
     });
 });
 
+// Partner JWT (Stage 6D). The signing key comes from User Secrets / Key Vault; when it is unset the app
+// still boots with an ephemeral per-process key (tokens then don't survive a restart or scale-out — fine
+// for dev/CI, and production is expected to configure Jwt:SigningKey).
+var jwtOptions = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>() ?? new JwtOptions();
+if (string.IsNullOrWhiteSpace(jwtOptions.SigningKey))
+{
+    jwtOptions.SigningKey = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(48));
+}
+
+builder.Services.AddSingleton(Microsoft.Extensions.Options.Options.Create(jwtOptions));
+builder.Services.AddSingleton<JwtTokenFactory>();
+builder.Services.AddAuthentication().AddJwtBearer(AuthSchemes.PartnerJwt, options =>
+{
+    options.TokenValidationParameters = new Microsoft.IdentityModel.Tokens.TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidIssuer = jwtOptions.Issuer,
+        ValidateAudience = true,
+        ValidAudience = jwtOptions.Audience,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        IssuerSigningKey = new Microsoft.IdentityModel.Tokens.SymmetricSecurityKey(
+            System.Text.Encoding.UTF8.GetBytes(jwtOptions.SigningKey)),
+        ClockSkew = TimeSpan.FromSeconds(30),
+    };
+});
+
 // QuestPDF Community licence (free for orgs under the revenue threshold); see ADR 0012.
 QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
 

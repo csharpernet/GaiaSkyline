@@ -53,6 +53,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
 
     public DbSet<GuestMagicLink> GuestMagicLinks => Set<GuestMagicLink>();
 
+    public DbSet<GaiaSkyline.Domain.Identity.RefreshToken> RefreshTokens => Set<GaiaSkyline.Domain.Identity.RefreshToken>();
+
     public DbSet<PricingRule> PricingRules => Set<PricingRule>();
 
     public DbSet<Fee> Fees => Set<Fee>();
