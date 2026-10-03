@@ -69,3 +69,69 @@ internal sealed class StoryTranslationIdConverter : ValueConverter<StoryTranslat
     {
     }
 }
+
+// Stage 4 (booking) identities.
+
+internal sealed class BookingIdConverter : ValueConverter<BookingId, Guid>
+{
+    public BookingIdConverter()
+        : base(id => id.Value, value => BookingId.From(value))
+    {
+    }
+}
+
+internal sealed class PricingRuleIdConverter : ValueConverter<PricingRuleId, Guid>
+{
+    public PricingRuleIdConverter()
+        : base(id => id.Value, value => PricingRuleId.From(value))
+    {
+    }
+}
+
+internal sealed class FeeIdConverter : ValueConverter<FeeId, Guid>
+{
+    public FeeIdConverter()
+        : base(id => id.Value, value => FeeId.From(value))
+    {
+    }
+}
+
+internal sealed class CancellationPolicyIdConverter : ValueConverter<CancellationPolicyId, Guid>
+{
+    public CancellationPolicyIdConverter()
+        : base(id => id.Value, value => CancellationPolicyId.From(value))
+    {
+    }
+}
+
+internal sealed class PromoCodeIdConverter : ValueConverter<PromoCodeId, Guid>
+{
+    public PromoCodeIdConverter()
+        : base(id => id.Value, value => PromoCodeId.From(value))
+    {
+    }
+}
+
+internal sealed class PartnerIdConverter : ValueConverter<PartnerId, Guid>
+{
+    public PartnerIdConverter()
+        : base(id => id.Value, value => PartnerId.From(value))
+    {
+    }
+}
+
+internal sealed class ExternalCalendarBlockIdConverter : ValueConverter<ExternalCalendarBlockId, Guid>
+{
+    public ExternalCalendarBlockIdConverter()
+        : base(id => id.Value, value => ExternalCalendarBlockId.From(value))
+    {
+    }
+}
+
+internal sealed class StripeEventLogIdConverter : ValueConverter<StripeEventLogId, Guid>
+{
+    public StripeEventLogIdConverter()
+        : base(id => id.Value, value => StripeEventLogId.From(value))
+    {
+    }
+}
