@@ -61,7 +61,8 @@
                     <text>This booking is past the free-cancellation window, so no refund applies.</text>
                 }
             </p>
-            <form asp-action="Cancel" asp-route-reference="@b.ReferenceCode" method="post" class="mt-4">
+            <form method="post" action="/@slug/my/booking/@b.ReferenceCode/cancel" class="mt-4">
+                @Html.AntiForgeryToken()
                 <button type="submit"
                         class="bg-clay text-white px-6 py-3 rounded-md hover:opacity-90 transition-opacity">
                     Cancel booking

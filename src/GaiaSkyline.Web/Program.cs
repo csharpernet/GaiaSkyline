@@ -21,6 +21,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -46,6 +47,25 @@ builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddBackgroundJobs(builder.Configuration);
 builder.Services.AddScoped<GaiaSkyline.Application.Storage.IMediaStorage, GaiaSkyline.Web.Storage.LocalDiskMediaStorage>();
+
+// --- E2E test seam (OFF by default; never enabled in Production — guarded below). The sink and options
+//     are always registered so the test controller resolves and simply 404s when the seam is off; only
+//     the capturing email sender replaces the real one when the seam is on. ---
+builder.Services.AddOptions<GaiaSkyline.Web.Testing.E2EOptions>()
+    .Bind(builder.Configuration.GetSection(GaiaSkyline.Web.Testing.E2EOptions.SectionName));
+builder.Services.AddSingleton<GaiaSkyline.Web.Testing.E2EEmailSink>();
+var e2eEnabled = builder.Configuration.GetValue<bool>(
+    $"{GaiaSkyline.Web.Testing.E2EOptions.SectionName}:Enabled");
+if (e2eEnabled)
+{
+    if (builder.Environment.IsProduction())
+    {
+        throw new InvalidOperationException("The E2E test seam (E2E:Enabled) must never be enabled in Production.");
+    }
+
+    builder.Services.RemoveAll<GaiaSkyline.Application.Notifications.IEmailSender>();
+    builder.Services.AddScoped<GaiaSkyline.Application.Notifications.IEmailSender, GaiaSkyline.Web.Testing.CapturingEmailSender>();
+}
 
 // --- Identity, authentication & authorization (Stage 6) ---
 builder.Services.AddIdentity<ApplicationUser, ApplicationRole>(options =>
@@ -332,6 +352,12 @@ if (app.Environment.IsDevelopment() && seedOnStartup)
     if (!string.IsNullOrWhiteSpace(ownerEmail) && !string.IsNullOrWhiteSpace(ownerPassword))
     {
         await identitySeeder.EnsureOwnerAsync(ownerEmail, ownerPassword);
+    }
+
+    // Deterministic fixtures for the Playwright E2E suite (Owner 2FA key + a known booking).
+    if (e2eEnabled)
+    {
+        await GaiaSkyline.Web.Testing.E2ESeeder.SeedAsync(scope.ServiceProvider, CancellationToken.None);
     }
 }
 

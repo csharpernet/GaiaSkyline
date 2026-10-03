@@ -155,16 +155,38 @@ once configured, the check goes **Degraded** if no rate has synced in 24 hours.
   `POST /api/partner/token` → access + refresh; `POST /api/partner/token/refresh`;
   `GET /api/partner/me` with `Authorization: Bearer`.
 
-### Manual browser auth tests
+### Automated auth E2E (Playwright) — Stage 7 item 0
 
-The xUnit suite covers TOTP verify + recovery codes, lockout, the IP allowlist, magic
-links and JWT rotation/reuse at the service level. To exercise the full browser flows:
-1. **Owner TOTP**: seed an Owner, open `/admin/login`, sign in, scan the QR into an
-   authenticator app, enter the code, confirm you reach `/admin`; sign out and confirm a
-   second login requires the code.
-2. **Guest magic link**: book a stay, then at `/en/account/magic-link` enter the
-   reference + email; open the link from smtp4dev and confirm `/en/my/booking/{ref}`
-   loads and that the link fails on a second use.
+The owner TOTP login and the guest magic-link → booking → cancel flows are now automated
+(`tests/e2e/tests/admin-auth.spec.js`, `guest-magic-link.spec.js`). They run in CI's
+browser-quality job and reuse `helpers/admin.js` → `loginAsOwner(page)`, which every later
+admin E2E builds on.
+
+They depend on the **E2E seam**, which is OFF by default and must never run in Production
+(`Program.cs` throws if `E2E:Enabled` is set in Production). When enabled it: captures
+outbound email in memory (read at `GET /test/emails`), seeds the Owner with a known
+authenticator key + 2FA (so the test computes a valid TOTP, see `helpers/totp.js`), and
+seeds a known `AwaitingPayment` booking, reset on each startup. To run locally:
+```bash
+# terminal 1 — app with the seam on (ephemeral test Owner on a throwaway DB)
+E2E__Enabled=true Owner__Email=owner.e2e@gaiaskyline.test Owner__Password='<12+ chars>' \
+  Features__SeedContentOnStartup=true ASPNETCORE_ENVIRONMENT=Development \
+  dotnet run --project src/GaiaSkyline.Web --urls http://localhost:5080
+# terminal 2 — the specs (OWNER_PASSWORD must match)
+cd tests/e2e
+E2E_SEAM=1 OWNER_EMAIL=owner.e2e@gaiaskyline.test OWNER_PASSWORD='<same>' \
+  npx playwright test admin-auth guest-magic-link
+```
+The magic-link test cancels the seeded booking; restart the app to run it again. In CI the
+Owner password is a per-run generated value (never committed); the authenticator key is a
+non-secret test fixture, useless without that password.
+
+### Lighthouse budgets
+
+Core Web Vitals budgets are enforced in the same browser-quality job via `lighthouserc.json`
+(error-level: LCP ≤ 2000 ms, CLS ≤ 0.05, FCP ≤ 1500 ms, server-response ≤ 400 ms; SEO /
+performance / a11y / best-practices scored). Admin pages are noindex and not in the Lighthouse
+URL set, so the admin UI never affects the public budgets.
 
 ## Unpaid-hold expiry
 

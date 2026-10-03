@@ -108,6 +108,15 @@ jobs:
       Features__SeedContentOnStartup: "true"
       ConnectionStrings__Default: "Server=(localdb)\\mssqllocaldb;Database=GaiaSkyline_CI;Trusted_Connection=True;TrustServerCertificate=True;MultipleActiveResultSets=true"
       BASE_URL: "http://localhost:5080"
+      # E2E seam: seeds an Owner (with a known authenticator key + 2FA) and a booking, and captures
+      # outbound email in memory so Playwright can read the magic link. Never enabled outside CI/local.
+      E2E__Enabled: "true"
+      E2E_SEAM: "1"
+      Owner__Email: "owner.e2e@gaiaskyline.test"
+      OWNER_EMAIL: "owner.e2e@gaiaskyline.test"
+      # Non-secret test authenticator seed (useless without the ephemeral password generated below).
+      E2E__OwnerTotpKey: "JBSWY3DPEHPK3PXP"
+      OWNER_TOTP_KEY: "JBSWY3DPEHPK3PXP"
 
     steps:
       - name: Checkout
@@ -130,6 +139,15 @@ jobs:
         run: |
           sqllocaldb info
           sqllocaldb start MSSQLLocalDB
+
+      - name: Generate the ephemeral E2E Owner password
+        # A throwaway, per-run credential for the E2E Owner in the disposable CI database — never
+        # committed. Exported so both the app (Owner__Password) and Playwright (OWNER_PASSWORD) agree.
+        run: |
+          PW="GaiaE2E-${RANDOM}${RANDOM}${RANDOM}-Xq9z"
+          echo "Owner__Password=$PW" >> "$GITHUB_ENV"
+          echo "OWNER_PASSWORD=$PW" >> "$GITHUB_ENV"
+          echo "::add-mask::$PW"
 
       - name: Start the app
         # Only an HTTP endpoint is bound, so UseHttpsRedirection finds no HTTPS port and does not
