@@ -5,6 +5,7 @@ using GaiaSkyline.Domain.Bookings;
 using GaiaSkyline.Domain.Identifiers;
 using GaiaSkyline.Domain.Pricing;
 using GaiaSkyline.Domain.ValueObjects;
+using GaiaSkyline.Infrastructure.Availability;
 using GaiaSkyline.Infrastructure.Bookings;
 using GaiaSkyline.Infrastructure.Persistence;
 using GaiaSkyline.Infrastructure.Pricing;
@@ -137,9 +138,10 @@ public sealed class BookingConcurrencyTests(LocalDbFixture fixture) : IClassFixt
         });
         var quotes = new QuoteService(readStore, calculator, TimeProvider.System, options);
         var availability = new AvailabilityService(context, _cache, _cacheState);
+        var ics = new IcsCacheInvalidator();
         var creation = new BookingCreationService(
-            context, quotes, readStore, new BookingReferenceGenerator(), availability, TimeProvider.System);
-        var lifecycle = new BookingLifecycleService(context, availability, TimeProvider.System);
+            context, quotes, readStore, new BookingReferenceGenerator(), availability, ics, TimeProvider.System);
+        var lifecycle = new BookingLifecycleService(context, availability, ics, TimeProvider.System);
         return (creation, availability, lifecycle);
     }
 

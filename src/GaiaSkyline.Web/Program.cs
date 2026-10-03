@@ -12,6 +12,7 @@ using GaiaSkyline.Web.Identity;
 using GaiaSkyline.Web.Localization;
 using GaiaSkyline.Web.Middleware;
 using GaiaSkyline.Web.Security;
+using Hangfire;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.CookiePolicy;
@@ -170,6 +171,16 @@ builder.Services.AddAuthentication().AddJwtBearer(AuthSchemes.PartnerJwt, option
             System.Text.Encoding.UTF8.GetBytes(jwtOptions.SigningKey)),
         ClockSkew = TimeSpan.FromSeconds(30),
     };
+});
+
+// ICS export token (Stage 5). Stable value from config so external platforms can subscribe; an
+// ephemeral per-process token is used when unset (fine in manual mode, where no one subscribes yet).
+// Resolved lazily so the configured value is read after all config sources are composed.
+var ephemeralIcsToken = Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(16));
+builder.Services.AddSingleton(sp =>
+{
+    var configured = sp.GetRequiredService<IConfiguration>()["Ics:ExportToken"];
+    return new IcsExportOptions { Token = string.IsNullOrWhiteSpace(configured) ? ephemeralIcsToken : configured };
 });
 
 // QuestPDF Community licence (free for orgs under the revenue threshold); see ADR 0012.
@@ -355,12 +366,16 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions
 // the root redirect, sitemap/robots and the error page.
 app.MapControllers();
 
-// Hangfire is wired via AddBackgroundJobs. The dashboard is intentionally NOT mapped yet — it
-// needs authentication, which arrives with the admin area in a later stage.
-// Unpaid-hold expiry runs every 5 minutes as a safety net alongside webhook handling. Use the
-// DI-based IRecurringJobManager (not the static RecurringJob) so it binds to the configured storage.
+// Hangfire (when enabled): the dashboard is Owner-only (Stage 5 item 5), and the unpaid-hold expiry
+// runs every 5 minutes as a safety net. Use the DI-based IRecurringJobManager (not the static
+// RecurringJob) so it binds to the configured storage.
 if (GaiaSkyline.BackgroundJobs.DependencyInjection.IsEnabled(builder.Configuration))
 {
+    app.UseHangfireDashboard("/hangfire", new Hangfire.DashboardOptions
+    {
+        Authorization = [new OwnerDashboardAuthorizationFilter()],
+    });
+
     using var jobsScope = app.Services.CreateScope();
     var recurringJobs = jobsScope.ServiceProvider.GetRequiredService<Hangfire.IRecurringJobManager>();
     Hangfire.RecurringJobManagerExtensions.AddOrUpdate<GaiaSkyline.Application.Bookings.IBookingExpiryService>(

@@ -30,6 +30,8 @@ public sealed class PublicSiteFactory : WebApplicationFactory<Program>
                 ["Features:SeedContentOnStartup"] = "true",
                 // Keep the Hangfire server/schema out of the web tests; job logic is tested directly.
                 ["BackgroundJobs:Enabled"] = "false",
+                // Stable ICS export token so the export endpoint can be tested.
+                ["Ics:ExportToken"] = "test-ics-token",
             }));
     }
 

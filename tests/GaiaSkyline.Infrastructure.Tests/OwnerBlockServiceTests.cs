@@ -16,7 +16,7 @@ public sealed class OwnerBlockServiceTests(LocalDbFixture fixture) : IClassFixtu
     private static (AvailabilityService Availability, OwnerBlockService Service) Build(Persistence.AppDbContext context)
     {
         var availability = new AvailabilityService(context, new MemoryCache(new MemoryCacheOptions()), new AvailabilityCacheState());
-        var service = new OwnerBlockService(context, availability, new NoOpIcsCacheInvalidator(), TimeProvider.System);
+        var service = new OwnerBlockService(context, availability, new IcsCacheInvalidator(), TimeProvider.System);
         return (availability, service);
     }
 

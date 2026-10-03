@@ -1,3 +1,4 @@
+using GaiaSkyline.Application.Availability;
 using GaiaSkyline.Application.Bookings;
 using GaiaSkyline.Domain.Bookings;
 using GaiaSkyline.Domain.Identifiers;
@@ -14,6 +15,7 @@ namespace GaiaSkyline.Infrastructure.Bookings;
 internal sealed class BookingLifecycleService(
     AppDbContext dbContext,
     IAvailabilityService availabilityService,
+    IIcsCacheInvalidator icsCacheInvalidator,
     TimeProvider clock) : IBookingLifecycleService
 {
     public async Task CancelAndReleaseAsync(BookingId bookingId, string? reason, CancellationToken cancellationToken)
@@ -38,5 +40,6 @@ internal sealed class BookingLifecycleService(
         });
 
         availabilityService.Invalidate();
+        icsCacheInvalidator.Invalidate();
     }
 }

@@ -118,6 +118,22 @@ public class AuthPagesTests(PublicSiteFactory factory)
     }
 
     [Fact]
+    public async Task Ics_export_rejects_a_wrong_token_and_serves_calendar_for_the_right_one()
+    {
+        using var client = Client();
+
+        using var wrong = await client.GetAsync(new Uri("/calendar/nope/gaia-skyline.ics", UriKind.Relative));
+        wrong.StatusCode.Should().Be(HttpStatusCode.NotFound);
+
+        using var ok = await client.GetAsync(new Uri("/calendar/test-ics-token/gaia-skyline.ics", UriKind.Relative));
+        var okBody = await ok.Content.ReadAsStringAsync();
+        ok.StatusCode.Should().Be(HttpStatusCode.OK, "body: {0}", okBody);
+        ok.Content.Headers.ContentType!.MediaType.Should().Be("text/calendar");
+        var body = await ok.Content.ReadAsStringAsync();
+        body.Should().StartWith("BEGIN:VCALENDAR");
+    }
+
+    [Fact]
     public async Task Robots_blocks_account_and_my()
     {
         using var client = Client();

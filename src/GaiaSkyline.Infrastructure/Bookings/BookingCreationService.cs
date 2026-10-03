@@ -1,4 +1,5 @@
 using System.Data;
+using GaiaSkyline.Application.Availability;
 using GaiaSkyline.Application.Bookings;
 using GaiaSkyline.Application.Pricing;
 using GaiaSkyline.Domain.Bookings;
@@ -21,6 +22,7 @@ internal sealed class BookingCreationService(
     IPricingReadStore pricingReadStore,
     IBookingReferenceGenerator referenceGenerator,
     IAvailabilityService availabilityService,
+    IIcsCacheInvalidator icsCacheInvalidator,
     TimeProvider clock) : IBookingCreationService
 {
     private const int SqlUniqueViolation = 2627;
@@ -93,6 +95,7 @@ internal sealed class BookingCreationService(
         });
 
         availabilityService.Invalidate();
+        icsCacheInvalidator.Invalidate();
         return booking;
     }
 

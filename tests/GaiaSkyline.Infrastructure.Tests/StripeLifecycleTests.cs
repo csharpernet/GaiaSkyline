@@ -160,18 +160,19 @@ public sealed class StripeLifecycleTests(LocalDbFixture fixture) : IClassFixture
     private (StripeWebhookHandler Handler, RecordingNotifications Notifications) BuildHandler(AppDbContext context)
     {
         var availability = new AvailabilityService(context, _cache, _cacheState);
-        var lifecycle = new BookingLifecycleService(context, availability, TimeProvider.System);
+        var ics = new IcsCacheInvalidator();
+        var lifecycle = new BookingLifecycleService(context, availability, ics, TimeProvider.System);
         var notifications = new RecordingNotifications();
         var options = Options.Create(new StripeOptions { WebhookSecret = WebhookSecret, UnpaidHoldMinutes = 30, MultibancoMinLeadDays = 10 });
         var handler = new StripeWebhookHandler(
-            context, options, lifecycle, availability, new NoOpIcsCacheInvalidator(), notifications, TimeProvider.System);
+            context, options, lifecycle, availability, ics, notifications, TimeProvider.System);
         return (handler, notifications);
     }
 
     private BookingExpiryService BuildExpiryService(AppDbContext context)
     {
         var availability = new AvailabilityService(context, _cache, _cacheState);
-        var lifecycle = new BookingLifecycleService(context, availability, TimeProvider.System);
+        var lifecycle = new BookingLifecycleService(context, availability, new IcsCacheInvalidator(), TimeProvider.System);
         var options = Options.Create(new StripeOptions { UnpaidHoldMinutes = 30, MultibancoMinLeadDays = 10 });
         return new BookingExpiryService(context, lifecycle, options, TimeProvider.System);
     }

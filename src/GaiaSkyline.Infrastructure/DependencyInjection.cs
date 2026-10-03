@@ -106,7 +106,10 @@ public static class DependencyInjection
         services.AddScoped<IBookingNotificationService, EmailBookingNotificationService>();
 
         // ICS cache seam stays a no-op until Stage 5.
-        services.AddSingleton<IIcsCacheInvalidator, NoOpIcsCacheInvalidator>();
+        services.AddSingleton<GaiaSkyline.Infrastructure.Availability.IcsCacheInvalidator>();
+        services.AddSingleton<IIcsCacheInvalidator>(sp =>
+            sp.GetRequiredService<GaiaSkyline.Infrastructure.Availability.IcsCacheInvalidator>());
+        services.AddScoped<IIcsExportService, GaiaSkyline.Infrastructure.Availability.IcsExportService>();
 
         return services;
     }
