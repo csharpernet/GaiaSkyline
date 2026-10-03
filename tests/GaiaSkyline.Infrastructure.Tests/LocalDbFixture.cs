@@ -32,8 +32,10 @@ public sealed class LocalDbFixture : IDisposable
 
     public AppDbContext CreateContext()
     {
+        // Mirror production (see Infrastructure.DependencyInjection): retry on transient failures, so
+        // the Serializable booking transaction retries a deadlock victim into a clean domain result.
         var options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseSqlServer(ConnectionString)
+            .UseSqlServer(ConnectionString, sql => sql.EnableRetryOnFailure())
             .Options;
         return new AppDbContext(options);
     }

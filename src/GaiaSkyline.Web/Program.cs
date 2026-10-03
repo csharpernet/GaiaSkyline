@@ -115,6 +115,9 @@ if (app.Environment.IsDevelopment() && seedOnStartup)
     var webRoot = app.Environment.WebRootPath;
     var mediaRoot = string.IsNullOrEmpty(webRoot) ? null : Path.Combine(webRoot, "media");
     await seeder.SeedAsync(mediaRoot, CancellationToken.None);
+
+    var bookingSeeder = scope.ServiceProvider.GetRequiredService<BookingSeeder>();
+    await bookingSeeder.SeedAsync(CancellationToken.None);
 }
 
 if (!app.Environment.IsDevelopment())

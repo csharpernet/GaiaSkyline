@@ -1,10 +1,15 @@
+using GaiaSkyline.Application.Bookings;
 using GaiaSkyline.Application.Content;
+using GaiaSkyline.Application.Pricing;
+using GaiaSkyline.Infrastructure.Bookings;
 using GaiaSkyline.Infrastructure.Content;
 using GaiaSkyline.Infrastructure.Data;
 using GaiaSkyline.Infrastructure.Persistence;
+using GaiaSkyline.Infrastructure.Pricing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace GaiaSkyline.Infrastructure;
 
@@ -33,6 +38,21 @@ public static class DependencyInjection
 
         services.AddScoped<IContentReadStore, ContentReadStore>();
         services.AddScoped<ContentSeeder>();
+        services.AddScoped<BookingSeeder>();
+
+        // Pricing & booking (Stage 4).
+        services.AddOptions<BookingPricingOptions>()
+            .Bind(configuration.GetSection(BookingPricingOptions.SectionName));
+        services.TryAddSingleton(TimeProvider.System);
+        services.AddMemoryCache();
+        services.AddSingleton<AvailabilityCacheState>();
+        services.AddSingleton<IPricingCalculator, PricingCalculator>();
+        services.AddSingleton<IBookingReferenceGenerator, BookingReferenceGenerator>();
+        services.AddScoped<IPricingReadStore, PricingReadStore>();
+        services.AddScoped<IQuoteService, QuoteService>();
+        services.AddScoped<IAvailabilityService, AvailabilityService>();
+        services.AddScoped<IBookingCreationService, BookingCreationService>();
+        services.AddScoped<IBookingLifecycleService, BookingLifecycleService>();
 
         return services;
     }
