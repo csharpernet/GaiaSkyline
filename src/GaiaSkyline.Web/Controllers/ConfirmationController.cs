@@ -16,6 +16,7 @@ namespace GaiaSkyline.Web.Controllers;
 public sealed class ConfirmationController(
     IBookingReadStore bookingReadStore,
     IBookingTokenService tokenService,
+    IInvoiceService invoiceService,
     IContentService content) : PublicController
 {
     [HttpGet("{lang:culture}/book/confirmation/{reference}")]
@@ -63,6 +64,21 @@ public sealed class ConfirmationController(
 
         var ics = BuildSingleEventIcs(booking);
         return File(Encoding.UTF8.GetBytes(ics), "text/calendar; charset=utf-8", $"gaia-skyline-{reference}.ics");
+    }
+
+    [HttpGet("{lang:culture}/book/confirmation/{reference}/invoice.pdf")]
+    [OutputCache(NoStore = true)]
+    public async Task<IActionResult> Invoice(string reference, [FromQuery] string? token, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(token) || !tokenService.IsValidConfirmationToken(reference, token))
+        {
+            return NotFound();
+        }
+
+        var pdf = await invoiceService.GenerateAsync(reference, cancellationToken);
+        return pdf is null
+            ? NotFound()
+            : File(pdf, "application/pdf", $"gaia-skyline-invoice-{reference}.pdf");
     }
 
     private static string BuildSingleEventIcs(BookingSummaryDto booking)

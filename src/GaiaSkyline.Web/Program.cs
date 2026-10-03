@@ -37,6 +37,10 @@ builder.Services
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddBackgroundJobs(builder.Configuration);
+builder.Services.AddScoped<GaiaSkyline.Application.Storage.IMediaStorage, GaiaSkyline.Web.Storage.LocalDiskMediaStorage>();
+
+// QuestPDF Community licence (free for orgs under the revenue threshold); see ADR 0012.
+QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
 
 // Per-IP rate limits on the booking endpoints (abuse protection; checkout is the stricter one).
 builder.Services.AddRateLimiter(options =>
