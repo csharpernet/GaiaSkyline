@@ -97,6 +97,27 @@ public class AuthPagesTests(PublicSiteFactory factory)
     }
 
     [Fact]
+    public async Task Admin_content_write_requires_auth()
+    {
+        using var client = Client();
+        using var response = await client.PostAsync(
+            new Uri("/api/admin/content/home.hero.headline/publish", UriKind.Relative), content: null);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task Admin_media_collection_write_requires_auth()
+    {
+        using var client = Client();
+        using var response = await client.PutAsJsonAsync(
+            new Uri("/api/admin/media/collections/home.gallery/items", UriKind.Relative),
+            Array.Empty<object>());
+
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
     public async Task Robots_blocks_account_and_my()
     {
         using var client = Client();

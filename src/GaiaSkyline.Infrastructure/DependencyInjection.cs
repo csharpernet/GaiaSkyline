@@ -66,6 +66,11 @@ public static class DependencyInjection
         services.AddScoped<GaiaSkyline.Application.Partners.IPartnerRefreshTokenStore, GaiaSkyline.Infrastructure.Partners.PartnerRefreshTokenStore>();
         services.AddScoped<IInvoiceService, QuestPdfInvoiceService>();
 
+        // Owner write APIs (Stage 6E).
+        services.AddScoped<GaiaSkyline.Application.Content.IAdminContentService, GaiaSkyline.Infrastructure.Content.AdminContentService>();
+        services.AddScoped<GaiaSkyline.Infrastructure.Media.IImageRenditionService, GaiaSkyline.Infrastructure.Media.ImageRenditionService>();
+        services.AddScoped<GaiaSkyline.Application.Media.IAdminMediaService, GaiaSkyline.Infrastructure.Media.AdminMediaService>();
+
         // Payments (Stage 4 / Increment C).
         services.AddOptions<StripeOptions>().Bind(configuration.GetSection(StripeOptions.SectionName));
         services.AddSingleton<IStripeClient>(sp =>
