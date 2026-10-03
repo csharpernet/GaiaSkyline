@@ -44,6 +44,17 @@ public sealed class ForgotPasswordViewModel
     public string Email { get; set; } = string.Empty;
 }
 
+public sealed class MagicLinkViewModel
+{
+    [Required]
+    [Display(Name = "Booking reference")]
+    public string Reference { get; set; } = string.Empty;
+
+    [Required]
+    [EmailAddress]
+    public string Email { get; set; } = string.Empty;
+}
+
 public sealed class ResetPasswordViewModel
 {
     [Required]

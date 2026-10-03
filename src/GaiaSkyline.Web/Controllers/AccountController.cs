@@ -1,9 +1,11 @@
 using System.Text;
 using GaiaSkyline.Application.Auditing;
+using GaiaSkyline.Application.Bookings;
 using GaiaSkyline.Application.Notifications;
 using GaiaSkyline.Domain.Identity;
 using GaiaSkyline.Infrastructure.Identity;
 using GaiaSkyline.Web.Models;
+using GaiaSkyline.Web.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -23,6 +25,8 @@ public sealed class AccountController(
     UserManager<ApplicationUser> userManager,
     SignInManager<ApplicationUser> signInManager,
     IAuthEmailService authEmail,
+    IGuestMagicLinkService magicLinks,
+    BookingAccessCookie bookingAccess,
     IAuditLog audit) : PublicController
 {
     private string Ip => HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
@@ -266,6 +270,55 @@ public sealed class AccountController(
         SetAuthMeta("denied", "Access denied");
         Response.StatusCode = StatusCodes.Status403Forbidden;
         return View("Info", "You don't have access to that page.");
+    }
+
+    [HttpGet("magic-link")]
+    [OutputCache(NoStore = true)]
+    public IActionResult MagicLink()
+    {
+        SetAuthMeta("magic-link", "Access your booking");
+        return View(new MagicLinkViewModel());
+    }
+
+    [HttpPost("magic-link")]
+    [ValidateAntiForgeryToken]
+    [EnableRateLimiting("auth")]
+    [OutputCache(NoStore = true)]
+    public async Task<IActionResult> MagicLink(MagicLinkViewModel model)
+    {
+        SetAuthMeta("magic-link", "Access your booking");
+        if (ModelState.IsValid)
+        {
+            var token = await magicLinks.IssueAsync(model.Reference, model.Email, HttpContext.RequestAborted);
+            if (token is not null)
+            {
+                var url = BuildAccountUrl("magic-link/consume", new() { ["token"] = token });
+                await authEmail.SendAsync(
+                    AuthEmailKind.MagicLink, model.Email, model.Email, CurrentCulture, url,
+                    reference: model.Reference.Trim().ToUpperInvariant(), cancellationToken: HttpContext.RequestAborted);
+                await audit.WriteAsync("magic_link.issued", null, Ip, details: new { model.Reference });
+            }
+        }
+
+        // Identical response whether or not the reference + email matched (no enumeration).
+        SetAuthMeta("magic-link", "Check your email");
+        return View("CheckEmail", "If that reference and email match a booking, we've sent an access link.");
+    }
+
+    [HttpGet("magic-link/consume")]
+    [OutputCache(NoStore = true)]
+    public async Task<IActionResult> ConsumeMagicLink(string token)
+    {
+        var reference = await magicLinks.ConsumeAsync(token, HttpContext.RequestAborted);
+        if (reference is null)
+        {
+            SetAuthMeta("magic-link", "Link expired");
+            return View("Info", "This access link is invalid or has already been used. Please request a new one.");
+        }
+
+        bookingAccess.Grant(Response, reference);
+        await audit.WriteAsync("magic_link.consumed", null, Ip, details: new { reference });
+        return LocalRedirect($"/{CurrentSlug}/my/booking/{reference}");
     }
 
     private async Task SendEmailConfirmationAsync(ApplicationUser user)

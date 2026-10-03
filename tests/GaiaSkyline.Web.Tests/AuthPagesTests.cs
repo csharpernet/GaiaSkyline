@@ -55,6 +55,28 @@ public class AuthPagesTests(PublicSiteFactory factory)
     }
 
     [Fact]
+    public async Task Magic_link_request_page_renders()
+    {
+        using var client = Client();
+        using var response = await client.GetAsync(new Uri("/en/account/magic-link", UriKind.Relative));
+        var html = await response.Content.ReadAsStringAsync();
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        html.Should().Contain("Access your booking");
+        html.Should().Contain("Booking reference");
+    }
+
+    [Fact]
+    public async Task My_bookings_redirects_anonymous_to_login()
+    {
+        using var client = Client();
+        using var response = await client.GetAsync(new Uri("/en/my/bookings", UriKind.Relative));
+
+        response.StatusCode.Should().Be(HttpStatusCode.Redirect);
+        response.Headers.Location!.ToString().Should().Contain("/account/login");
+    }
+
+    [Fact]
     public async Task Robots_blocks_account_and_my()
     {
         using var client = Client();

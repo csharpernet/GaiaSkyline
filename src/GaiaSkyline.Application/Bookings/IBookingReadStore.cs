@@ -2,8 +2,9 @@ using GaiaSkyline.Domain.Bookings;
 
 namespace GaiaSkyline.Application.Bookings;
 
-/// <summary>Read model for the confirmation page and status poll. Amounts are in euros.</summary>
+/// <summary>Read model for the confirmation page, status poll and guest area. Amounts are in euros.</summary>
 public sealed record BookingSummaryDto(
+    Guid Id,
     string ReferenceCode,
     BookingStatus Status,
     DateOnly CheckIn,
@@ -13,6 +14,7 @@ public sealed record BookingSummaryDto(
     int Children,
     int Infants,
     string GuestName,
+    string GuestEmail,
     string GuestLanguage,
     decimal Subtotal,
     decimal DiscountAmount,
@@ -24,8 +26,11 @@ public sealed record BookingSummaryDto(
     string? MultibancoReference,
     DateTime? PaymentExpiresAtUtc);
 
-/// <summary>Reads a single booking by its human reference (confirmation page / status poll).</summary>
+/// <summary>Reads bookings for the confirmation page, status poll and the signed-in guest area.</summary>
 public interface IBookingReadStore
 {
     Task<BookingSummaryDto?> GetByReferenceAsync(string referenceCode, CancellationToken cancellationToken);
+
+    /// <summary>All bookings for a guest email (most recent first), for the /my/bookings list.</summary>
+    Task<IReadOnlyList<BookingSummaryDto>> GetForGuestEmailAsync(string email, CancellationToken cancellationToken);
 }

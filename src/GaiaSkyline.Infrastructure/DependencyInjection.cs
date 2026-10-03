@@ -62,6 +62,7 @@ public static class DependencyInjection
         services.AddScoped<IBookingLifecycleService, BookingLifecycleService>();
         services.AddScoped<ICheckoutService, GaiaSkyline.Infrastructure.Bookings.CheckoutService>();
         services.AddScoped<IBookingReadStore, BookingReadStore>();
+        services.AddScoped<IGuestMagicLinkService, GuestMagicLinkService>();
         services.AddScoped<IInvoiceService, QuestPdfInvoiceService>();
 
         // Payments (Stage 4 / Increment C).

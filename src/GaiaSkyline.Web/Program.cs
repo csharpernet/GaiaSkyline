@@ -72,6 +72,7 @@ builder.Services.AddIdentity<ApplicationUser, ApplicationRole>(options =>
 builder.Services.AddGaiaIdentityStores();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<IAuthorizationHandler, OwnerIpAllowlistHandler>();
+builder.Services.AddScoped<BookingAccessCookie>();
 
 builder.Services.ConfigureApplicationCookie(options =>
 {

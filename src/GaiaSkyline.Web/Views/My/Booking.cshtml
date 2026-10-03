@@ -1,0 +1,72 @@
+@model MyBookingViewModel
+@{
+    Layout = "_Layout";
+    var b = Model.Booking;
+    var culture = System.Globalization.CultureInfo.CurrentUICulture;
+    var slug = SupportedCultures.SlugForCulture(culture.Name);
+    string Eur(decimal a) => "€" + a.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
+    var payable = b.Status is GaiaSkyline.Domain.Bookings.BookingStatus.Confirmed
+        or GaiaSkyline.Domain.Bookings.BookingStatus.CheckedIn
+        or GaiaSkyline.Domain.Bookings.BookingStatus.Completed
+        or GaiaSkyline.Domain.Bookings.BookingStatus.Refunded
+        or GaiaSkyline.Domain.Bookings.BookingStatus.PartiallyRefunded;
+}
+
+<div class="max-w-3xl mx-auto px-6 py-12">
+    <p class="text-sm"><a href="/@slug/my/bookings" class="text-river hover:underline">← All bookings</a></p>
+    <h1 class="font-display text-4xl font-semibold mt-2">Booking @b.ReferenceCode</h1>
+    <span class="mt-2 inline-block text-xs font-semibold text-ink/70 border border-fog rounded px-2 py-0.5">@b.Status</span>
+
+    <dl class="mt-8 grid grid-cols-2 gap-4 text-sm">
+        <div><dt class="text-ink/60">Check-in</dt><dd class="font-semibold">@b.CheckIn.ToString("d MMM yyyy", culture)</dd></div>
+        <div><dt class="text-ink/60">Check-out</dt><dd class="font-semibold">@b.CheckOut.ToString("d MMM yyyy", culture)</dd></div>
+        <div><dt class="text-ink/60">Nights</dt><dd class="font-semibold">@b.Nights</dd></div>
+        <div><dt class="text-ink/60">Guests</dt><dd class="font-semibold">@b.Adults adults, @b.Children children, @b.Infants infants</dd></div>
+        <div><dt class="text-ink/60">Total</dt><dd class="font-semibold">@Eur(b.Total)</dd></div>
+    </dl>
+
+    <div class="mt-8 flex flex-wrap gap-3">
+        <a href="/@slug/my/booking/@b.ReferenceCode/calendar.ics"
+           class="border border-river text-river px-4 py-2 rounded-md hover:bg-river hover:text-white transition-colors">
+            Add to calendar
+        </a>
+        @if (payable)
+        {
+            <a href="/@slug/my/booking/@b.ReferenceCode/invoice.pdf"
+               class="border border-river text-river px-4 py-2 rounded-md hover:bg-river hover:text-white transition-colors">
+                Download invoice
+            </a>
+        }
+    </div>
+
+    @if (Model.ShowCheckin)
+    {
+        <section class="mt-10 bg-white border border-fog rounded-md p-5">
+            <h2 class="font-display text-xl font-semibold">@Model.Checkin.TextOr("checkin.title", "Check-in instructions")</h2>
+            <p class="mt-2 text-ink/80">@Model.Checkin.TextOr("checkin.instructions", "We'll send your door code and directions shortly before arrival.")</p>
+        </section>
+    }
+
+    @if (Model.CanCancel)
+    {
+        <section class="mt-10 border-t border-fog pt-6">
+            <h2 class="font-display text-xl font-semibold">Cancel this booking</h2>
+            <p class="mt-2 text-sm text-ink/70">
+                @if (Model.RefundPct > 0)
+                {
+                    <text>Cancelling now refunds @Model.RefundPct% — @Eur(Model.RefundAmount).</text>
+                }
+                else
+                {
+                    <text>This booking is past the free-cancellation window, so no refund applies.</text>
+                }
+            </p>
+            <form asp-action="Cancel" asp-route-reference="@b.ReferenceCode" method="post" class="mt-4">
+                <button type="submit"
+                        class="bg-clay text-white px-6 py-3 rounded-md hover:opacity-90 transition-opacity">
+                    Cancel booking
+                </button>
+            </form>
+        </section>
+    }
+</div>

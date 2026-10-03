@@ -1,0 +1,33 @@
+@model IReadOnlyList<GaiaSkyline.Application.Bookings.BookingSummaryDto>
+@{
+    Layout = "_Layout";
+    var culture = System.Globalization.CultureInfo.CurrentUICulture;
+    var slug = SupportedCultures.SlugForCulture(culture.Name);
+}
+
+<div class="max-w-3xl mx-auto px-6 py-12">
+    <h1 class="font-display text-4xl font-semibold">Your bookings</h1>
+
+    @if (Model.Count == 0)
+    {
+        <p class="mt-8 text-ink/70">You don't have any bookings yet.</p>
+    }
+    else
+    {
+        <ul class="mt-8 divide-y divide-fog border-y border-fog">
+            @foreach (var b in Model)
+            {
+                <li class="py-4 flex items-center justify-between gap-4">
+                    <div>
+                        <a href="/@slug/my/booking/@b.ReferenceCode" class="font-semibold text-river hover:underline">@b.ReferenceCode</a>
+                        <p class="text-sm text-ink/70">
+                            @b.CheckIn.ToString("d MMM yyyy", culture) – @b.CheckOut.ToString("d MMM yyyy", culture)
+                            · @b.Nights nights
+                        </p>
+                    </div>
+                    <span class="text-xs font-semibold text-ink/70 border border-fog rounded px-2 py-0.5">@b.Status</span>
+                </li>
+            }
+        </ul>
+    }
+</div>

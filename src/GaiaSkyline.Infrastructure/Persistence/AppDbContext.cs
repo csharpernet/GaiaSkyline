@@ -51,6 +51,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
 
     public DbSet<BookingDateOccupancy> BookingDateOccupancies => Set<BookingDateOccupancy>();
 
+    public DbSet<GuestMagicLink> GuestMagicLinks => Set<GuestMagicLink>();
+
     public DbSet<PricingRule> PricingRules => Set<PricingRule>();
 
     public DbSet<Fee> Fees => Set<Fee>();
