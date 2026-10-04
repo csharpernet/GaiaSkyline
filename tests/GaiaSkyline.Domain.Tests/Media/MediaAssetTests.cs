@@ -57,4 +57,56 @@ public class MediaAssetTests
 
         act.Should().Throw<ArgumentOutOfRangeException>();
     }
+
+    [Fact]
+    public void Set_alt_text_upserts_and_blank_removes()
+    {
+        var asset = CreateImage();
+
+        asset.SetAltText("en", "A balcony view");
+        asset.SetAltText("pt-PT", "Vista da varanda");
+        asset.AltTexts.Should().HaveCount(2);
+
+        asset.SetAltText("pt-PT", "Vista do Douro"); // update
+        asset.AltTexts.Single(a => a.LanguageCode == "pt-PT").Text.Should().Be("Vista do Douro");
+
+        asset.SetAltText("pt-PT", "   "); // blank removes
+        asset.AltTexts.Should().ContainSingle(a => a.LanguageCode == "en");
+    }
+
+    [Fact]
+    public void Alt_text_for_resolves_language_then_english_then_legacy()
+    {
+        var asset = new MediaAsset(
+            MediaAssetId.New(), MediaKind.Image, "/media/abc.jpg", null, 1600, 1066, null, 1, "image/jpeg",
+            Now, "seed", altText: "Legacy EN");
+
+        // No per-language rows yet: everything falls back to the legacy value.
+        asset.AltTextFor("fr").Should().Be("Legacy EN");
+
+        asset.SetAltText("en", "Explicit EN");
+        asset.AltTextFor("fr").Should().Be("Explicit EN"); // falls back to explicit en over legacy
+
+        asset.SetAltText("fr", "Vue du balcon");
+        asset.AltTextFor("fr").Should().Be("Vue du balcon"); // exact language wins
+    }
+
+    [Fact]
+    public void Has_explicit_alt_text_for_all_languages_ignores_fallback()
+    {
+        var langs = new[] { "en", "pt-PT", "es", "fr", "de" };
+        var asset = new MediaAsset(
+            MediaAssetId.New(), MediaKind.Image, "/media/abc.jpg", null, 1600, 1066, null, 1, "image/jpeg",
+            Now, "seed", altText: "Legacy EN");
+
+        // The legacy value is a fallback, not an explicit per-language row.
+        asset.HasExplicitAltTextForAllLanguages(langs).Should().BeFalse();
+
+        foreach (var l in langs)
+        {
+            asset.SetAltText(l, $"alt-{l}");
+        }
+
+        asset.HasExplicitAltTextForAllLanguages(langs).Should().BeTrue();
+    }
 }

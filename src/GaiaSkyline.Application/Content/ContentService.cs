@@ -271,7 +271,15 @@ public sealed class ContentService : IContentService
         asset.ByteSize,
         asset.ContentType,
         asset.AltText,
-        asset.Lqip);
+        asset.Lqip)
+    {
+        AltByLang = asset.AltTexts.Count == 0
+            ? EmptyAltByLang
+            : asset.AltTexts.ToDictionary(a => a.LanguageCode, a => a.Text, StringComparer.OrdinalIgnoreCase),
+    };
+
+    private static readonly IReadOnlyDictionary<string, string> EmptyAltByLang =
+        new Dictionary<string, string>();
 
     private static ReviewDto ToReviewDto(Review review) => new(
         review.Id.Value,

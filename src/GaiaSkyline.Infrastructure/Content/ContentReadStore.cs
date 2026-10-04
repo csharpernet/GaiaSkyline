@@ -50,6 +50,7 @@ internal sealed class ContentReadStore(AppDbContext dbContext) : IContentReadSto
         var assets = await _dbContext.MediaAssets
             .AsNoTracking()
             .Where(a => idList.Contains(a.Id))
+            .Include(a => a.AltTexts)
             .ToListAsync(cancellationToken);
 
         return assets.ToDictionary(a => a.Id);
@@ -59,6 +60,7 @@ internal sealed class ContentReadStore(AppDbContext dbContext) : IContentReadSto
     {
         return await _dbContext.MediaAssets
             .AsNoTracking()
+            .Include(a => a.AltTexts)
             .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
     }
 

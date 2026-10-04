@@ -26,5 +26,13 @@ internal sealed class MediaAssetConfiguration : IEntityTypeConfiguration<MediaAs
         builder.Property(a => a.AltText).HasMaxLength(500);
         // LQIP is a base64 data: URI for a ~24px-wide blurred preview; a few KB at most.
         builder.Property(a => a.Lqip).HasMaxLength(8000);
+
+        builder.HasMany(a => a.AltTexts)
+            .WithOne()
+            .HasForeignKey(t => t.MediaAssetId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.Metadata
+            .FindNavigation(nameof(MediaAsset.AltTexts))!
+            .SetPropertyAccessMode(PropertyAccessMode.Field);
     }
 }

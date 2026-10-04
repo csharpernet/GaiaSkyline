@@ -9,6 +9,8 @@ namespace GaiaSkyline.Domain.Media;
 /// </summary>
 public sealed class MediaAsset : Entity<MediaAssetId>
 {
+    private readonly List<MediaAssetAltText> _altTexts = [];
+
     // Required by EF Core's materialization.
     private MediaAsset()
     {
@@ -71,13 +73,79 @@ public sealed class MediaAsset : Entity<MediaAssetId>
 
     public string UploadedBy { get; private set; } = null!;
 
-    /// <summary>Descriptive alternative text for accessibility and image SEO (required in Stage 7).</summary>
+    /// <summary>
+    /// Legacy single alt text, kept as the English/default fallback. Per-language alt lives in
+    /// <see cref="AltTexts"/>; the public site resolves the request language → en → this value.
+    /// </summary>
     public string? AltText { get; private set; }
+
+    /// <summary>Per-language alt text (Stage 7E). Required for every enabled language before public use.</summary>
+    public IReadOnlyCollection<MediaAssetAltText> AltTexts => _altTexts.AsReadOnly();
 
     /// <summary>
     /// Low-Quality Image Placeholder: a tiny blurred preview as a self-contained <c>data:</c> URI,
     /// shown behind the real image while it loads to cut perceived LCP without a layout shift.
     /// </summary>
     public string? Lqip { get; private set; }
+
+    /// <summary>Insert, update or (when <paramref name="text"/> is blank) remove a language's alt text.</summary>
+    public void SetAltText(string languageCode, string? text)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(languageCode);
+        var lang = languageCode.Trim();
+        var existing = _altTexts.FirstOrDefault(
+            a => string.Equals(a.LanguageCode, lang, StringComparison.OrdinalIgnoreCase));
+
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            if (existing is not null)
+            {
+                _altTexts.Remove(existing);
+            }
+
+            return;
+        }
+
+        if (existing is not null)
+        {
+            existing.Update(text);
+        }
+        else
+        {
+            _altTexts.Add(new MediaAssetAltText(MediaAssetAltTextId.New(), Id, lang, text));
+        }
+    }
+
+    /// <summary>The alt text to show for a language: that language → English → the legacy single value → null.</summary>
+    public string? AltTextFor(string languageCode)
+    {
+        var hit = Explicit(languageCode);
+        if (!string.IsNullOrWhiteSpace(hit))
+        {
+            return hit;
+        }
+
+        var english = Explicit("en");
+        if (!string.IsNullOrWhiteSpace(english))
+        {
+            return english;
+        }
+
+        return string.IsNullOrWhiteSpace(AltText) ? null : AltText;
+    }
+
+    /// <summary>
+    /// True only when every requested language has its own non-empty alt text (no fallback). This is the
+    /// gate the admin enforces before an image may be placed on a public page.
+    /// </summary>
+    public bool HasExplicitAltTextForAllLanguages(IEnumerable<string> languageCodes)
+    {
+        ArgumentNullException.ThrowIfNull(languageCodes);
+        return languageCodes.All(l => !string.IsNullOrWhiteSpace(Explicit(l)));
+    }
+
+    private string? Explicit(string languageCode) =>
+        _altTexts.FirstOrDefault(
+            a => string.Equals(a.LanguageCode, languageCode, StringComparison.OrdinalIgnoreCase))?.Text;
 }
 

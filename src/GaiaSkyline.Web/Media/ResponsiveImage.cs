@@ -106,11 +106,28 @@ public sealed record ResponsiveImage
             sizes,
             asset.Width,
             asset.Height,
-            asset.Alt ?? string.Empty,
+            ResolveAlt(asset),
             asset.Lqip,
             eager,
             highPriority,
             wrapperClass);
+    }
+
+    /// <summary>Alt for the current request culture: that language → English → the legacy single value → "".</summary>
+    private static string ResolveAlt(MediaAssetDto asset)
+    {
+        var culture = CultureInfo.CurrentUICulture.Name;
+        if (asset.AltByLang.TryGetValue(culture, out var exact) && !string.IsNullOrWhiteSpace(exact))
+        {
+            return exact;
+        }
+
+        if (asset.AltByLang.TryGetValue("en", out var english) && !string.IsNullOrWhiteSpace(english))
+        {
+            return english;
+        }
+
+        return asset.Alt ?? string.Empty;
     }
 
     // Pipeline rasters are named "{stem}-1600.jpg"; only those have sibling variants to offer.

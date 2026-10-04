@@ -46,6 +46,14 @@ internal sealed class MediaCollectionItemIdConverter : ValueConverter<MediaColle
     }
 }
 
+internal sealed class MediaAssetAltTextIdConverter : ValueConverter<MediaAssetAltTextId, Guid>
+{
+    public MediaAssetAltTextIdConverter()
+        : base(id => id.Value, value => MediaAssetAltTextId.From(value))
+    {
+    }
+}
+
 internal sealed class ReviewIdConverter : ValueConverter<ReviewId, Guid>
 {
     public ReviewIdConverter()

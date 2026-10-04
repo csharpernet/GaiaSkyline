@@ -1,3 +1,4 @@
+using System.Globalization;
 using FluentAssertions;
 using GaiaSkyline.Application.Content;
 using GaiaSkyline.Domain.Media;
@@ -80,5 +81,43 @@ public class ResponsiveImageTests
 
         image.Eager.Should().BeFalse();
         image.HighPriority.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Resolves_alt_for_the_request_culture_then_english_then_legacy()
+    {
+        var asset = Asset("/media/home-gallery-1-1600.jpg") with
+        {
+            AltByLang = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["en"] = "A balcony view",
+                ["pt-PT"] = "Vista da varanda",
+            },
+        };
+
+        WithCulture("pt-PT", () => ResponsiveImage.From(asset, "100vw", "aspect-[3/2]").Alt)
+            .Should().Be("Vista da varanda");
+
+        // No French row → English fallback.
+        WithCulture("fr", () => ResponsiveImage.From(asset, "100vw", "aspect-[3/2]").Alt)
+            .Should().Be("A balcony view");
+
+        // No per-language rows at all → the legacy single value.
+        WithCulture("fr", () => ResponsiveImage.From(Asset("/media/x-1600.jpg"), "100vw", "aspect-[3/2]").Alt)
+            .Should().Be("A balcony view");
+    }
+
+    private static T WithCulture<T>(string culture, Func<T> act)
+    {
+        var previous = CultureInfo.CurrentUICulture;
+        CultureInfo.CurrentUICulture = new CultureInfo(culture);
+        try
+        {
+            return act();
+        }
+        finally
+        {
+            CultureInfo.CurrentUICulture = previous;
+        }
     }
 }

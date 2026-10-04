@@ -91,6 +91,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
         configurationBuilder.Properties<MediaAssetId>().HaveConversion<MediaAssetIdConverter>();
         configurationBuilder.Properties<MediaCollectionId>().HaveConversion<MediaCollectionIdConverter>();
         configurationBuilder.Properties<MediaCollectionItemId>().HaveConversion<MediaCollectionItemIdConverter>();
+        configurationBuilder.Properties<MediaAssetAltTextId>().HaveConversion<MediaAssetAltTextIdConverter>();
         configurationBuilder.Properties<ReviewId>().HaveConversion<ReviewIdConverter>();
         configurationBuilder.Properties<StoryId>().HaveConversion<StoryIdConverter>();
         configurationBuilder.Properties<StoryTranslationId>().HaveConversion<StoryTranslationIdConverter>();
