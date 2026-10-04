@@ -1,0 +1,150 @@
+@using GaiaSkyline.Domain.Media
+@model GaiaSkyline.Application.Media.HeroVideoAdminDto
+@{
+    Layout = "_AdminShell";
+    ViewData["Title"] = "Hero video";
+    var maxUploadMb = (long)ViewData["MaxUploadMb"]!;
+    var maxSeconds = (int)ViewData["MaxSeconds"]!;
+    var minLoop = (double)ViewData["MinLoop"]!;
+    var maxLoop = (double)ViewData["MaxLoop"]!;
+    var desktopWarn = (long)ViewData["DesktopWarnBytes"]!;
+    var mobileWarn = (long)ViewData["MobileWarnBytes"]!;
+    string Mb(long b) => (b / (1024.0 * 1024)).ToString("0.00") + " MB";
+}
+
+<div class="max-w-4xl">
+    <nav class="text-sm text-ink/60 mb-2">
+        <a href="/admin/media" class="text-river hover:underline">Media</a>
+        <span class="mx-1">/</span>
+        <span>Hero video</span>
+    </nav>
+    <h1 class="font-display text-2xl font-semibold">Hero background video</h1>
+    <p class="mt-1 text-sm text-ink/60">
+        The looping video behind the home headline. Uploads are trimmed to a @minLoop.ToString("0.#")–@maxLoop.ToString("0.#") s loop,
+        the audio is stripped, and desktop (16:9) and mobile (9:16) renditions are generated in AV1, VP9 and H.264.
+        The current video keeps playing until the new one has finished processing.
+    </p>
+
+    <section class="mt-6 rounded-md border border-fog bg-white p-5" data-hero-status>
+        <h2 class="font-display text-sm font-semibold text-ink/80">Current</h2>
+        @if (Model is null)
+        {
+            <p class="mt-2 text-sm text-ink/55">No hero video yet — upload one below. Until then the home page shows the poster image.</p>
+        }
+        else
+        {
+            var statusClass = Model.Status switch
+            {
+                HeroVideoStatus.Ready => "border-river text-river",
+                HeroVideoStatus.Failed => "border-clay text-clay",
+                _ => "border-ink/30 text-ink/60",
+            };
+            <div class="mt-2 flex items-center gap-3">
+                <span class="text-xs uppercase tracking-wide border rounded px-2 py-1 @statusClass" data-status-badge>@Model.Status</span>
+                @if (Model.IsLive)
+                {
+                    <span class="text-xs uppercase tracking-wide border border-river text-river rounded px-2 py-1">Live</span>
+                }
+            </div>
+            @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+            {
+                <p class="mt-2 text-sm text-clay">@Model.ErrorMessage</p>
+            }
+            <dl class="mt-3 text-xs text-ink/60 space-y-0.5">
+                <div class="flex justify-between gap-4"><dt>Source</dt><dd class="truncate">@Model.SourceFileName</dd></div>
+                <div class="flex justify-between"><dt>Loop</dt><dd>@Model.TrimStartSec.ToString("0.#")s – @Model.TrimEndSec.ToString("0.#")s (crossfade @Model.CrossfadeSec.ToString("0.#")s)</dd></div>
+                <div class="flex justify-between"><dt>Focal point</dt><dd>@((int)Math.Round(Model.FocalX * 100))% from left</dd></div>
+                <div class="flex justify-between"><dt>Uploaded</dt><dd>@Model.CreatedAtUtc.ToString("yyyy-MM-dd HH:mm") · @Model.CreatedBy</dd></div>
+            </dl>
+
+            @if (Model.Renditions.Count > 0)
+            {
+                <h3 class="mt-4 text-xs font-semibold uppercase tracking-wide text-ink/70">Renditions</h3>
+                <table class="mt-2 w-full text-xs">
+                    <thead class="text-ink/50 text-left">
+                        <tr><th class="py-1">Rendition</th><th>Size</th><th>File size</th><th></th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var r in Model.Renditions)
+                        {
+                            var warn = r.ByteSize > (r.Kind.IsMobile() ? mobileWarn : desktopWarn);
+                            <tr class="border-t border-fog">
+                                <td class="py-1 font-mono">@r.Kind</td>
+                                <td>@r.Width×@r.Height</td>
+                                <td class="@(warn ? "text-clay font-semibold" : "")">@Mb(r.ByteSize)</td>
+                                <td>@if (warn) { <span class="text-clay" title="Larger than the target">⚠ over budget</span> }</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        }
+    </section>
+
+    <section class="mt-6 rounded-md border border-fog bg-white p-5">
+        <h2 class="font-display text-sm font-semibold text-ink/80">Upload a new hero video</h2>
+        <p class="mt-1 text-xs text-ink/55">MP4, MOV or WebM · up to @maxUploadMb MB · up to @maxSeconds s. Processing runs in the background.</p>
+
+        <form id="hero-upload-form" class="mt-4 space-y-4"
+              data-status-url="/admin/media/hero/status"
+              data-min-loop="@minLoop.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+              data-max-loop="@maxLoop.ToString(System.Globalization.CultureInfo.InvariantCulture)">
+            @Html.AntiForgeryToken()
+            <div>
+                <label class="block text-xs font-semibold text-river" for="hero-file">Video file</label>
+                <input id="hero-file" name="file" type="file" accept="video/mp4,video/quicktime,video/webm" required class="mt-1 text-sm" />
+            </div>
+
+            <div data-hero-preview hidden>
+                <div class="relative inline-block max-w-full">
+                    <video id="hero-preview-video" class="max-h-72 rounded-md border border-fog bg-ink" controls muted playsinline></video>
+                    @* The drag area stops short of the bottom so the preview's native controls stay usable. *@
+                    <div id="hero-focal-track" class="absolute left-0 right-0 top-0 bottom-12 cursor-ew-resize" title="Drag to set the mobile focal point">
+                        <div id="hero-focal-line" class="absolute top-0 bottom-0 w-0.5 bg-clay" style="left:50%"></div>
+                    </div>
+                </div>
+                <p class="mt-1 text-xs text-ink/50">Drag the vertical line to choose the horizontal focal point mobile crops around.</p>
+
+                <div class="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-river" for="hero-trim-start">Start (s)</label>
+                        <input id="hero-trim-start" name="trimStart" type="number" step="0.1" min="0" value="0"
+                               class="mt-1 w-full rounded-md border border-fog px-2 py-1 text-sm" />
+                        <button type="button" data-set="start" class="mt-1 text-xs text-river hover:underline">Set to current</button>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-river" for="hero-trim-end">End (s)</label>
+                        <input id="hero-trim-end" name="trimEnd" type="number" step="0.1" min="0" value="15"
+                               class="mt-1 w-full rounded-md border border-fog px-2 py-1 text-sm" />
+                        <button type="button" data-set="end" class="mt-1 text-xs text-river hover:underline">Set to current</button>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-river" for="hero-crossfade">Crossfade (s)</label>
+                        <input id="hero-crossfade" name="crossfade" type="number" step="0.1" min="0" value="1"
+                               class="mt-1 w-full rounded-md border border-fog px-2 py-1 text-sm" />
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-river" for="hero-focal">Focal (0–1)</label>
+                        <input id="hero-focal" name="focalX" type="number" step="0.01" min="0" max="1" value="0.5"
+                               class="mt-1 w-full rounded-md border border-fog px-2 py-1 text-sm" />
+                    </div>
+                </div>
+                <p id="hero-loop-note" class="mt-2 text-xs text-ink/50"></p>
+            </div>
+
+            <div>
+                <button type="submit" id="hero-submit" class="bg-river text-white rounded-md px-4 py-2 text-sm disabled:opacity-50">Upload &amp; process</button>
+                <a href="/admin/media" class="ml-3 text-sm text-ink/60 hover:underline">Back to media</a>
+            </div>
+
+            <div id="hero-progress" hidden>
+                <div class="h-2 w-full overflow-hidden rounded bg-fog">
+                    <div id="hero-progress-bar" class="h-full w-0 bg-river transition-[width] duration-150"></div>
+                </div>
+                <p id="hero-progress-text" class="mt-1 text-xs text-ink/60"></p>
+            </div>
+        </form>
+    </section>
+</div>
+
+<script src="~/js/hero-admin.js" asp-append-version="true"></script>

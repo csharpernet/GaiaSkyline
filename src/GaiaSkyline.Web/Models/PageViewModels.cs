@@ -1,5 +1,6 @@
 using GaiaSkyline.Application.Bookings;
 using GaiaSkyline.Application.Content;
+using GaiaSkyline.Application.Media;
 using GaiaSkyline.Application.Pricing;
 
 namespace GaiaSkyline.Web.Models;
@@ -12,7 +13,8 @@ public sealed record HomeViewModel(
     IReadOnlyList<ReviewDto> Reviews,
     IReadOnlyList<StoryDto> Stories,
     IReadOnlyList<GalleryImageDto> Gallery,
-    PropertyDto? Property);
+    PropertyDto? Property,
+    HeroVideoDto? HeroVideo = null);
 
 public sealed record GalleryViewModel(IReadOnlyList<GalleryImageDto> Images);
 

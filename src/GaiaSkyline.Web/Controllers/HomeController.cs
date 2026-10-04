@@ -1,11 +1,12 @@
 using GaiaSkyline.Application.Content;
+using GaiaSkyline.Application.Media;
 using GaiaSkyline.Web.Models;
 using GaiaSkyline.Web.Seo;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GaiaSkyline.Web.Controllers;
 
-public sealed class HomeController(IContentService content) : PublicController
+public sealed class HomeController(IContentService content, IHeroVideoReadService heroVideo) : PublicController
 {
     [HttpGet("{lang:culture}")]
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
@@ -18,6 +19,7 @@ public sealed class HomeController(IContentService content) : PublicController
         var stories = await content.GetPublishedStoriesAsync(CurrentCulture, 3, cancellationToken);
         var gallery = await content.GetGalleryAsync("home.gallery", cancellationToken);
         var property = await content.GetPropertyAsync(cancellationToken);
+        var liveHero = await heroVideo.GetLiveAsync(cancellationToken);
 
         var headline = home.TextOr("home.hero.headline", "Wake up to the Dom Luís I Bridge");
         var subheadline = home.TextOr(
@@ -69,6 +71,6 @@ public sealed class HomeController(IContentService content) : PublicController
             ogImagePath: poster?.BlobUri,
             jsonLdBlocks: jsonLd));
 
-        return View(new HomeViewModel(home, amenities, rules, faq, reviews, stories, gallery, property));
+        return View(new HomeViewModel(home, amenities, rules, faq, reviews, stories, gallery, property, liveHero));
     }
 }

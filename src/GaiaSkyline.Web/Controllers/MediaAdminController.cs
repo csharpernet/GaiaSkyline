@@ -3,6 +3,7 @@ using GaiaSkyline.Application.Media;
 using GaiaSkyline.Domain.Media;
 using GaiaSkyline.Web.Models;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 
 namespace GaiaSkyline.Web.Controllers;
 
@@ -15,9 +16,13 @@ namespace GaiaSkyline.Web.Controllers;
 public sealed class MediaAdminController(
     IAdminMediaReadService read,
     IAdminMediaService media,
+    IHeroVideoReadService heroRead,
+    IOptions<VideoTranscodingOptions> videoOptions,
     IWebHostEnvironment environment,
     IAuditLog audit) : AdminControllerBase
 {
+    private readonly VideoTranscodingOptions _video = videoOptions.Value;
+
     [HttpGet("")]
     public async Task<IActionResult> Index(string? kind, CancellationToken cancellationToken)
     {
@@ -40,6 +45,47 @@ public sealed class MediaAdminController(
         }
 
         return View(model);
+    }
+
+    [HttpGet("hero")]
+    public async Task<IActionResult> Hero(CancellationToken cancellationToken)
+    {
+        ViewData["Title"] = "Hero video";
+        ViewData["MaxUploadMb"] = _video.MaxUploadBytes / (1024 * 1024);
+        ViewData["MaxSeconds"] = _video.MaxSourceDurationSec;
+        ViewData["MinLoop"] = _video.MinLoopSeconds;
+        ViewData["MaxLoop"] = _video.MaxLoopSeconds;
+        ViewData["DesktopWarnBytes"] = _video.DesktopRenditionWarnBytes;
+        ViewData["MobileWarnBytes"] = _video.MobileRenditionWarnBytes;
+        var current = await heroRead.GetCurrentAsync(cancellationToken);
+        return View(current);
+    }
+
+    [HttpGet("hero/status")]
+    public async Task<IActionResult> HeroStatus(CancellationToken cancellationToken)
+    {
+        var current = await heroRead.GetCurrentAsync(cancellationToken);
+        if (current is null)
+        {
+            return Json(new { exists = false });
+        }
+
+        return Json(new
+        {
+            exists = true,
+            status = current.Status.ToString(),
+            isLive = current.IsLive,
+            error = current.ErrorMessage,
+            ready = current.Status == HeroVideoStatus.Ready,
+            renditions = current.Renditions.Select(r => new
+            {
+                kind = r.Kind.ToString(),
+                width = r.Width,
+                height = r.Height,
+                bytes = r.ByteSize,
+                warn = r.ByteSize > (r.Kind.IsMobile() ? _video.MobileRenditionWarnBytes : _video.DesktopRenditionWarnBytes),
+            }),
+        });
     }
 
     [HttpGet("{id:guid}")]

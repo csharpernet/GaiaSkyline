@@ -20,15 +20,22 @@
 }
 
 <section class="relative h-[70vh] md:h-[100dvh] min-h-[32rem] flex items-end overflow-hidden" aria-label="Introduction">
-    <video class="absolute inset-0 w-full h-full object-cover" playsinline muted loop autoplay
-           preload="metadata" poster="@poster?.BlobUri" aria-hidden="true" tabindex="-1">
-        @if (video is not null)
-        {
-            <source src="@video.BlobUri" type="video/mp4" />
-        }
-    </video>
-    <div class="absolute inset-0 bg-ink/[0.35]" aria-hidden="true"></div>
-    <div class="relative max-w-6xl mx-auto w-full px-6 pb-20 text-white">
+    @if (Model.HeroVideo is not null)
+    {
+        @await Html.PartialAsync("_HeroVideo", Model.HeroVideo)
+    }
+    else
+    {
+        <video class="absolute inset-0 w-full h-full object-cover" playsinline muted loop autoplay
+               preload="metadata" poster="@poster?.BlobUri" aria-hidden="true" tabindex="-1">
+            @if (video is not null)
+            {
+                <source src="@video.BlobUri" type="video/mp4" />
+            }
+        </video>
+    }
+    <div class="absolute inset-0 bg-ink/[0.35] z-[2]" aria-hidden="true"></div>
+    <div class="relative z-10 max-w-6xl mx-auto w-full px-6 pb-20 text-white">
         <h1 class="font-display font-semibold tracking-tight text-4xl sm:text-6xl md:text-7xl max-w-3xl">@headline</h1>
         @if (!string.IsNullOrWhiteSpace(subheadline))
         {
@@ -37,7 +44,7 @@
         <a href="/@slug@(ctaHref.StartsWith('/') ? ctaHref : "/" + ctaHref)"
            class="inline-block mt-8 bg-clay text-white px-7 py-3 rounded-md text-lg hover:opacity-90 transition-opacity duration-200">@ctaText</a>
     </div>
-    <div class="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/70 text-sm" aria-hidden="true">↓</div>
+    <div class="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 text-white/70 text-sm" aria-hidden="true">↓</div>
 </section>
 
 <section class="bg-river text-white" aria-label="At a glance">
@@ -220,7 +227,9 @@
 @await Html.PartialAsync("_Lightbox")
 
 @section Head {
-    @if (poster is not null)
+    @* The poster is the LCP element. With a live hero video the <picture>'s <img fetchpriority="high"> carries
+       the priority (no preload link, to avoid a JPEG/AVIF double-download); otherwise preload the content poster. *@
+    @if (Model.HeroVideo is null && poster is not null)
     {
         <link rel="preload" as="image" href="@poster.BlobUri" fetchpriority="high" />
     }
@@ -230,4 +239,8 @@
     <script src="~/js/gallery.js" defer></script>
     <script src="~/js/map.js" defer></script>
     <script src="~/js/booking-widget.js" defer></script>
+    @if (Model.HeroVideo is not null)
+    {
+        <script src="~/js/hero-video.js" defer></script>
+    }
 }

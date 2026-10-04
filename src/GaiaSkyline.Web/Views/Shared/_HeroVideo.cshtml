@@ -1,0 +1,75 @@
+@using GaiaSkyline.Domain.Media
+@model GaiaSkyline.Application.Media.HeroVideoDto
+@*
+    The live hero background video (Stage 7E-4). The poster <picture> is the LCP element (landscape vs
+    portrait by orientation, AVIF/WebP/JPEG); the <video> loads only after idle via hero-video.js and fades in
+    over the poster. No `autoplay` in the markup — the script decides whether to play (poster-only on
+    reduced-motion / Save-Data / slow connections / blocked autoplay). The video is decorative (aria-hidden);
+    the hero headline carries the meaning. See ADR 0017.
+*@
+@{
+    string[] posterWidths = ["400", "800", "1600"];
+    const string master = "-1600.jpg";
+
+    string Srcset(string? posterMaster, string ext)
+    {
+        if (string.IsNullOrEmpty(posterMaster) || !posterMaster.EndsWith(master, StringComparison.OrdinalIgnoreCase))
+        {
+            return string.Empty;
+        }
+
+        var stem = posterMaster[..^master.Length];
+        return string.Join(", ", posterWidths.Select(w => $"{stem}-{w}.{ext} {w}w"));
+    }
+
+    string? Rendition(HeroRenditionKind kind) =>
+        Model.Renditions.FirstOrDefault(r => r.Kind == kind)?.BlobUri;
+
+    // Codec-qualified type so the browser (and the JS fallback) can tell AV1 from VP9 within WebM.
+    string VideoType(HeroRenditionKind kind) => kind switch
+    {
+        HeroRenditionKind.DesktopAv1 or HeroRenditionKind.MobileAv1 => "video/webm; codecs=\"av01.0.05M.08\"",
+        HeroRenditionKind.DesktopVp9 or HeroRenditionKind.MobileVp9 => "video/webm; codecs=\"vp9\"",
+        _ => "video/mp4; codecs=\"avc1.640028\"",
+    };
+
+    // Portrait first, then landscape; AV1 → VP9 → H.264 within each.
+    (HeroRenditionKind Kind, string Media)[] order =
+    [
+        (HeroRenditionKind.MobileAv1, "(orientation: portrait)"),
+        (HeroRenditionKind.MobileVp9, "(orientation: portrait)"),
+        (HeroRenditionKind.MobileH264, "(orientation: portrait)"),
+        (HeroRenditionKind.DesktopAv1, "(orientation: landscape)"),
+        (HeroRenditionKind.DesktopVp9, "(orientation: landscape)"),
+        (HeroRenditionKind.DesktopH264, "(orientation: landscape)"),
+    ];
+}
+
+<div id="hero-video" class="absolute inset-0 z-0">
+    <picture data-hero-poster>
+        <source media="(orientation: portrait)" type="image/avif" srcset="@Srcset(Model.MobilePosterBlobUri, "avif")" sizes="100vw" />
+        <source media="(orientation: portrait)" type="image/webp" srcset="@Srcset(Model.MobilePosterBlobUri, "webp")" sizes="100vw" />
+        <source media="(orientation: portrait)" type="image/jpeg" srcset="@Srcset(Model.MobilePosterBlobUri, "jpg")" sizes="100vw" />
+        <source media="(orientation: landscape)" type="image/avif" srcset="@Srcset(Model.DesktopPosterBlobUri, "avif")" sizes="100vw" />
+        <source media="(orientation: landscape)" type="image/webp" srcset="@Srcset(Model.DesktopPosterBlobUri, "webp")" sizes="100vw" />
+        <source media="(orientation: landscape)" type="image/jpeg" srcset="@Srcset(Model.DesktopPosterBlobUri, "jpg")" sizes="100vw" />
+        <img src="@Model.DesktopPosterBlobUri" alt="" aria-hidden="true" decoding="async" fetchpriority="high"
+             class="absolute inset-0 z-0 h-full w-full object-cover" />
+    </picture>
+    <video class="absolute inset-0 z-[1] h-full w-full object-cover opacity-0 transition-opacity duration-700 motion-reduce:transition-none"
+           muted loop playsinline disablepictureinpicture preload="none" aria-hidden="true" tabindex="-1">
+        @foreach (var (kind, media) in order)
+        {
+            var src = Rendition(kind);
+            if (!string.IsNullOrEmpty(src))
+            {
+                <source src="@src" type="@VideoType(kind)" media="@media" />
+            }
+        }
+    </video>
+</div>
+<button type="button" data-hero-toggle aria-pressed="true" aria-label="Pause background video" hidden
+        class="absolute bottom-4 right-4 z-20 inline-flex h-10 w-10 items-center justify-center rounded-full bg-ink/50 text-white backdrop-blur-sm hover:bg-ink/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">
+    <span data-icon-pause aria-hidden="true">❚❚</span>
+    <span data-icon-play hidden aria-hidden="true">▶</span>
+</button>

@@ -81,6 +81,8 @@ public sealed class SecurityHeadersMiddleware(RequestDelegate next)
             "object-src 'none'",
             "frame-ancestors 'none'",
             $"img-src 'self' data: blob: {MapTileHost}",
+            // Hero videos are served from our origin; the admin previews the chosen file via a blob: URL.
+            "media-src 'self' blob:",
             "font-src 'self' https://fonts.gstatic.com",
             $"style-src 'self' https://fonts.googleapis.com 'nonce-{nonce}'",
             scriptSrc,
