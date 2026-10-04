@@ -88,6 +88,43 @@ public sealed class MediaAsset : Entity<MediaAssetId>
     /// </summary>
     public string? Lqip { get; private set; }
 
+    /// <summary>Soft delete: the row and its renditions stay (so references survive) but it is hidden from
+    /// the library and the pickers. Only unused assets may be deleted; it can be restored.</summary>
+    public bool IsDeleted { get; private set; }
+
+    public DateTime? DeletedAtUtc { get; private set; }
+
+    public void SoftDelete(DateTime utcNow)
+    {
+        IsDeleted = true;
+        DeletedAtUtc = utcNow;
+    }
+
+    public void Restore()
+    {
+        IsDeleted = false;
+        DeletedAtUtc = null;
+    }
+
+    /// <summary>
+    /// Replace the binary while keeping the id and <see cref="BlobUri"/> (the renditions are regenerated at the
+    /// same stem), so every content/collection reference survives. Alt text and kind are unchanged.
+    /// </summary>
+    public void ReplaceRenditions(int width, int height, long byteSize, string? lqip, DateTime uploadedAtUtc, string uploadedBy)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(uploadedBy);
+        ArgumentOutOfRangeException.ThrowIfNegative(width);
+        ArgumentOutOfRangeException.ThrowIfNegative(height);
+        ArgumentOutOfRangeException.ThrowIfNegative(byteSize);
+
+        Width = width;
+        Height = height;
+        ByteSize = byteSize;
+        Lqip = string.IsNullOrWhiteSpace(lqip) ? null : lqip.Trim();
+        UploadedAtUtc = uploadedAtUtc;
+        UploadedBy = uploadedBy;
+    }
+
     /// <summary>Insert, update or (when <paramref name="text"/> is blank) remove a language's alt text.</summary>
     public void SetAltText(string languageCode, string? text)
     {

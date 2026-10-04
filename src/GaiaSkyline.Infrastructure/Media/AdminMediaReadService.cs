@@ -10,13 +10,15 @@ namespace GaiaSkyline.Infrastructure.Media;
 /// <summary>EF Core reads for the admin media manager. Reads are untracked.</summary>
 internal sealed class AdminMediaReadService(AppDbContext dbContext) : IAdminMediaReadService
 {
-    public async Task<IReadOnlyList<MediaLibraryItemDto>> GetLibraryAsync(MediaKind? kind, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<MediaLibraryItemDto>> GetLibraryAsync(MediaKind? kind, bool includeDeleted, CancellationToken cancellationToken)
     {
         var query = dbContext.MediaAssets.AsNoTracking().Include(a => a.AltTexts).AsQueryable();
         if (kind is { } k)
         {
             query = query.Where(a => a.Kind == k);
         }
+
+        query = includeDeleted ? query.Where(a => a.IsDeleted) : query.Where(a => !a.IsDeleted);
 
         var assets = await query.OrderByDescending(a => a.UploadedAtUtc).ToListAsync(cancellationToken);
         var usage = await BuildUsageCountsAsync(cancellationToken);
@@ -33,7 +35,8 @@ internal sealed class AdminMediaReadService(AppDbContext dbContext) : IAdminMedi
             a.UploadedBy,
             a.AltTexts.Select(t => t.LanguageCode).OrderBy(l => l, StringComparer.Ordinal).ToList(),
             ReadyForPublic(a),
-            usage.GetValueOrDefault(a.Id.Value))).ToList();
+            usage.GetValueOrDefault(a.Id.Value),
+            a.IsDeleted)).ToList();
     }
 
     public async Task<MediaAssetDetailDto?> GetAssetAsync(Guid id, CancellationToken cancellationToken)
@@ -70,7 +73,8 @@ internal sealed class AdminMediaReadService(AppDbContext dbContext) : IAdminMedi
             asset.AltTexts.ToDictionary(t => t.LanguageCode, t => t.Text, StringComparer.OrdinalIgnoreCase),
             ReadyForPublic(asset),
             missing,
-            usedBy);
+            usedBy,
+            asset.IsDeleted);
     }
 
     public async Task<bool> IsReadyForPublicAsync(Guid id, CancellationToken cancellationToken)

@@ -38,4 +38,28 @@ test.describe('Admin media manager', () => {
 
     await expect(page.getByText(/Ready for public/i)).toBeVisible();
   });
+
+  test('upload then soft-delete an unused image → it moves to the Deleted tab', async ({ page }) => {
+    await loginAsOwner(page);
+    await page.goto('/admin/media');
+
+    const cards = page.locator('a[href^="/admin/media/"]');
+    const before = await cards.count();
+    await page.locator('#media-file-input').setInputFiles({ name: 'temp.png', mimeType: 'image/png', buffer: PNG });
+    await expect(cards).toHaveCount(before + 1, { timeout: 30000 });
+
+    await cards.first().click();
+    await expect(page.getByRole('heading', { name: 'Media asset' })).toBeVisible();
+    const assetPath = new URL(page.url()).pathname; // /admin/media/{id}
+
+    // The delete form confirms via window.confirm (admin.js) — accept it.
+    page.once('dialog', (d) => d.accept());
+    await page.getByRole('button', { name: /delete asset/i }).click();
+    await expect(page).toHaveURL(/\/admin\/media$/);
+
+    // Gone from the default grid, present under Deleted.
+    await expect(page.locator('a[href="' + assetPath + '"]')).toHaveCount(0);
+    await page.goto('/admin/media?kind=deleted');
+    await expect(page.locator('a[href="' + assetPath + '"]')).toBeVisible();
+  });
 });

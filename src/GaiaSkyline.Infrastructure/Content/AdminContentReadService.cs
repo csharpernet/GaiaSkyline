@@ -83,7 +83,7 @@ internal sealed class AdminContentReadService(AppDbContext dbContext) : IAdminCo
 
     public async Task<IReadOnlyList<MediaAssetDto>> GetAssetsAsync(MediaKind? kind, CancellationToken cancellationToken)
     {
-        var query = dbContext.MediaAssets.AsNoTracking();
+        var query = dbContext.MediaAssets.AsNoTracking().Where(a => !a.IsDeleted);
         if (kind is { } k)
         {
             query = query.Where(a => a.Kind == k);

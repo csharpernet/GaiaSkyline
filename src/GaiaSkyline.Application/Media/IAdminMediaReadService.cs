@@ -18,7 +18,8 @@ public sealed record MediaLibraryItemDto(
     string UploadedBy,
     IReadOnlyList<string> LanguagesWithAlt,
     bool ReadyForPublic,
-    int UsageCount);
+    int UsageCount,
+    bool IsDeleted);
 
 /// <summary>Full detail for one asset: per-language alt, the public-use readiness and where it is used.</summary>
 public sealed record MediaAssetDetailDto(
@@ -36,7 +37,8 @@ public sealed record MediaAssetDetailDto(
     IReadOnlyDictionary<string, string> AltByLang,
     bool ReadyForPublic,
     IReadOnlyList<string> MissingAltLanguages,
-    IReadOnlyList<MediaUsageDto> UsedBy);
+    IReadOnlyList<MediaUsageDto> UsedBy,
+    bool IsDeleted);
 
 /// <summary>
 /// Owner-only media reads for the admin manager: the library grid, one asset's detail with per-language alt
@@ -45,7 +47,7 @@ public sealed record MediaAssetDetailDto(
 /// </summary>
 public interface IAdminMediaReadService
 {
-    Task<IReadOnlyList<MediaLibraryItemDto>> GetLibraryAsync(MediaKind? kind, CancellationToken cancellationToken);
+    Task<IReadOnlyList<MediaLibraryItemDto>> GetLibraryAsync(MediaKind? kind, bool includeDeleted, CancellationToken cancellationToken);
 
     Task<MediaAssetDetailDto?> GetAssetAsync(Guid id, CancellationToken cancellationToken);
 

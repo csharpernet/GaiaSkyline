@@ -1,5 +1,6 @@
 using FluentAssertions;
 using GaiaSkyline.Application.Content;
+using GaiaSkyline.Application.Media;
 using GaiaSkyline.Domain.Content;
 using GaiaSkyline.Domain.Identifiers;
 using GaiaSkyline.Domain.Media;
@@ -72,7 +73,7 @@ public sealed class AdminMediaServiceTests(LocalDbFixture fixture) : IClassFixtu
         await using var context = _fixture.CreateContext();
         var read = new AdminMediaReadService(context);
 
-        var library = await read.GetLibraryAsync(MediaKind.Image, CancellationToken.None);
+        var library = await read.GetLibraryAsync(MediaKind.Image, includeDeleted: false, CancellationToken.None);
         var row = library.Single(m => m.Id == asset.Id.Value);
         row.ReadyForPublic.Should().BeTrue("all five languages have alt text");
         row.LanguagesWithAlt.Should().HaveCount(5);
@@ -83,6 +84,107 @@ public sealed class AdminMediaServiceTests(LocalDbFixture fixture) : IClassFixtu
         detail.UsedBy.Should().Contain(u => u.Reference == blockKey);
 
         (await read.IsReadyForPublicAsync(asset.Id.Value, CancellationToken.None)).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Replace_regenerates_renditions_keeping_id_and_url()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "gaia-media-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        try
+        {
+            // Seed an asset whose on-disk renditions exist (stem derived from the blob URL).
+            var stem = "replace-" + Guid.NewGuid().ToString("N")[..8];
+            var renditions = new ImageRenditionService();
+            byte[] original;
+            using (var src = new ImageMagick.MagickImage(ImageMagick.MagickColors.SteelBlue, 1000, 600))
+            {
+                src.Format = ImageMagick.MagickFormat.Png;
+                original = src.ToByteArray();
+            }
+
+            await renditions.GenerateAsync(new MemoryStream(original), dir, stem, CancellationToken.None);
+
+            var asset = new MediaAsset(
+                MediaAssetId.New(), MediaKind.Image, $"/media/{stem}-1600.jpg", null,
+                1600, 960, null, 10, "image/jpeg", DateTime.UtcNow, "seed");
+            await using (var seed = _fixture.CreateContext())
+            {
+                seed.MediaAssets.Add(asset);
+                await seed.SaveChangesAsync();
+            }
+
+            await using var context = _fixture.CreateContext();
+            var service = new AdminMediaService(context, renditions, new ContentRevision(), TimeProvider.System);
+
+            // Replace with a portrait image → the stored height changes but id and URL do not.
+            byte[] replacement;
+            using (var src = new ImageMagick.MagickImage(ImageMagick.MagickColors.Firebrick, 600, 1200))
+            {
+                src.Format = ImageMagick.MagickFormat.Png;
+                replacement = src.ToByteArray();
+            }
+
+            (await service.ReplaceImageAsync(asset.Id.Value, new MemoryStream(replacement), dir, "owner", CancellationToken.None))
+                .Should().BeTrue();
+
+            await using var verify = _fixture.CreateContext();
+            var saved = await verify.MediaAssets.FirstAsync(a => a.Id == asset.Id);
+            saved.BlobUri.Should().Be($"/media/{stem}-1600.jpg", "the URL (and id) must survive so references keep resolving");
+            saved.Height.Should().BeGreaterThan(saved.Width, "the portrait replacement changed the dimensions");
+            File.Exists(Path.Combine(dir, $"{stem}-1600.avif")).Should().BeTrue();
+        }
+        finally
+        {
+            if (Directory.Exists(dir))
+            {
+                Directory.Delete(dir, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task Soft_delete_is_blocked_while_in_use_then_succeeds_and_hides_from_the_library()
+    {
+        var asset = NewImage();
+        var blockKey = "mediatest." + Guid.NewGuid().ToString("N")[..8];
+        await using (var seed = _fixture.CreateContext())
+        {
+            seed.MediaAssets.Add(asset);
+            var block = new ContentBlock(
+                ContentBlockId.New(), blockKey, ContentKind.ImageRef, "mediatest", "An image",
+                0, isPublished: true, DateTime.UtcNow, "seed");
+            block.SetTranslation("en", null, asset.Id, null, null, DateTime.UtcNow, "seed");
+            seed.ContentBlocks.Add(block);
+            await seed.SaveChangesAsync();
+        }
+
+        await using var context = _fixture.CreateContext();
+        var service = new AdminMediaService(context, new ImageRenditionService(), new ContentRevision(), TimeProvider.System);
+        var read = new AdminMediaReadService(context);
+
+        (await service.SoftDeleteAsync(asset.Id.Value, "owner", CancellationToken.None))
+            .Should().Be(MediaDeleteResult.InUse);
+
+        // Remove the reference, then it can be deleted and drops out of the default library.
+        await using (var detach = _fixture.CreateContext())
+        {
+            var block = await detach.ContentBlocks.Include(b => b.Translations).FirstAsync(b => b.Key == blockKey);
+            detach.ContentBlocks.Remove(block);
+            await detach.SaveChangesAsync();
+        }
+
+        (await service.SoftDeleteAsync(asset.Id.Value, "owner", CancellationToken.None))
+            .Should().Be(MediaDeleteResult.Deleted);
+
+        (await read.GetLibraryAsync(MediaKind.Image, includeDeleted: false, CancellationToken.None))
+            .Should().NotContain(m => m.Id == asset.Id.Value);
+        (await read.GetLibraryAsync(MediaKind.Image, includeDeleted: true, CancellationToken.None))
+            .Should().Contain(m => m.Id == asset.Id.Value);
+
+        (await service.RestoreAsync(asset.Id.Value, "owner", CancellationToken.None)).Should().BeTrue();
+        (await read.GetLibraryAsync(MediaKind.Image, includeDeleted: false, CancellationToken.None))
+            .Should().Contain(m => m.Id == asset.Id.Value);
     }
 
     [Fact]

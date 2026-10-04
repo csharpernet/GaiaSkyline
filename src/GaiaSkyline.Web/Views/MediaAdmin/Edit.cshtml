@@ -34,6 +34,17 @@
         }
     </div>
 
+    @if (Model.IsDeleted)
+    {
+        <div class="mt-3 flex items-center justify-between gap-4 rounded-md border border-clay bg-clay/5 px-4 py-2 text-sm">
+            <span class="text-clay">This asset is deleted and hidden from the site and pickers.</span>
+            <form method="post" action="/admin/media/@Model.Id/restore">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="text-river hover:underline">Restore</button>
+            </form>
+        </div>
+    }
+
     <div class="mt-4 grid md:grid-cols-2 gap-6">
         <div>
             <div class="rounded-md border border-fog bg-white overflow-hidden">
@@ -107,4 +118,40 @@
             }
         </div>
     </div>
+
+    @if (!Model.IsDeleted)
+    {
+        <div class="mt-8 border-t border-fog pt-5 grid md:grid-cols-2 gap-6">
+            @if (isImage)
+            {
+                <div>
+                    <h2 class="font-display text-sm font-semibold text-ink/80">Replace image</h2>
+                    <p class="mt-1 text-xs text-ink/55">Upload a new file; the id and URL stay the same, so every page that uses it updates. Renditions (incl. AVIF) are regenerated.</p>
+                    <form method="post" action="/admin/media/@Model.Id/replace" enctype="multipart/form-data" class="mt-3 flex items-center gap-3">
+                        @Html.AntiForgeryToken()
+                        <input type="file" name="file" accept="image/*" required class="text-sm" />
+                        <button type="submit" class="bg-white border border-river text-river rounded-md px-4 py-2 text-sm hover:bg-stone">Replace</button>
+                    </form>
+                </div>
+            }
+            <div>
+                <h2 class="font-display text-sm font-semibold text-ink/80">Delete</h2>
+                <p class="mt-1 text-xs text-ink/55">
+                    @if (Model.UsedBy.Count > 0)
+                    {
+                        <span>In use on @Model.UsedBy.Count page(s) — remove it there before deleting.</span>
+                    }
+                    else
+                    {
+                        <span>Not used anywhere. Soft-delete hides it from the library and pickers; you can restore it.</span>
+                    }
+                </p>
+                <form method="post" action="/admin/media/@Model.Id/delete" class="mt-3"
+                      data-confirm="Delete this asset? It will be hidden from the site and pickers (restorable).">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="text-sm text-clay hover:underline" @(Model.UsedBy.Count > 0 ? "disabled" : null)>Delete asset</button>
+                </form>
+            </div>
+        </div>
+    }
 </div>

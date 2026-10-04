@@ -86,4 +86,85 @@ internal sealed class AdminMediaService(
         revision.Bump();
         return true;
     }
+
+    private const string MasterSuffix = "-1600.jpg";
+
+    public async Task<bool> ReplaceImageAsync(
+        Guid assetId, Stream content, string destinationDirectory, string actor, CancellationToken cancellationToken)
+    {
+        var id = MediaAssetId.From(assetId);
+        var asset = await dbContext.MediaAssets.FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
+        if (asset is null || asset.Kind != MediaKind.Image)
+        {
+            return false;
+        }
+
+        var fileName = Path.GetFileName(asset.BlobUri);
+        if (!fileName.EndsWith(MasterSuffix, StringComparison.OrdinalIgnoreCase))
+        {
+            return false; // not a pipeline raster with a known stem
+        }
+
+        var stem = fileName[..^MasterSuffix.Length];
+        // Regenerate every rendition at the same stem (overwrites the files in place).
+        var result = await renditions.GenerateAsync(content, destinationDirectory, stem, cancellationToken);
+        asset.ReplaceRenditions(result.Width, result.Height, result.MasterBytes, result.Lqip,
+            clock.GetUtcNow().UtcDateTime, actor);
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        revision.Bump();
+        return true;
+    }
+
+    public async Task<MediaDeleteResult> SoftDeleteAsync(Guid assetId, string actor, CancellationToken cancellationToken)
+    {
+        var id = MediaAssetId.From(assetId);
+        var asset = await dbContext.MediaAssets.FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
+        if (asset is null)
+        {
+            return MediaDeleteResult.NotFound;
+        }
+
+        if (await IsInUseAsync(id, cancellationToken))
+        {
+            return MediaDeleteResult.InUse;
+        }
+
+        asset.SoftDelete(clock.GetUtcNow().UtcDateTime);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        revision.Bump();
+        return MediaDeleteResult.Deleted;
+    }
+
+    public async Task<bool> RestoreAsync(Guid assetId, string actor, CancellationToken cancellationToken)
+    {
+        var id = MediaAssetId.From(assetId);
+        var asset = await dbContext.MediaAssets.FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
+        if (asset is null)
+        {
+            return false;
+        }
+
+        asset.Restore();
+        await dbContext.SaveChangesAsync(cancellationToken);
+        revision.Bump();
+        return true;
+    }
+
+    // Referenced by any content block (published or draft) or any collection item. Project then filter in
+    // memory — a converted strongly-typed id does not translate inside a navigation subquery.
+    private async Task<bool> IsInUseAsync(MediaAssetId id, CancellationToken cancellationToken)
+    {
+        var blockRefs = await dbContext.ContentBlocks
+            .SelectMany(b => b.Translations, (b, t) => new { t.ValueMediaAssetId, t.DraftMediaAssetId })
+            .ToListAsync(cancellationToken);
+        if (blockRefs.Any(x => x.ValueMediaAssetId == id || x.DraftMediaAssetId == id))
+        {
+            return true;
+        }
+
+        var collectionRefs = await dbContext.MediaCollectionItems
+            .Select(i => i.MediaAssetId).ToListAsync(cancellationToken);
+        return collectionRefs.Any(x => x == id);
+    }
 }

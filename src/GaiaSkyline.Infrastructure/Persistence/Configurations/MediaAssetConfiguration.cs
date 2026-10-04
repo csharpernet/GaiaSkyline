@@ -27,6 +27,10 @@ internal sealed class MediaAssetConfiguration : IEntityTypeConfiguration<MediaAs
         // LQIP is a base64 data: URI for a ~24px-wide blurred preview; a few KB at most.
         builder.Property(a => a.Lqip).HasMaxLength(8000);
 
+        builder.Property(a => a.IsDeleted).IsRequired();
+        builder.Property(a => a.DeletedAtUtc);
+        builder.HasIndex(a => a.IsDeleted);
+
         builder.HasMany(a => a.AltTexts)
             .WithOne()
             .HasForeignKey(t => t.MediaAssetId)
