@@ -18,6 +18,11 @@ public interface IContentReadStore
         string section,
         CancellationToken cancellationToken);
 
+    /// <summary>All blocks in a section (published or not), each with its translations loaded — for owner preview.</summary>
+    Task<IReadOnlyList<ContentBlock>> GetAllBlocksBySectionAsync(
+        string section,
+        CancellationToken cancellationToken);
+
     Task<IReadOnlyDictionary<MediaAssetId, MediaAsset>> GetMediaAssetsAsync(
         IReadOnlyCollection<MediaAssetId> ids,
         CancellationToken cancellationToken);

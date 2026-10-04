@@ -23,8 +23,13 @@ public sealed class ContentService : IContentService
     private readonly IContentReadStore _readStore;
     private readonly IMemoryCache _cache;
     private readonly IContentRevision _revision;
+    private readonly IContentPreviewState _preview;
 
-    public ContentService(IContentReadStore readStore, IMemoryCache cache, IContentRevision revision)
+    public ContentService(
+        IContentReadStore readStore,
+        IMemoryCache cache,
+        IContentRevision revision,
+        IContentPreviewState? preview = null)
     {
         ArgumentNullException.ThrowIfNull(readStore);
         ArgumentNullException.ThrowIfNull(cache);
@@ -33,6 +38,7 @@ public sealed class ContentService : IContentService
         _readStore = readStore;
         _cache = cache;
         _revision = revision;
+        _preview = preview ?? new NoPreviewState();
     }
 
     public async Task<ContentPayload> GetSectionAsync(
@@ -43,14 +49,21 @@ public sealed class ContentService : IContentService
         ArgumentException.ThrowIfNullOrWhiteSpace(section);
 
         var lang = string.IsNullOrWhiteSpace(language) ? DefaultLanguage : language.Trim();
-        var cacheKey = $"content::{section}::{lang}::{_revision.Current}";
 
+        // Owner preview: show draft values and unpublished blocks, and never cache (the public
+        // output cache is bypassed separately when the preview cookie is present).
+        if (_preview.IsPreview)
+        {
+            return await BuildPayloadAsync(section, lang, preview: true, cancellationToken);
+        }
+
+        var cacheKey = $"content::{section}::{lang}::{_revision.Current}";
         if (_cache.TryGetValue(cacheKey, out ContentPayload? cached) && cached is not null)
         {
             return cached;
         }
 
-        var payload = await BuildPayloadAsync(section, lang, cancellationToken);
+        var payload = await BuildPayloadAsync(section, lang, preview: false, cancellationToken);
         _cache.Set(cacheKey, payload, CacheTtl);
         return payload;
     }
@@ -129,14 +142,18 @@ public sealed class ContentService : IContentService
     private async Task<ContentPayload> BuildPayloadAsync(
         string section,
         string language,
+        bool preview,
         CancellationToken cancellationToken)
     {
-        var blocks = await _readStore.GetPublishedBlocksBySectionAsync(section, cancellationToken);
+        var blocks = preview
+            ? await _readStore.GetAllBlocksBySectionAsync(section, cancellationToken)
+            : await _readStore.GetPublishedBlocksBySectionAsync(section, cancellationToken);
 
         var mediaIds = blocks
             .SelectMany(b => b.Translations)
-            .Where(t => t.ValueMediaAssetId.HasValue)
-            .Select(t => t.ValueMediaAssetId!.Value)
+            .Select(t => preview ? t.EffectiveMediaAssetId : t.ValueMediaAssetId)
+            .Where(id => id.HasValue)
+            .Select(id => id!.Value)
             .Distinct()
             .ToList();
 
@@ -149,7 +166,7 @@ public sealed class ContentService : IContentService
             .OrderBy(b => b.DisplayOrder)
             .ThenBy(b => b.Key, StringComparer.Ordinal))
         {
-            items[block.Key] = Resolve(block, language, media);
+            items[block.Key] = Resolve(block, language, media, preview);
         }
 
         return new ContentPayload { Section = section, Language = language, Items = items };
@@ -162,9 +179,10 @@ public sealed class ContentService : IContentService
     internal static ContentValue Resolve(
         ContentBlock block,
         string language,
-        IReadOnlyDictionary<MediaAssetId, MediaAsset> media)
+        IReadOnlyDictionary<MediaAssetId, MediaAsset> media,
+        bool preview = false)
     {
-        var picked = PickTranslation(block, language);
+        var picked = PickTranslation(block, language, preview);
         if (picked is null)
         {
             return new ContentValue
@@ -177,26 +195,27 @@ public sealed class ContentService : IContentService
 
         var (translation, resolvedLanguage) = picked.Value;
 
-        // Surface every value the chosen translation carries. Kind tells the consumer which is
-        // primary, but a block may legitimately carry more than one (e.g. an amenity has a text
-        // label AND a boolean availability flag).
+        // In preview, read the effective (draft-or-published) values; publicly, the published values.
+        // Surface every value the chosen translation carries — a block may carry more than one.
+        var text = preview ? translation.EffectiveText : translation.ValueText;
         return new ContentValue
         {
             Kind = block.Kind,
-            Text = string.IsNullOrWhiteSpace(translation.ValueText) ? null : translation.ValueText,
-            Number = translation.ValueNumber,
-            Boolean = translation.ValueBoolean,
-            Media = ResolveMedia(translation, media),
+            Text = string.IsNullOrWhiteSpace(text) ? null : text,
+            Number = preview ? translation.EffectiveNumber : translation.ValueNumber,
+            Boolean = preview ? translation.EffectiveBoolean : translation.ValueBoolean,
+            Media = ResolveMedia(translation, media, preview),
             ResolvedLanguage = resolvedLanguage,
         };
     }
 
     private static (ContentTranslation Translation, string Language)? PickTranslation(
         ContentBlock block,
-        string language)
+        string language,
+        bool preview)
     {
         var requested = Find(block, language);
-        if (HasValue(block.Kind, requested))
+        if (HasValue(block.Kind, requested, preview))
         {
             return (requested!, language);
         }
@@ -204,7 +223,7 @@ public sealed class ContentService : IContentService
         if (!string.Equals(language, DefaultLanguage, StringComparison.OrdinalIgnoreCase))
         {
             var english = Find(block, DefaultLanguage);
-            if (HasValue(block.Kind, english))
+            if (HasValue(block.Kind, english, preview))
             {
                 return (english!, DefaultLanguage);
             }
@@ -217,7 +236,7 @@ public sealed class ContentService : IContentService
         block.Translations.FirstOrDefault(
             t => string.Equals(t.LanguageCode, language, StringComparison.OrdinalIgnoreCase));
 
-    private static bool HasValue(ContentKind kind, ContentTranslation? translation)
+    private static bool HasValue(ContentKind kind, ContentTranslation? translation, bool preview)
     {
         if (translation is null)
         {
@@ -226,17 +245,18 @@ public sealed class ContentService : IContentService
 
         return kind switch
         {
-            ContentKind.Number => translation.ValueNumber.HasValue,
-            ContentKind.Boolean => translation.ValueBoolean.HasValue,
-            ContentKind.ImageRef or ContentKind.VideoRef => translation.ValueMediaAssetId.HasValue,
-            _ => !string.IsNullOrWhiteSpace(translation.ValueText),
+            ContentKind.Number => (preview ? translation.EffectiveNumber : translation.ValueNumber).HasValue,
+            ContentKind.Boolean => (preview ? translation.EffectiveBoolean : translation.ValueBoolean).HasValue,
+            ContentKind.ImageRef or ContentKind.VideoRef => (preview ? translation.EffectiveMediaAssetId : translation.ValueMediaAssetId).HasValue,
+            _ => !string.IsNullOrWhiteSpace(preview ? translation.EffectiveText : translation.ValueText),
         };
     }
 
     private static MediaAssetDto? ResolveMedia(
         ContentTranslation translation,
-        IReadOnlyDictionary<MediaAssetId, MediaAsset> media) =>
-        translation.ValueMediaAssetId is { } id && media.TryGetValue(id, out var asset)
+        IReadOnlyDictionary<MediaAssetId, MediaAsset> media,
+        bool preview) =>
+        (preview ? translation.EffectiveMediaAssetId : translation.ValueMediaAssetId) is { } id && media.TryGetValue(id, out var asset)
             ? ToDto(asset)
             : null;
 

@@ -48,6 +48,11 @@ builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddBackgroundJobs(builder.Configuration);
 builder.Services.AddScoped<GaiaSkyline.Application.Storage.IMediaStorage, GaiaSkyline.Web.Storage.LocalDiskMediaStorage>();
 
+// Owner content preview (Stage 7D): the signed cookie makes the public read render drafts.
+builder.Services.AddScoped<GaiaSkyline.Web.Content.ContentPreview>();
+builder.Services.AddScoped<GaiaSkyline.Application.Content.IContentPreviewState>(
+    sp => sp.GetRequiredService<GaiaSkyline.Web.Content.ContentPreview>());
+
 // --- E2E test seam (OFF by default; never enabled in Production — guarded below). The sink and options
 //     are always registered so the test controller resolves and simply 404s when the seam is off; only
 //     the capturing email sender replaces the real one when the seam is on. ---
@@ -250,6 +255,8 @@ builder.Services.AddOutputCache(options =>
     options.AddPolicy("public", policy => policy
         .Expire(TimeSpan.FromMinutes(10))
         .SetVaryByRouteValue("lang")
+        // Bypass the cache entirely during an owner preview so drafts render live.
+        .With(context => !context.HttpContext.Request.Cookies.ContainsKey(GaiaSkyline.Web.Content.ContentPreview.CookieName))
         .VaryByValue(static (context, _) =>
         {
             var revision = context.RequestServices

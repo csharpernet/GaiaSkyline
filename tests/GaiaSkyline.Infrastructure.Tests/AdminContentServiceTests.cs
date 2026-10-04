@@ -27,26 +27,39 @@ public sealed class AdminContentServiceTests(LocalDbFixture fixture) : IClassFix
         var before = revision.Current;
 
         await using var context = _fixture.CreateContext();
-        var service = new AdminContentService(context, revision, TimeProvider.System);
+        var service = new AdminContentService(context, revision, new HtmlContentSanitizer(), TimeProvider.System);
 
+        // Save draft: the published value stays null and the revision is not bumped (public unaffected).
         (await service.SetTranslationAsync(key, "en", new ContentValueDto("Hello published", null, null, null), "owner", CancellationToken.None))
             .Should().BeTrue();
-        (await service.SetPublishedAsync(key, true, "owner", CancellationToken.None))
-            .Should().BeTrue();
+        revision.Current.Should().Be(before);
 
+        await using (var mid = _fixture.CreateContext())
+        {
+            var staged = (await mid.ContentBlocks.Include(b => b.Translations).FirstAsync(b => b.Key == key))
+                .Translations.First(t => t.LanguageCode == "en");
+            staged.ValueText.Should().BeNull();
+            staged.HasDraft.Should().BeTrue();
+            staged.DraftText.Should().Be("Hello published");
+        }
+
+        // Publish: promotes the draft to the published value and bumps the revision.
+        (await service.PublishAsync(key, "owner", CancellationToken.None)).Should().BeTrue();
         revision.Current.Should().BeGreaterThan(before);
 
         await using var verify = _fixture.CreateContext();
         var saved = await verify.ContentBlocks.Include(b => b.Translations).FirstAsync(b => b.Key == key);
         saved.IsPublished.Should().BeTrue();
-        saved.Translations.First(t => t.LanguageCode == "en").ValueText.Should().Be("Hello published");
+        var published = saved.Translations.First(t => t.LanguageCode == "en");
+        published.ValueText.Should().Be("Hello published");
+        published.HasDraft.Should().BeFalse();
     }
 
     [Fact]
     public async Task Writing_an_unknown_key_returns_false()
     {
         await using var context = _fixture.CreateContext();
-        var service = new AdminContentService(context, new ContentRevision(), TimeProvider.System);
+        var service = new AdminContentService(context, new ContentRevision(), new HtmlContentSanitizer(), TimeProvider.System);
 
         (await service.SetPublishedAsync("does.not.exist", true, "owner", CancellationToken.None)).Should().BeFalse();
     }

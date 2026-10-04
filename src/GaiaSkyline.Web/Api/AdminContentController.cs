@@ -35,21 +35,27 @@ public sealed class AdminContentController(IAdminContentService content, IAuditL
     }
 
     [HttpPost("{key}/publish")]
-    public Task<IActionResult> Publish(string key, CancellationToken cancellationToken) =>
-        SetPublishedAsync(key, true, cancellationToken);
-
-    [HttpPost("{key}/unpublish")]
-    public Task<IActionResult> Unpublish(string key, CancellationToken cancellationToken) =>
-        SetPublishedAsync(key, false, cancellationToken);
-
-    private async Task<IActionResult> SetPublishedAsync(string key, bool published, CancellationToken cancellationToken)
+    public async Task<IActionResult> Publish(string key, CancellationToken cancellationToken)
     {
-        if (!await content.SetPublishedAsync(key, published, Actor, cancellationToken))
+        // Promotes pending drafts to the published values and makes the block live.
+        if (!await content.PublishAsync(key, Actor, cancellationToken))
         {
             return NotFound();
         }
 
-        await audit.WriteAsync(published ? "content.publish" : "content.unpublish", ActorId, Ip, "ContentBlock", key, null, cancellationToken);
+        await audit.WriteAsync("content.publish", ActorId, Ip, "ContentBlock", key, null, cancellationToken);
+        return NoContent();
+    }
+
+    [HttpPost("{key}/unpublish")]
+    public async Task<IActionResult> Unpublish(string key, CancellationToken cancellationToken)
+    {
+        if (!await content.SetPublishedAsync(key, published: false, Actor, cancellationToken))
+        {
+            return NotFound();
+        }
+
+        await audit.WriteAsync("content.unpublish", ActorId, Ip, "ContentBlock", key, null, cancellationToken);
         return NoContent();
     }
 }

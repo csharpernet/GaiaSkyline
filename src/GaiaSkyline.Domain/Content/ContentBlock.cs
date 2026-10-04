@@ -102,6 +102,51 @@ public sealed class ContentBlock : Entity<ContentBlockId>
         return translation;
     }
 
+    /// <summary>
+    /// Stage a draft edit for a language (upsert). The published value is untouched until
+    /// <see cref="PublishDrafts"/>, so the public site keeps showing the live value meanwhile.
+    /// </summary>
+    public void SetDraftTranslation(
+        string languageCode,
+        string? valueText,
+        MediaAssetId? valueMediaAssetId,
+        decimal? valueNumber,
+        bool? valueBoolean,
+        DateTime updatedAtUtc,
+        string updatedBy)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(languageCode);
+        var normalized = languageCode.Trim();
+
+        var existing = _translations.FirstOrDefault(
+            t => string.Equals(t.LanguageCode, normalized, StringComparison.OrdinalIgnoreCase));
+        if (existing is null)
+        {
+            existing = new ContentTranslation(
+                ContentTranslationId.New(), Id, normalized, null, null, null, null, updatedAtUtc, updatedBy);
+            _translations.Add(existing);
+        }
+
+        existing.SetDraft(valueText, valueMediaAssetId, valueNumber, valueBoolean, updatedAtUtc, updatedBy);
+    }
+
+    /// <summary>Promotes all pending draft translations to their published values and publishes the block.</summary>
+    public void PublishDrafts(DateTime updatedAtUtc, string updatedBy)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(updatedBy);
+        foreach (var translation in _translations)
+        {
+            translation.PublishDraft(updatedAtUtc, updatedBy);
+        }
+
+        IsPublished = true;
+        UpdatedAtUtc = updatedAtUtc;
+        UpdatedBy = updatedBy;
+    }
+
+    /// <summary>True when the block is unpublished or any language has an unpublished draft edit.</summary>
+    public bool HasPendingChanges => !IsPublished || _translations.Any(t => t.HasDraft);
+
     /// <summary>Flip the draft/publish switch.</summary>
     public void SetPublished(bool isPublished, DateTime updatedAtUtc, string updatedBy)
     {

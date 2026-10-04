@@ -25,6 +25,7 @@ internal sealed class ContentBlockConfiguration : IEntityTypeConfiguration<Conte
         builder.Property(b => b.IsPublished).IsRequired();
         builder.Property(b => b.UpdatedAtUtc).IsRequired();
         builder.Property(b => b.UpdatedBy).HasMaxLength(100).IsRequired();
+        builder.Ignore(b => b.HasPendingChanges);
 
         builder.HasMany(b => b.Translations)
             .WithOne()

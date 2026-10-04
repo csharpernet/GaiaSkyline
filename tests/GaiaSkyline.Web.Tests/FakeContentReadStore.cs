@@ -44,6 +44,14 @@ internal sealed class FakeContentReadStore : IContentReadStore
         return Task.FromResult(result);
     }
 
+    public Task<IReadOnlyList<ContentBlock>> GetAllBlocksBySectionAsync(
+        string section,
+        CancellationToken cancellationToken)
+    {
+        IReadOnlyList<ContentBlock> result = _blocks.Where(b => b.Section == section).ToList();
+        return Task.FromResult(result);
+    }
+
     public Task<IReadOnlyDictionary<MediaAssetId, MediaAsset>> GetMediaAssetsAsync(
         IReadOnlyCollection<MediaAssetId> ids,
         CancellationToken cancellationToken)

@@ -26,6 +26,17 @@ internal sealed class ContentReadStore(AppDbContext dbContext) : IContentReadSto
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<ContentBlock>> GetAllBlocksBySectionAsync(
+        string section,
+        CancellationToken cancellationToken)
+    {
+        return await _dbContext.ContentBlocks
+            .AsNoTracking()
+            .Where(b => b.Section == section)
+            .Include(b => b.Translations)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyDictionary<MediaAssetId, MediaAsset>> GetMediaAssetsAsync(
         IReadOnlyCollection<MediaAssetId> ids,
         CancellationToken cancellationToken)

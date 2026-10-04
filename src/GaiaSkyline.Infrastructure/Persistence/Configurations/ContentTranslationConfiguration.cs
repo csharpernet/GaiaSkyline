@@ -22,6 +22,17 @@ internal sealed class ContentTranslationConfiguration : IEntityTypeConfiguration
         builder.Property(t => t.ValueBoolean);
         builder.Property(t => t.ValueMediaAssetId);
 
+        // Staged draft values (Stage 7D), nullable; override the published values in preview only.
+        builder.Property(t => t.HasDraft).IsRequired();
+        builder.Property(t => t.DraftText);
+        builder.Property(t => t.DraftNumber).HasColumnType("decimal(18,4)");
+        builder.Property(t => t.DraftBoolean);
+        builder.Property(t => t.DraftMediaAssetId);
+        builder.Ignore(t => t.EffectiveText);
+        builder.Ignore(t => t.EffectiveNumber);
+        builder.Ignore(t => t.EffectiveBoolean);
+        builder.Ignore(t => t.EffectiveMediaAssetId);
+
         builder.Property(t => t.UpdatedAtUtc).IsRequired();
         builder.Property(t => t.UpdatedBy).HasMaxLength(100).IsRequired();
 
