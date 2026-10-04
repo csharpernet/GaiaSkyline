@@ -45,6 +45,7 @@ internal sealed class AdminMediaReadService(AppDbContext dbContext) : IAdminMedi
         var asset = await dbContext.MediaAssets
             .AsNoTracking()
             .Include(a => a.AltTexts)
+            .Include(a => a.Aliases)
             .FirstOrDefaultAsync(a => a.Id == assetId, cancellationToken);
         if (asset is null)
         {
@@ -74,7 +75,9 @@ internal sealed class AdminMediaReadService(AppDbContext dbContext) : IAdminMedi
             ReadyForPublic(asset),
             missing,
             usedBy,
-            asset.IsDeleted);
+            asset.IsDeleted,
+            asset.Kind == MediaKind.Image ? MediaStem.Of(asset.BlobUri) : null,
+            asset.Aliases.Select(a => a.OldSlug).OrderBy(s => s, StringComparer.Ordinal).ToList());
     }
 
     public async Task<bool> IsReadyForPublicAsync(Guid id, CancellationToken cancellationToken)

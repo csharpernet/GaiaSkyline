@@ -38,7 +38,9 @@ public sealed record MediaAssetDetailDto(
     bool ReadyForPublic,
     IReadOnlyList<string> MissingAltLanguages,
     IReadOnlyList<MediaUsageDto> UsedBy,
-    bool IsDeleted);
+    bool IsDeleted,
+    string? Slug = null,
+    IReadOnlyList<string>? PreviousSlugs = null);
 
 /// <summary>One image in the gallery manager: its order comes from position; hero and readiness are flags.</summary>
 public sealed record GalleryItemDto(

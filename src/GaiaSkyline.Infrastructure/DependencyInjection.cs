@@ -95,6 +95,7 @@ public static class DependencyInjection
         services.AddScoped<GaiaSkyline.Infrastructure.Media.IImageRenditionService, GaiaSkyline.Infrastructure.Media.ImageRenditionService>();
         services.AddScoped<GaiaSkyline.Application.Media.IAdminMediaService, GaiaSkyline.Infrastructure.Media.AdminMediaService>();
         services.AddScoped<GaiaSkyline.Application.Media.IAdminMediaReadService, GaiaSkyline.Infrastructure.Media.AdminMediaReadService>();
+        services.AddScoped<GaiaSkyline.Application.Media.IMediaAliasResolver, GaiaSkyline.Infrastructure.Media.MediaAliasResolver>();
 
         // Payments (Stage 4 / Increment C).
         services.AddOptions<StripeOptions>().Bind(configuration.GetSection(StripeOptions.SectionName));

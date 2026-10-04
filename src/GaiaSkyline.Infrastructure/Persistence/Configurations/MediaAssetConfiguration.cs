@@ -38,5 +38,13 @@ internal sealed class MediaAssetConfiguration : IEntityTypeConfiguration<MediaAs
         builder.Metadata
             .FindNavigation(nameof(MediaAsset.AltTexts))!
             .SetPropertyAccessMode(PropertyAccessMode.Field);
+
+        builder.HasMany(a => a.Aliases)
+            .WithOne()
+            .HasForeignKey(a => a.MediaAssetId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.Metadata
+            .FindNavigation(nameof(MediaAsset.Aliases))!
+            .SetPropertyAccessMode(PropertyAccessMode.Field);
     }
 }

@@ -228,6 +228,103 @@ public sealed class AdminMediaServiceTests(LocalDbFixture fixture) : IClassFixtu
         after.Items.Single(i => i.MediaAssetId == b.Id.Value).IsHero.Should().BeTrue();
     }
 
+    private static byte[] Png(int w = 1000, int h = 600)
+    {
+        using var src = new ImageMagick.MagickImage(ImageMagick.MagickColors.SteelBlue, (uint)w, (uint)h)
+        {
+            Format = ImageMagick.MagickFormat.Png,
+        };
+        return src.ToByteArray();
+    }
+
+    [Fact]
+    public async Task Upload_derives_the_filename_from_the_title_and_dedupes()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "gaia-media-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        try
+        {
+            // Unique base so a duplicate within this test (not leftovers from another) drives the "-2" suffix.
+            var title = "Douro Balcony " + Guid.NewGuid().ToString("N")[..8];
+            var expected = MediaSlug.From(title);
+            var png = Png();
+
+            await using var context = _fixture.CreateContext();
+            var service = new AdminMediaService(context, new ImageRenditionService(), new ContentRevision(), TimeProvider.System);
+
+            var id1 = await service.UploadImageAsync(new MemoryStream(png), dir, "alt", title + ".png", "owner", CancellationToken.None);
+            var id2 = await service.UploadImageAsync(new MemoryStream(png), dir, "alt", title + ".png", "owner", CancellationToken.None);
+
+            await using var verify = _fixture.CreateContext();
+            var m1 = await verify.MediaAssets.FirstAsync(a => a.Id == MediaAssetId.From(id1));
+            var m2 = await verify.MediaAssets.FirstAsync(a => a.Id == MediaAssetId.From(id2));
+
+            m1.BlobUri.Should().Be($"/media/{expected}-1600.jpg", "the filename comes from the title, not the GUID");
+            m2.BlobUri.Should().Be($"/media/{expected}-2-1600.jpg", "a duplicate title gets a numeric suffix");
+            File.Exists(Path.Combine(dir, $"{expected}-800.webp")).Should().BeTrue();
+            File.Exists(Path.Combine(dir, $"{expected}-400.avif")).Should().BeTrue();
+        }
+        finally
+        {
+            if (Directory.Exists(dir))
+            {
+                Directory.Delete(dir, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task Rename_moves_the_renditions_updates_the_url_and_keeps_the_old_url_redirecting()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "gaia-media-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        try
+        {
+            var suffix = Guid.NewGuid().ToString("N")[..8];
+            var oldStem = MediaSlug.From("Original Name " + suffix);
+            var newStem = MediaSlug.From("Renamed Image " + suffix);
+            var png = Png();
+
+            Guid id;
+            await using (var upload = _fixture.CreateContext())
+            {
+                var service = new AdminMediaService(upload, new ImageRenditionService(), new ContentRevision(), TimeProvider.System);
+                id = await service.UploadImageAsync(new MemoryStream(png), dir, "alt", "Original Name " + suffix + ".png", "owner", CancellationToken.None);
+            }
+
+            File.Exists(Path.Combine(dir, $"{oldStem}-1600.jpg")).Should().BeTrue();
+
+            await using (var rename = _fixture.CreateContext())
+            {
+                var service = new AdminMediaService(rename, new ImageRenditionService(), new ContentRevision(), TimeProvider.System);
+                (await service.RenameImageAsync(id, "Renamed Image " + suffix, dir, "owner", CancellationToken.None))
+                    .Should().Be(MediaRenameResult.Renamed);
+            }
+
+            // The whole raster set moved to the new stem.
+            File.Exists(Path.Combine(dir, $"{oldStem}-1600.jpg")).Should().BeFalse();
+            File.Exists(Path.Combine(dir, $"{newStem}-1600.jpg")).Should().BeTrue();
+            File.Exists(Path.Combine(dir, $"{newStem}-400.avif")).Should().BeTrue();
+
+            await using var verify = _fixture.CreateContext();
+            var saved = await verify.MediaAssets.Include(a => a.Aliases).FirstAsync(a => a.Id == MediaAssetId.From(id));
+            saved.BlobUri.Should().Be($"/media/{newStem}-1600.jpg", "the URL follows the new filename");
+            saved.Aliases.Select(a => a.OldSlug).Should().Contain(oldStem, "the old URL must keep working");
+
+            // The resolver (used by the 301 middleware) maps the old stem to the current one.
+            var resolver = new MediaAliasResolver(verify);
+            (await resolver.ResolveCurrentStemAsync(oldStem, CancellationToken.None)).Should().Be(newStem);
+            (await resolver.ResolveCurrentStemAsync("no-such-stem-" + suffix, CancellationToken.None)).Should().BeNull();
+        }
+        finally
+        {
+            if (Directory.Exists(dir))
+            {
+                Directory.Delete(dir, recursive: true);
+            }
+        }
+    }
+
     [Fact]
     public async Task Image_without_alt_in_all_languages_is_not_ready()
     {

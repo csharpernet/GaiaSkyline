@@ -92,6 +92,41 @@ public class MediaAssetTests
     }
 
     [Fact]
+    public void Rename_updates_the_url_and_remembers_the_old_stem_as_an_alias()
+    {
+        var asset = CreateImage(blobUri: "/media/old-name-1600.jpg");
+
+        asset.Rename("/media/new-name-1600.jpg", previousStem: "old-name", newStem: "new-name");
+
+        asset.BlobUri.Should().Be("/media/new-name-1600.jpg");
+        asset.Aliases.Select(a => a.OldSlug).Should().ContainSingle().Which.Should().Be("old-name");
+    }
+
+    [Fact]
+    public void Rename_accumulates_aliases_across_multiple_renames()
+    {
+        var asset = CreateImage(blobUri: "/media/a-1600.jpg");
+
+        asset.Rename("/media/b-1600.jpg", "a", "b");
+        asset.Rename("/media/c-1600.jpg", "b", "c");
+
+        asset.BlobUri.Should().Be("/media/c-1600.jpg");
+        asset.Aliases.Select(a => a.OldSlug).Should().BeEquivalentTo(["a", "b"]);
+    }
+
+    [Fact]
+    public void Renaming_back_to_a_previous_stem_drops_that_alias()
+    {
+        var asset = CreateImage(blobUri: "/media/a-1600.jpg");
+        asset.Rename("/media/b-1600.jpg", "a", "b"); // alias: a
+
+        asset.Rename("/media/a-1600.jpg", "b", "a"); // reclaim a → alias: b only
+
+        asset.BlobUri.Should().Be("/media/a-1600.jpg");
+        asset.Aliases.Select(a => a.OldSlug).Should().BeEquivalentTo(["b"]);
+    }
+
+    [Fact]
     public void Has_explicit_alt_text_for_all_languages_ignores_fallback()
     {
         var langs = new[] { "en", "pt-PT", "es", "fr", "de" };

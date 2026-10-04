@@ -11,6 +11,24 @@ public enum MediaDeleteResult
     NotFound,
 }
 
+/// <summary>Outcome of an SEO-filename rename attempt.</summary>
+public enum MediaRenameResult
+{
+    Renamed,
+
+    /// <summary>The requested name slugified to the current filename — nothing to do.</summary>
+    Unchanged,
+
+    /// <summary>The requested name has no usable slug characters (e.g. only punctuation).</summary>
+    InvalidName,
+
+    /// <summary>No such asset.</summary>
+    NotFound,
+
+    /// <summary>The asset is not a pipeline raster with a renamable stem (e.g. a video, or legacy URL).</summary>
+    Unsupported,
+}
+
 /// <summary>
 /// Owner-only media writes. Uploads generate the responsive raster set; collection updates replace the
 /// whole ordered item list (so one call covers reorder, add, remove and set-hero). Each bumps the
@@ -18,8 +36,19 @@ public enum MediaDeleteResult
 /// </summary>
 public interface IAdminMediaService
 {
-    /// <summary>Stores the responsive renditions in <paramref name="destinationDirectory"/> and returns the new asset id.</summary>
-    Task<Guid> UploadImageAsync(Stream content, string destinationDirectory, string? altText, string actor, CancellationToken cancellationToken);
+    /// <summary>
+    /// Stores the responsive renditions in <paramref name="destinationDirectory"/> and returns the new asset id.
+    /// The on-disk filename (SEO stem) is a slug of <paramref name="title"/> (usually the uploaded file name),
+    /// made unique; it falls back to the GUID when the title has no usable slug. The GUID id stays internal.
+    /// </summary>
+    Task<Guid> UploadImageAsync(Stream content, string destinationDirectory, string? altText, string? title, string actor, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Renames an image's SEO filename: moves the renditions to the new stem and updates the URL, keeping the id
+    /// (so every content/collection reference survives). The old stem is remembered so its previous URL 301s to
+    /// the new one. Bumps the content revision on success.
+    /// </summary>
+    Task<MediaRenameResult> RenameImageAsync(Guid assetId, string newTitle, string destinationDirectory, string actor, CancellationToken cancellationToken);
 
     Task<bool> SetCollectionItemsAsync(string collectionKey, IReadOnlyList<CollectionItemDto> items, string actor, CancellationToken cancellationToken);
 

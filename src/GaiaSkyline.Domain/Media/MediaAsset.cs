@@ -10,6 +10,7 @@ namespace GaiaSkyline.Domain.Media;
 public sealed class MediaAsset : Entity<MediaAssetId>
 {
     private readonly List<MediaAssetAltText> _altTexts = [];
+    private readonly List<MediaAssetAlias> _aliases = [];
 
     // Required by EF Core's materialization.
     private MediaAsset()
@@ -83,6 +84,12 @@ public sealed class MediaAsset : Entity<MediaAssetId>
     public IReadOnlyCollection<MediaAssetAltText> AltTexts => _altTexts.AsReadOnly();
 
     /// <summary>
+    /// Previous SEO filenames kept alive after a rename (Stage 7E-2d). The media URL middleware 301-redirects
+    /// each old stem to the current <see cref="BlobUri"/> so indexed/linked image URLs never break.
+    /// </summary>
+    public IReadOnlyCollection<MediaAssetAlias> Aliases => _aliases.AsReadOnly();
+
+    /// <summary>
     /// Low-Quality Image Placeholder: a tiny blurred preview as a self-contained <c>data:</c> URI,
     /// shown behind the real image while it loads to cut perceived LCP without a layout shift.
     /// </summary>
@@ -123,6 +130,35 @@ public sealed class MediaAsset : Entity<MediaAssetId>
         Lqip = string.IsNullOrWhiteSpace(lqip) ? null : lqip.Trim();
         UploadedAtUtc = uploadedAtUtc;
         UploadedBy = uploadedBy;
+    }
+
+    /// <summary>
+    /// Give the asset a new SEO filename (Stage 7E-2d). The id is unchanged, so every content/collection
+    /// reference (they point at the id) survives. The caller moves the on-disk renditions to the new stem and
+    /// passes the rebuilt <paramref name="newBlobUri"/>. The vacated stem is remembered as an alias so its old
+    /// URL can 301 to the new one; reclaiming a stem we previously aliased drops that alias (it is a live file
+    /// again).
+    /// </summary>
+    public void Rename(string newBlobUri, string previousStem, string newStem)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(newBlobUri);
+        ArgumentException.ThrowIfNullOrWhiteSpace(previousStem);
+        ArgumentException.ThrowIfNullOrWhiteSpace(newStem);
+
+        BlobUri = newBlobUri.Trim();
+
+        if (!string.Equals(previousStem, newStem, StringComparison.OrdinalIgnoreCase)
+            && !_aliases.Any(a => string.Equals(a.OldSlug, previousStem, StringComparison.OrdinalIgnoreCase)))
+        {
+            _aliases.Add(new MediaAssetAlias(MediaAssetAliasId.New(), Id, previousStem));
+        }
+
+        var reclaimed = _aliases.FirstOrDefault(
+            a => string.Equals(a.OldSlug, newStem, StringComparison.OrdinalIgnoreCase));
+        if (reclaimed is not null)
+        {
+            _aliases.Remove(reclaimed);
+        }
     }
 
     /// <summary>Insert, update or (when <paramref name="text"/> is blank) remove a language's alt text.</summary>

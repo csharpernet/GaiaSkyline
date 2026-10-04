@@ -95,6 +95,34 @@ public sealed class MediaAdminController(
         return LocalRedirect($"/admin/media/{id}");
     }
 
+    [HttpPost("{id:guid}/rename")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Rename(Guid id, string? newName, CancellationToken cancellationToken)
+    {
+        var result = await media.RenameImageAsync(id, newName ?? string.Empty, MediaDirectory(), ActorName, cancellationToken);
+        switch (result)
+        {
+            case MediaRenameResult.NotFound:
+                return NotFound();
+            case MediaRenameResult.Unsupported:
+                Toast("This asset can't be renamed.", "error");
+                break;
+            case MediaRenameResult.InvalidName:
+                Toast("Enter a filename with at least one letter or number.", "error");
+                break;
+            case MediaRenameResult.Unchanged:
+                Toast("That is already the filename.", "info");
+                break;
+            default:
+                await audit.WriteAsync("media.rename", ActorId, Ip, "MediaAsset", id.ToString(),
+                    new { newName }, cancellationToken);
+                Toast("Filename updated. The old image URL now redirects to the new one.");
+                break;
+        }
+
+        return LocalRedirect($"/admin/media/{id}");
+    }
+
     [HttpPost("{id:guid}/delete")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)

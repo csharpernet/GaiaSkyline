@@ -384,6 +384,9 @@ app.UseHttpsRedirection();
 app.UseMiddleware<SecurityHeadersMiddleware>();
 app.UseStaticFiles();
 
+// After static files so it only handles misses: 301 an old (renamed) /media filename to its current URL.
+app.UseMiddleware<MediaAliasRedirectMiddleware>();
+
 // Canonicalise to no trailing slash (301), except the root "/".
 app.Use(async (context, next) =>
 {

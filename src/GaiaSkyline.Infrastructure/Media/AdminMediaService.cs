@@ -15,16 +15,22 @@ internal sealed class AdminMediaService(
     TimeProvider clock) : IAdminMediaService
 {
     public async Task<Guid> UploadImageAsync(
-        Stream content, string destinationDirectory, string? altText, string actor, CancellationToken cancellationToken)
+        Stream content, string destinationDirectory, string? altText, string? title, string actor, CancellationToken cancellationToken)
     {
         var assetId = MediaAssetId.New();
-        var stem = assetId.Value.ToString("N");
+        var baseSlug = MediaSlug.From(title);
+        if (string.IsNullOrEmpty(baseSlug))
+        {
+            baseSlug = assetId.Value.ToString("N");
+        }
+
+        var stem = await EnsureUniqueStemAsync(baseSlug, excluding: null, cancellationToken);
         var result = await renditions.GenerateAsync(content, destinationDirectory, stem, cancellationToken);
 
         var asset = new MediaAsset(
             assetId,
             MediaKind.Image,
-            blobUri: $"/media/{stem}-1600.jpg",
+            blobUri: $"/media/{stem}{MediaStem.MasterSuffix}",
             posterBlobUri: null,
             width: result.Width,
             height: result.Height,
@@ -87,8 +93,6 @@ internal sealed class AdminMediaService(
         return true;
     }
 
-    private const string MasterSuffix = "-1600.jpg";
-
     public async Task<bool> ReplaceImageAsync(
         Guid assetId, Stream content, string destinationDirectory, string actor, CancellationToken cancellationToken)
     {
@@ -99,13 +103,12 @@ internal sealed class AdminMediaService(
             return false;
         }
 
-        var fileName = Path.GetFileName(asset.BlobUri);
-        if (!fileName.EndsWith(MasterSuffix, StringComparison.OrdinalIgnoreCase))
+        var stem = MediaStem.Of(asset.BlobUri);
+        if (stem is null)
         {
             return false; // not a pipeline raster with a known stem
         }
 
-        var stem = fileName[..^MasterSuffix.Length];
         // Regenerate every rendition at the same stem (overwrites the files in place).
         var result = await renditions.GenerateAsync(content, destinationDirectory, stem, cancellationToken);
         asset.ReplaceRenditions(result.Width, result.Height, result.MasterBytes, result.Lqip,
@@ -114,6 +117,131 @@ internal sealed class AdminMediaService(
         await dbContext.SaveChangesAsync(cancellationToken);
         revision.Bump();
         return true;
+    }
+
+    public async Task<MediaRenameResult> RenameImageAsync(
+        Guid assetId, string newTitle, string destinationDirectory, string actor, CancellationToken cancellationToken)
+    {
+        var id = MediaAssetId.From(assetId);
+        var asset = await dbContext.MediaAssets
+            .Include(a => a.Aliases)
+            .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
+        if (asset is null || asset.Kind != MediaKind.Image)
+        {
+            return MediaRenameResult.NotFound;
+        }
+
+        var oldStem = MediaStem.Of(asset.BlobUri);
+        if (oldStem is null)
+        {
+            return MediaRenameResult.Unsupported;
+        }
+
+        var baseSlug = MediaSlug.From(newTitle);
+        if (string.IsNullOrEmpty(baseSlug))
+        {
+            return MediaRenameResult.InvalidName;
+        }
+
+        var newStem = await EnsureUniqueStemAsync(baseSlug, excluding: id, cancellationToken);
+        if (string.Equals(newStem, oldStem, StringComparison.Ordinal))
+        {
+            return MediaRenameResult.Unchanged;
+        }
+
+        MoveRenditions(destinationDirectory, oldStem, newStem);
+        asset.Rename($"/media/{newStem}{MediaStem.MasterSuffix}", oldStem, newStem);
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        revision.Bump();
+        return MediaRenameResult.Renamed;
+    }
+
+    private static readonly int[] RenditionWidths = [400, 800, 1600];
+    private static readonly string[] RenditionExtensions = ["jpg", "webp", AvifRaster.Extension];
+
+    // Move the full raster set ({stem}-{w}.{ext}) to the new stem; skip any that are missing so a partially
+    // generated or hand-seeded asset still renames cleanly.
+    private static void MoveRenditions(string directory, string oldStem, string newStem)
+    {
+        foreach (var width in RenditionWidths)
+        {
+            foreach (var ext in RenditionExtensions)
+            {
+                var from = Path.Combine(directory, $"{oldStem}-{width}.{ext}");
+                if (!File.Exists(from))
+                {
+                    continue;
+                }
+
+                var to = Path.Combine(directory, $"{newStem}-{width}.{ext}");
+                if (File.Exists(to))
+                {
+                    File.Delete(to);
+                }
+
+                File.Move(from, to);
+            }
+        }
+    }
+
+    // A stem is free when no asset currently uses it and no alias reserves it (for a 301). Suffixes -2, -3, …
+    // disambiguate. The asset being renamed (if any) is excluded so it can keep or reclaim its own stems.
+    private async Task<string> EnsureUniqueStemAsync(
+        string baseSlug, MediaAssetId? excluding, CancellationToken cancellationToken)
+    {
+        var taken = await TakenStemsAsync(excluding, cancellationToken);
+        if (!taken.Contains(baseSlug))
+        {
+            return baseSlug;
+        }
+
+        for (var n = 2; ; n++)
+        {
+            var candidate = $"{baseSlug}-{n}";
+            if (!taken.Contains(candidate))
+            {
+                return candidate;
+            }
+        }
+    }
+
+    private async Task<HashSet<string>> TakenStemsAsync(MediaAssetId? excluding, CancellationToken cancellationToken)
+    {
+        var assets = await dbContext.MediaAssets
+            .AsNoTracking()
+            .Select(a => new { a.Id, a.BlobUri })
+            .ToListAsync(cancellationToken);
+        var aliases = await dbContext.MediaAssetAliases
+            .AsNoTracking()
+            .Select(a => new { a.MediaAssetId, a.OldSlug })
+            .ToListAsync(cancellationToken);
+
+        var taken = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var a in assets)
+        {
+            if (excluding is { } ex && a.Id == ex)
+            {
+                continue;
+            }
+
+            if (MediaStem.Of(a.BlobUri) is { } stem)
+            {
+                taken.Add(stem);
+            }
+        }
+
+        foreach (var alias in aliases)
+        {
+            if (excluding is { } ex && alias.MediaAssetId == ex)
+            {
+                continue;
+            }
+
+            taken.Add(alias.OldSlug);
+        }
+
+        return taken;
     }
 
     public async Task<MediaDeleteResult> SoftDeleteAsync(Guid assetId, string actor, CancellationToken cancellationToken)

@@ -42,7 +42,8 @@ public sealed class AdminMediaController(
             string.IsNullOrEmpty(environment.WebRootPath) ? "wwwroot" : environment.WebRootPath, "media");
 
         await using var stream = file.OpenReadStream();
-        var id = await media.UploadImageAsync(stream, directory, altText, Actor, cancellationToken);
+        // The uploaded file name seeds the SEO filename (slugified + deduped); the owner can rename it later.
+        var id = await media.UploadImageAsync(stream, directory, altText, file.FileName, Actor, cancellationToken);
         await audit.WriteAsync("media.upload", ActorId, Ip, "MediaAsset", id.ToString(), null, cancellationToken);
         return Ok(new { id });
     }

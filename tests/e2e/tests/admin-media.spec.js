@@ -63,6 +63,38 @@ test.describe('Admin media manager', () => {
     await expect(page.locator('a[href="' + assetPath + '"]')).toBeVisible();
   });
 
+  test('rename an image → the old URL 301-redirects to the new filename', async ({ page }) => {
+    await loginAsOwner(page);
+    await page.goto('/admin/media');
+
+    const cards = page.locator('a[data-media-card]');
+    const before = await cards.count();
+    await page.locator('#media-file-input').setInputFiles({ name: 'rename-me.png', mimeType: 'image/png', buffer: PNG });
+    await expect(cards).toHaveCount(before + 1, { timeout: 30000 });
+
+    await cards.first().click();
+    await expect(page.getByRole('heading', { name: 'Media asset' })).toBeVisible();
+
+    // The SEO-filename field shows the current stem; the old image URL is {stem}-1600.jpg.
+    const renameInput = page.locator('form[action$="/rename"] input[name="newName"]');
+    const oldSlug = await renameInput.inputValue();
+    const oldUrl = `/media/${oldSlug}-1600.jpg`;
+    expect((await page.request.get(oldUrl)).ok()).toBeTruthy();
+
+    // Rename to a unique new slug.
+    const newSlug = 'renamed-' + Date.now();
+    await renameInput.fill(newSlug);
+    await page.getByRole('button', { name: /^rename$/i }).click();
+
+    await expect(page.locator('form[action$="/rename"] input[name="newName"]')).toHaveValue(newSlug);
+
+    // The old URL now 301s to the new file, which serves.
+    const redirect = await page.request.get(oldUrl, { maxRedirects: 0 });
+    expect(redirect.status()).toBe(301);
+    expect(redirect.headers()['location']).toBe(`/media/${newSlug}-1600.jpg`);
+    expect((await page.request.get(`/media/${newSlug}-1600.jpg`)).ok()).toBeTruthy();
+  });
+
   test('gallery manager: set a new hero and save → it persists', async ({ page }) => {
     await loginAsOwner(page);
     await page.goto('/admin/media/gallery');
