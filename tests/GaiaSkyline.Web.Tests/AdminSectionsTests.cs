@@ -17,6 +17,7 @@ public class AdminSectionsTests(PublicSiteFactory factory)
     [InlineData("/admin/content")]
     [InlineData("/admin/content/grid")]
     [InlineData("/admin/content/edit/home.hero.headline")]
+    [InlineData("/admin/media")]
     public async Task Admin_routes_require_sign_in(string path)
     {
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });

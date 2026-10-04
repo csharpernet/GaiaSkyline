@@ -1,0 +1,110 @@
+@using GaiaSkyline.Application.Content
+@using GaiaSkyline.Domain.Media
+@model GaiaSkyline.Application.Media.MediaAssetDetailDto
+@{
+    Layout = "_AdminShell";
+    ViewData["Title"] = "Media asset";
+    var isImage = Model.Kind == MediaKind.Image;
+    string Kb(long bytes) => (bytes / 1024.0).ToString("0.#") + " KB";
+    string? AltFor(string lang) => Model.AltByLang.TryGetValue(lang, out var t) ? t : null;
+    var previewSrc = isImage && Model.BlobUri.EndsWith("-1600.jpg", StringComparison.OrdinalIgnoreCase)
+        ? Model.BlobUri[..^"-1600.jpg".Length] + "-800.jpg"
+        : (Model.PosterBlobUri ?? Model.BlobUri);
+}
+
+<div class="max-w-4xl">
+    <nav class="text-sm text-ink/60 mb-2">
+        <a href="/admin/media" class="text-river hover:underline">Media</a>
+        <span class="mx-1">/</span>
+        <span>@Model.Kind</span>
+    </nav>
+
+    <div class="flex items-start justify-between gap-4">
+        <h1 class="font-display text-2xl font-semibold">Media asset</h1>
+        @if (isImage)
+        {
+            @if (Model.ReadyForPublic)
+            {
+                <span class="shrink-0 text-xs uppercase tracking-wide border border-river text-river rounded px-2 py-1">Ready for public</span>
+            }
+            else
+            {
+                <span class="shrink-0 text-xs uppercase tracking-wide border border-clay text-clay rounded px-2 py-1">Needs alt: @string.Join(", ", Model.MissingAltLanguages.Select(ContentLanguages.ShortLabel))</span>
+            }
+        }
+    </div>
+
+    <div class="mt-4 grid md:grid-cols-2 gap-6">
+        <div>
+            <div class="rounded-md border border-fog bg-white overflow-hidden">
+                @if (isImage)
+                {
+                    <img src="@previewSrc" alt="@(AltFor("en") ?? "")" class="w-full object-contain bg-fog" />
+                }
+                else
+                {
+                    <div class="aspect-video flex items-center justify-center text-ink/40 text-sm uppercase tracking-wide bg-fog">Video</div>
+                }
+            </div>
+            <dl class="mt-3 text-xs text-ink/60 space-y-0.5">
+                <div class="flex justify-between"><dt>Dimensions</dt><dd>@Model.Width×@Model.Height</dd></div>
+                <div class="flex justify-between"><dt>Size</dt><dd>@Kb(Model.ByteSize)</dd></div>
+                <div class="flex justify-between"><dt>Type</dt><dd>@Model.ContentType</dd></div>
+                <div class="flex justify-between"><dt>Uploaded</dt><dd>@Model.UploadedAtUtc.ToString("yyyy-MM-dd") · @Model.UploadedBy</dd></div>
+                <div class="flex justify-between"><dt>Asset id</dt><dd class="font-mono">@Model.Id</dd></div>
+            </dl>
+
+            <h2 class="mt-5 font-display text-sm font-semibold text-ink/80">Where used</h2>
+            @if (Model.UsedBy.Count == 0)
+            {
+                <p class="mt-1 text-xs text-ink/50">Not used on any page yet.</p>
+            }
+            else
+            {
+                <ul class="mt-1 text-xs text-ink/70 space-y-1">
+                    @foreach (var u in Model.UsedBy)
+                    {
+                        <li><span class="text-ink/45">@u.Kind:</span> <code class="font-mono">@u.Reference</code></li>
+                    }
+                </ul>
+            }
+        </div>
+
+        <div>
+            @if (isImage)
+            {
+                <h2 class="font-display text-sm font-semibold text-ink/80">Alt text</h2>
+                <p class="mt-1 text-xs text-ink/55">Describe the image for screen readers and image SEO. Required in every language before it can appear on a public page.</p>
+                <form method="post" action="/admin/media/@Model.Id/alt" class="mt-3 space-y-3">
+                    @Html.AntiForgeryToken()
+                    @for (var i = 0; i < ContentLanguages.All.Count; i++)
+                    {
+                        var lang = ContentLanguages.All[i];
+                        var value = AltFor(lang);
+                        <div>
+                            <label class="block text-xs font-semibold text-river" for="alt-@lang">
+                                @ContentLanguages.ShortLabel(lang)
+                                @if (string.IsNullOrWhiteSpace(value))
+                                {
+                                    <span class="ml-1 text-clay" title="Missing">●</span>
+                                }
+                            </label>
+                            <input type="hidden" name="Alts[@i].LanguageCode" value="@lang" />
+                            <input id="alt-@lang" type="text" name="Alts[@i].Text" value="@value" maxlength="500"
+                                   class="mt-1 w-full rounded-md border border-fog px-3 py-2 bg-white text-sm" />
+                        </div>
+                    }
+                    <div class="flex items-center gap-3 pt-1">
+                        <button type="submit" class="bg-river text-white rounded-md px-4 py-2 text-sm">Save alt text</button>
+                        <a href="/admin/media" class="text-sm text-ink/60 hover:underline">Back to media</a>
+                    </div>
+                </form>
+            }
+            else
+            {
+                <h2 class="font-display text-sm font-semibold text-ink/80">Alt text</h2>
+                <p class="mt-1 text-xs text-ink/55">The hero video is decorative (muted, <code>aria-hidden</code>); the headline carries the meaning, so no alt text is required.</p>
+            }
+        </div>
+    </div>
+</div>

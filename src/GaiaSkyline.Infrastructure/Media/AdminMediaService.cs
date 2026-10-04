@@ -64,4 +64,26 @@ internal sealed class AdminMediaService(
         revision.Bump();
         return true;
     }
+
+    public async Task<bool> SetAltTextsAsync(
+        Guid assetId, IReadOnlyDictionary<string, string?> altByLanguage, string actor, CancellationToken cancellationToken)
+    {
+        var id = MediaAssetId.From(assetId);
+        var asset = await dbContext.MediaAssets
+            .Include(a => a.AltTexts)
+            .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
+        if (asset is null)
+        {
+            return false;
+        }
+
+        foreach (var (language, text) in altByLanguage)
+        {
+            asset.SetAltText(language, text);
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        revision.Bump();
+        return true;
+    }
 }

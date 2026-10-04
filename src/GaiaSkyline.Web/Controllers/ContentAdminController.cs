@@ -1,5 +1,6 @@
 using GaiaSkyline.Application.Auditing;
 using GaiaSkyline.Application.Content;
+using GaiaSkyline.Application.Media;
 using GaiaSkyline.Domain.Content;
 using GaiaSkyline.Domain.Media;
 using GaiaSkyline.Web.Localization;
@@ -17,6 +18,7 @@ namespace GaiaSkyline.Web.Controllers;
 public sealed class ContentAdminController(
     IAdminContentReadService read,
     IAdminContentService content,
+    IAdminMediaReadService mediaRead,
     IAuditLog audit) : AdminControllerBase
 {
     // Where each section is shown on the public site, used to build the preview link ("/{slug}" + suffix).
@@ -90,7 +92,18 @@ public sealed class ContentAdminController(
         await audit.WriteAsync("content.draft.save", ActorId, Ip, "ContentBlock", key,
             new { languages = edits.Count }, cancellationToken);
 
-        if (string.Equals(form.Action, "publish", StringComparison.OrdinalIgnoreCase))
+        var publishing = string.Equals(form.Action, "publish", StringComparison.OrdinalIgnoreCase);
+
+        // Gate: an image can't go on a public page without alt text in every language. The draft is saved
+        // either way; only the publish is blocked so the owner keeps their edit and fixes the alt text.
+        if (publishing && block.Kind == ContentKind.ImageRef
+            && await FirstImageMissingAltAsync(form, cancellationToken) is { } unreadyAsset)
+        {
+            Toast($"Add alt text in every language for the selected image before publishing — manage it under Media ({unreadyAsset}).", "error");
+            return LocalRedirect($"/admin/content/edit/{Uri.EscapeDataString(key)}");
+        }
+
+        if (publishing)
         {
             await content.PublishAsync(key, ActorName, cancellationToken);
             await audit.WriteAsync("content.publish", ActorId, Ip, "ContentBlock", key, null, cancellationToken);
@@ -102,6 +115,25 @@ public sealed class ContentAdminController(
         }
 
         return LocalRedirect($"/admin/content/edit/{Uri.EscapeDataString(key)}");
+    }
+
+    /// <summary>The first selected image lacking alt in every language, or null when all are ready.</summary>
+    private async Task<Guid?> FirstImageMissingAltAsync(ContentEditForm form, CancellationToken cancellationToken)
+    {
+        var assetIds = form.Languages
+            .Where(l => l.MediaAssetId.HasValue)
+            .Select(l => l.MediaAssetId!.Value)
+            .Distinct();
+
+        foreach (var assetId in assetIds)
+        {
+            if (!await mediaRead.IsReadyForPublicAsync(assetId, cancellationToken))
+            {
+                return assetId;
+            }
+        }
+
+        return null;
     }
 
     [HttpPost("edit/{key}/unpublish")]

@@ -14,4 +14,10 @@ public interface IAdminMediaService
     Task<Guid> UploadImageAsync(Stream content, string destinationDirectory, string? altText, string actor, CancellationToken cancellationToken);
 
     Task<bool> SetCollectionItemsAsync(string collectionKey, IReadOnlyList<CollectionItemDto> items, string actor, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Replaces the per-language alt text for an asset: each entry upserts its language; a blank value clears
+    /// that language. Bumps the content revision (alt text is rendered on the public site). False if unknown.
+    /// </summary>
+    Task<bool> SetAltTextsAsync(Guid assetId, IReadOnlyDictionary<string, string?> altByLanguage, string actor, CancellationToken cancellationToken);
 }
