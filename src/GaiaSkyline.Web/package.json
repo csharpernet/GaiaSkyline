@@ -7,9 +7,16 @@
     "build:css": "tailwindcss -i ./Styles/app.css -o ./wwwroot/css/app.css --minify",
     "watch:css": "tailwindcss -i ./Styles/app.css -o ./wwwroot/css/app.css --watch",
     "build:vendor": "node copy-vendor.js",
-    "build": "npm run build:css && npm run build:vendor"
+    "build:editor": "esbuild admin-src/editor.js --bundle --minify --format=iife --target=es2019 --legal-comments=none --outfile=wwwroot/js/admin/editor.bundle.js",
+    "watch:editor": "esbuild admin-src/editor.js --bundle --format=iife --target=es2019 --outfile=wwwroot/js/admin/editor.bundle.js --watch",
+    "build": "npm run build:css && npm run build:vendor && npm run build:editor"
   },
   "devDependencies": {
+    "@tiptap/core": "2.27.3",
+    "@tiptap/extension-link": "2.27.3",
+    "@tiptap/pm": "2.27.3",
+    "@tiptap/starter-kit": "2.27.3",
+    "esbuild": "0.28.2",
     "flatpickr": "^4.6.13",
     "maplibre-gl": "^4.7.1",
     "tailwindcss": "^3.4.17",

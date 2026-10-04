@@ -1,0 +1,196 @@
+@using GaiaSkyline.Application.Content
+@using GaiaSkyline.Domain.Content
+@using GaiaSkyline.Web.Localization
+@model GaiaSkyline.Application.Content.AdminContentBlockDetail
+@{
+    Layout = "_AdminShell";
+    ViewData["Title"] = Model.DisplayName;
+    var assets = ViewData["Assets"] as IReadOnlyList<MediaAssetDto>;
+    var previewBase = ViewData["PreviewBase"] as string;
+    var isRich = Model.Kind == ContentKind.RichText;
+    var isMedia = Model.Kind is ContentKind.ImageRef or ContentKind.VideoRef;
+    var isNumber = Model.Kind == ContentKind.Number;
+    var isBoolean = Model.Kind == ContentKind.Boolean;
+    var englishLabel = Model.Languages.FirstOrDefault(l => l.LanguageCode == ContentLanguages.Default)?.Text;
+    var expectsText = Model.Kind.IsLocalizedText()
+        || (isBoolean && !string.IsNullOrWhiteSpace(englishLabel));
+
+    string? Eff(AdminContentBlockLanguage l) => l.HasDraft ? l.DraftText : l.Text;
+    decimal? EffNum(AdminContentBlockLanguage l) => l.HasDraft ? l.DraftNumber : l.Number;
+    bool EffBool(AdminContentBlockLanguage l) => (l.HasDraft ? l.DraftBoolean : l.Boolean) ?? false;
+    Guid? EffMedia(AdminContentBlockLanguage l) => l.HasDraft ? l.DraftMediaAssetId : l.MediaAssetId;
+}
+
+<div class="max-w-4xl" data-content-editor>
+    <nav class="text-sm text-ink/60 mb-2">
+        <a href="/admin/content" class="text-river hover:underline">Content</a>
+        <span class="mx-1">/</span>
+        <span>@Model.Section</span>
+    </nav>
+
+    <div class="flex items-start justify-between gap-4">
+        <div>
+            <h1 class="font-display text-2xl font-semibold">@Model.DisplayName</h1>
+            <p class="mt-1 text-sm text-ink/60">
+                <code class="font-mono text-xs bg-stone px-1 py-0.5 rounded">@Model.Key</code>
+                · @Model.Kind
+                @if (!Model.IsPublished)
+                {
+                    <span class="ml-1 text-[11px] uppercase tracking-wide border border-clay text-clay rounded px-1">unpublished</span>
+                }
+                @if (Model.HasPendingChanges)
+                {
+                    <span class="ml-1 text-[11px] uppercase tracking-wide border border-river text-river rounded px-1">pending draft</span>
+                }
+            </p>
+        </div>
+        <div class="text-right text-xs text-ink/50 shrink-0">
+            <div>Updated @Model.UpdatedAtUtc.ToString("yyyy-MM-dd HH:mm") UTC</div>
+            <div>by @Model.UpdatedBy</div>
+        </div>
+    </div>
+
+    <form method="post" action="/admin/content/edit/@Uri.EscapeDataString(Model.Key)" class="mt-5">
+        @Html.AntiForgeryToken()
+
+        <!-- Language tabs -->
+        <div class="flex flex-wrap gap-1 border-b border-fog" role="tablist" aria-label="Languages">
+            @for (var i = 0; i < Model.Languages.Count; i++)
+            {
+                var l = Model.Languages[i];
+                var placeholder = ContentPlaceholders.IsPlaceholder(l.Text);
+                var empty = expectsText && string.IsNullOrWhiteSpace(Eff(l));
+                var active = l.LanguageCode == ContentLanguages.Default;
+                <button type="button" role="tab" data-lang-tab="@l.LanguageCode"
+                        aria-selected="@(active ? "true" : "false")"
+                        class="relative px-3 py-2 text-sm border-b-2 -mb-px @(active ? "border-clay text-clay font-semibold" : "border-transparent text-ink/70 hover:text-ink")">
+                    @ContentLanguages.ShortLabel(l.LanguageCode)
+                    @if (empty)
+                    {
+                        <span class="ml-1 inline-block w-2 h-2 rounded-full bg-clay align-middle" title="Empty — needs a translation"></span>
+                    }
+                    else if (placeholder)
+                    {
+                        <span class="ml-1 inline-block w-2 h-2 rounded-full bg-[#C98A3A] align-middle" title="Still a [XX] placeholder"></span>
+                    }
+                    @if (l.HasDraft)
+                    {
+                        <span class="ml-1 text-[10px] text-river align-middle" title="Unpublished draft edit">•draft</span>
+                    }
+                </button>
+            }
+        </div>
+
+        <!-- Language panels -->
+        @for (var i = 0; i < Model.Languages.Count; i++)
+        {
+            var l = Model.Languages[i];
+            var active = l.LanguageCode == ContentLanguages.Default;
+            var previewSlug = SupportedCultures.SlugForCulture(l.LanguageCode);
+            <div data-lang-panel="@l.LanguageCode" class="@(active ? "" : "hidden") py-4">
+                <input type="hidden" name="Languages[@i].LanguageCode" value="@l.LanguageCode" />
+
+                @if (isRich)
+                {
+                    <div class="gaia-richtext border border-fog rounded-md bg-white" data-editor>
+                        <div class="gaia-editor-toolbar flex flex-wrap gap-1 border-b border-fog px-2 py-1.5 text-sm">
+                            <button type="button" data-cmd="bold" class="gaia-tb" title="Bold" aria-label="Bold"><b>B</b></button>
+                            <button type="button" data-cmd="italic" class="gaia-tb italic" title="Italic" aria-label="Italic">I</button>
+                            <button type="button" data-cmd="bulletList" class="gaia-tb" title="Bullet list" aria-label="Bullet list">• List</button>
+                            <button type="button" data-cmd="orderedList" class="gaia-tb" title="Numbered list" aria-label="Numbered list">1. List</button>
+                            <button type="button" data-cmd="link" class="gaia-tb" title="Add link" aria-label="Add link">Link</button>
+                            <button type="button" data-cmd="unlink" class="gaia-tb" title="Remove link" aria-label="Remove link">Unlink</button>
+                        </div>
+                        <div class="gaia-editor-mount px-3 py-2"></div>
+                        <textarea name="Languages[@i].Text" class="gaia-editor-source hidden">@Eff(l)</textarea>
+                    </div>
+                    <p class="mt-1 text-xs text-ink/50">Bold, italic, links and lists are kept; everything else is stripped on save.</p>
+                }
+                else if (isMedia)
+                {
+                    var current = EffMedia(l);
+                    <fieldset class="space-y-2">
+                        <legend class="text-sm text-ink/70 mb-1">Choose a @(Model.Kind == ContentKind.ImageRef ? "image" : "video")</legend>
+                        <label class="flex items-center gap-2 text-sm">
+                            <input type="radio" name="Languages[@i].MediaAssetId" value="" checked="@(current is null)" />
+                            <span class="text-ink/60">— none —</span>
+                        </label>
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                            @if (assets is not null)
+                            {
+                                foreach (var a in assets)
+                                {
+                                    <label class="block cursor-pointer rounded-md border p-1 @(current == a.Id ? "border-clay ring-1 ring-clay" : "border-fog")">
+                                        <input type="radio" class="sr-only" name="Languages[@i].MediaAssetId" value="@a.Id" checked="@(current == a.Id)" />
+                                        <img src="@a.BlobUri" alt="@a.Alt" loading="lazy" class="w-full h-20 object-cover rounded" />
+                                        <span class="block mt-1 text-[10px] text-ink/50 truncate" title="@a.Id">@a.Id</span>
+                                    </label>
+                                }
+                            }
+                        </div>
+                        @if (assets is null || assets.Count == 0)
+                        {
+                            <p class="text-xs text-ink/50">No assets yet. Uploading arrives with the media manager (next increment).</p>
+                        }
+                    </fieldset>
+                }
+                else if (isNumber)
+                {
+                    <label class="block text-sm text-ink/70 mb-1" for="num-@l.LanguageCode">Number</label>
+                    <input id="num-@l.LanguageCode" type="number" step="any" name="Languages[@i].Number" value="@EffNum(l)"
+                           class="w-48 rounded-md border border-fog px-3 py-2 bg-white" />
+                }
+                else if (isBoolean)
+                {
+                    <label class="flex items-center gap-2 text-sm mb-3">
+                        <input type="checkbox" name="Languages[@i].Boolean" value="true" checked="@EffBool(l)" />
+                        <span>Available / enabled</span>
+                    </label>
+                    <label class="block text-sm text-ink/70 mb-1" for="label-@l.LanguageCode">Label</label>
+                    <input id="label-@l.LanguageCode" type="text" name="Languages[@i].Text" value="@Eff(l)"
+                           class="w-full rounded-md border border-fog px-3 py-2 bg-white" />
+                }
+                else if (Model.Kind == ContentKind.PlainText)
+                {
+                    <textarea name="Languages[@i].Text" rows="4"
+                              class="w-full rounded-md border border-fog px-3 py-2 bg-white">@Eff(l)</textarea>
+                }
+                else
+                {
+                    @* ShortText, Url *@
+                    <input type="text" name="Languages[@i].Text" value="@Eff(l)"
+                           class="w-full rounded-md border border-fog px-3 py-2 bg-white" />
+                }
+
+                @if (previewBase is not null)
+                {
+                    var returnUrl = $"/{previewSlug}{previewBase}";
+                    <p class="mt-3 text-xs">
+                        <a href="/admin/preview/enter?returnUrl=@Uri.EscapeDataString(returnUrl)" target="_blank" rel="noopener"
+                           class="text-river hover:underline">Preview @ContentLanguages.ShortLabel(l.LanguageCode) (drafts shown) ↗</a>
+                    </p>
+                }
+            </div>
+        }
+
+        <div class="mt-6 flex items-center gap-3 border-t border-fog pt-4">
+            <button type="submit" name="Action" value="save"
+                    class="bg-white border border-river text-river rounded-md px-4 py-2 text-sm hover:bg-stone">Save draft</button>
+            <button type="submit" name="Action" value="publish"
+                    class="bg-river text-white rounded-md px-4 py-2 text-sm">Publish</button>
+            <a href="/admin/content" class="text-sm text-ink/60 hover:underline">Back to content</a>
+        </div>
+    </form>
+
+    @if (Model.IsPublished)
+    {
+        <form method="post" action="/admin/content/edit/@Uri.EscapeDataString(Model.Key)/unpublish" class="mt-3 text-right"
+              data-confirm="Unpublish this block? It disappears from the public site until you publish again.">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="text-sm text-clay hover:underline">Unpublish</button>
+        </form>
+    }
+</div>
+
+<script src="~/js/admin/editor.bundle.js" asp-append-version="true"></script>
+<script src="~/js/content-admin.js" asp-append-version="true"></script>

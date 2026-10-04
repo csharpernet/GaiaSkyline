@@ -1,0 +1,87 @@
+@using GaiaSkyline.Application.Content
+@model GaiaSkyline.Application.Content.AdminContentOverview
+@{
+    Layout = "_AdminShell";
+    ViewData["Title"] = "Content";
+    var totalBlocks = Model.Sections.Sum(s => s.Blocks.Count);
+}
+
+<div class="max-w-5xl">
+    <div class="flex items-start justify-between gap-4">
+        <div>
+            <h1 class="font-display text-2xl font-semibold">Content</h1>
+            <p class="mt-1 text-sm text-ink/70">@totalBlocks block(s) across @Model.Sections.Count section(s). Edit any text, number, image or video in all five languages, then publish.</p>
+        </div>
+        <a href="/admin/content/grid" class="shrink-0 bg-white border border-river text-river rounded-md px-4 py-2 text-sm hover:bg-stone">Translation status →</a>
+    </div>
+
+    <div class="mt-3 flex items-center gap-4 text-xs text-ink/60">
+        <span class="flex items-center gap-1"><span class="inline-block w-2 h-2 rounded-full bg-clay"></span> empty</span>
+        <span class="flex items-center gap-1"><span class="inline-block w-2 h-2 rounded-full bg-[#C98A3A]"></span> placeholder</span>
+        <span class="flex items-center gap-1"><span class="text-river">•draft</span> unpublished draft</span>
+    </div>
+
+    @foreach (var sec in Model.Sections)
+    {
+        <section class="mt-6">
+            <h2 class="font-display text-lg font-semibold text-ink/90">@sec.DisplayName
+                <span class="text-sm font-normal text-ink/40">· @sec.Key</span>
+            </h2>
+            <div class="mt-2 overflow-x-auto bg-white border border-fog rounded-md">
+                <table class="w-full text-sm">
+                    <thead class="text-left text-xs uppercase tracking-wide text-ink/50 border-b border-fog">
+                        <tr>
+                            <th class="px-3 py-2">Block</th>
+                            <th class="px-3 py-2">Kind</th>
+                            @foreach (var lang in ContentLanguages.All)
+                            {
+                                <th class="px-2 py-2 text-center">@ContentLanguages.ShortLabel(lang)</th>
+                            }
+                            <th class="px-3 py-2"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var block in sec.Blocks)
+                        {
+                            <tr class="border-b border-fog/60 align-middle hover:bg-stone/50">
+                                <td class="px-3 py-2">
+                                    <a href="/admin/content/edit/@Uri.EscapeDataString(block.Key)" class="text-river hover:underline font-medium">@block.DisplayName</a>
+                                    <div class="text-[11px] text-ink/40 font-mono">@block.Key</div>
+                                    @if (!block.IsPublished)
+                                    {
+                                        <span class="text-[10px] uppercase tracking-wide border border-clay text-clay rounded px-1">unpublished</span>
+                                    }
+                                </td>
+                                <td class="px-3 py-2 text-ink/60">@block.Kind</td>
+                                @foreach (var l in block.Languages)
+                                {
+                                    <td class="px-2 py-2 text-center whitespace-nowrap">
+                                        @if (l.IsEmpty)
+                                        {
+                                            <span class="inline-block w-2 h-2 rounded-full bg-clay" title="Empty"></span>
+                                        }
+                                        else if (l.IsPlaceholder)
+                                        {
+                                            <span class="inline-block w-2 h-2 rounded-full bg-[#C98A3A]" title="Placeholder"></span>
+                                        }
+                                        else
+                                        {
+                                            <span class="inline-block w-2 h-2 rounded-full bg-river/30" title="Set"></span>
+                                        }
+                                        @if (l.HasDraft)
+                                        {
+                                            <span class="text-[10px] text-river">•</span>
+                                        }
+                                    </td>
+                                }
+                                <td class="px-3 py-2 text-right">
+                                    <a href="/admin/content/edit/@Uri.EscapeDataString(block.Key)" class="text-xs text-river hover:underline">Edit</a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    }
+</div>

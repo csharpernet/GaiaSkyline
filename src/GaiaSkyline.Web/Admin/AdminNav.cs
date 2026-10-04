@@ -13,7 +13,7 @@ public static class AdminNav
     public static IReadOnlyList<AdminNavItem> Items { get; } =
     [
         new("Dashboard", "/admin", Enabled: true, Shortcut: "g h"),
-        new("Content", "/admin/content", Enabled: false),
+        new("Content", "/admin/content", Enabled: true),
         new("Media", "/admin/media", Enabled: false),
         new("Stories", "/admin/stories", Enabled: false),
         new("Bookings", "/admin/bookings", Enabled: false, Shortcut: "g b"),

@@ -49,6 +49,15 @@ public static class E2ESeeder
         {
             await userManager.SetTwoFactorEnabledAsync(owner, true);
         }
+
+        // Disable Identity lockout for the shared E2E owner and clear any carried-over counter. The suite
+        // signs this one account in many times in a row, and an occasional TOTP that rolls over at a 30s
+        // boundary counts as a failed access attempt — enough logins and the account would lock out mid-run,
+        // redirecting the password step back to /admin/login. Lockout stays fully enabled in production
+        // (this seam throws if ever enabled there — see Program.cs).
+        await userManager.SetLockoutEnabledAsync(owner, false);
+        await userManager.SetLockoutEndDateAsync(owner, null);
+        await userManager.ResetAccessFailedCountAsync(owner);
     }
 
     private static async Task EnsureBookingAsync(IServiceProvider services, E2EOptions options, CancellationToken cancellationToken)

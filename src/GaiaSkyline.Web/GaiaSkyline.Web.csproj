@@ -32,9 +32,11 @@
   <ItemGroup>
     <FrontendInput Include="package.json;tailwind.config.js;copy-vendor.js;Styles\app.css" />
     <FrontendInput Include="Views\**\*.cshtml" />
+    <!-- Admin rich-text editor bundle source (TipTap via esbuild; see ADR 0015). -->
+    <FrontendInput Include="admin-src\**\*.js" />
   </ItemGroup>
 
-  <Target Name="FrontendBuild" BeforeTargets="AssignTargetPaths;Build" Inputs="@(FrontendInput)" Outputs="wwwroot\css\app.css;wwwroot\js\vendor\web-vitals.iife.js;wwwroot\js\vendor\maplibre-gl.js;wwwroot\js\vendor\flatpickr.min.js">
+  <Target Name="FrontendBuild" BeforeTargets="AssignTargetPaths;Build" Inputs="@(FrontendInput)" Outputs="wwwroot\css\app.css;wwwroot\js\vendor\web-vitals.iife.js;wwwroot\js\vendor\maplibre-gl.js;wwwroot\js\vendor\flatpickr.min.js;wwwroot\js\admin\editor.bundle.js">
     <Message Importance="high" Text="GaiaSkyline: building front-end (npm run build)..." />
     <Exec Command="npm install --no-fund --no-audit --loglevel=error" Condition="!Exists('$(MSBuildProjectDirectory)\node_modules')" WorkingDirectory="$(MSBuildProjectDirectory)" />
     <Exec Command="npm run build" WorkingDirectory="$(MSBuildProjectDirectory)" />

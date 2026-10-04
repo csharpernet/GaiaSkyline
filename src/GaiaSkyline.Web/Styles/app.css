@@ -5,3 +5,28 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/*
+ * Admin rich-text editor (TipTap/ProseMirror). These selectors only exist on the admin content editor,
+ * so they add nothing to public pages. ProseMirror ships no runtime stylesheet (we don't inject <style>,
+ * which the CSP would block), so the minimal base lives here.
+ */
+.ProseMirror {
+  min-height: 7rem;
+  outline: none;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+.ProseMirror p { margin: 0 0 0.5rem; }
+.ProseMirror ul { list-style: disc; padding-left: 1.25rem; margin: 0 0 0.5rem; }
+.ProseMirror ol { list-style: decimal; padding-left: 1.25rem; margin: 0 0 0.5rem; }
+.ProseMirror a { color: #3a6a7a; text-decoration: underline; }
+.ProseMirror:focus { outline: none; }
+.gaia-tb {
+  border: 1px solid transparent;
+  border-radius: 0.25rem;
+  padding: 0.125rem 0.5rem;
+  line-height: 1.25rem;
+}
+.gaia-tb:hover { background: #f4f1ea; }
+.gaia-tb.is-active { background: #e9e3d6; border-color: #d8cdb8; }

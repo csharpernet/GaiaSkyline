@@ -1,0 +1,120 @@
+@using GaiaSkyline.Application.Content
+@model GaiaSkyline.Application.Content.AdminContentOverview
+@{
+    Layout = "_AdminShell";
+    ViewData["Title"] = "Translation status";
+    var sectionFilter = ViewData["Section"] as string;
+    var statusFilter = (ViewData["Status"] as string) ?? "";
+
+    bool BlockHasEmpty(AdminContentBlockSummary b) => b.Languages.Any(l => l.IsEmpty);
+    bool BlockHasPlaceholder(AdminContentBlockSummary b) => b.Languages.Any(l => l.IsPlaceholder);
+
+    var rows = Model.Sections
+        .Where(s => string.IsNullOrEmpty(sectionFilter) || s.Key == sectionFilter)
+        .SelectMany(s => s.Blocks.Select(b => (Section: s, Block: b)))
+        .Where(x => statusFilter switch
+        {
+            "empty" => BlockHasEmpty(x.Block),
+            "placeholder" => BlockHasPlaceholder(x.Block),
+            "issues" => BlockHasEmpty(x.Block) || BlockHasPlaceholder(x.Block),
+            _ => true,
+        })
+        .ToList();
+
+    var emptyCount = Model.Sections.SelectMany(s => s.Blocks).Count(BlockHasEmpty);
+    var placeholderCount = Model.Sections.SelectMany(s => s.Blocks).Count(BlockHasPlaceholder);
+}
+
+<div class="max-w-6xl">
+    <div class="flex items-start justify-between gap-4">
+        <div>
+            <h1 class="font-display text-2xl font-semibold">Translation status</h1>
+            <p class="mt-1 text-sm text-ink/70">
+                @emptyCount block(s) with an empty value · @placeholderCount with a leftover <code class="font-mono text-xs">[XX]</code> placeholder.
+            </p>
+        </div>
+        <a href="/admin/content" class="shrink-0 text-sm text-river hover:underline">← Back to content</a>
+    </div>
+
+    <form method="get" action="/admin/content/grid" class="mt-4 flex flex-wrap items-end gap-3 text-sm">
+        <div>
+            <label for="section" class="block text-xs font-semibold text-river">Section</label>
+            <select id="section" name="section" class="mt-1 rounded-md border border-fog px-2 py-1.5 bg-white">
+                <option value="">All</option>
+                @foreach (var s in Model.Sections)
+                {
+                    <option value="@s.Key" selected="@(sectionFilter == s.Key)">@s.DisplayName</option>
+                }
+            </select>
+        </div>
+        <div>
+            <label for="status" class="block text-xs font-semibold text-river">Show</label>
+            <select id="status" name="status" class="mt-1 rounded-md border border-fog px-2 py-1.5 bg-white">
+                <option value="" selected="@(statusFilter == "")">All blocks</option>
+                <option value="issues" selected="@(statusFilter == "issues")">Any issue</option>
+                <option value="empty" selected="@(statusFilter == "empty")">Empty only</option>
+                <option value="placeholder" selected="@(statusFilter == "placeholder")">Placeholder only</option>
+            </select>
+        </div>
+        <button type="submit" class="bg-river text-white rounded-md px-4 py-2">Filter</button>
+        <a href="/admin/content/grid" class="text-river hover:underline">Reset</a>
+    </form>
+
+    <div class="mt-3 flex items-center gap-4 text-xs text-ink/60">
+        <span class="flex items-center gap-1"><span class="inline-block w-2 h-2 rounded-full bg-clay"></span> empty</span>
+        <span class="flex items-center gap-1"><span class="inline-block w-2 h-2 rounded-full bg-[#C98A3A]"></span> placeholder</span>
+        <span class="flex items-center gap-1"><span class="inline-block w-2 h-2 rounded-full bg-river/30"></span> set</span>
+    </div>
+
+    <div class="mt-3 overflow-x-auto bg-white border border-fog rounded-md">
+        <table class="w-full text-sm">
+            <thead class="text-left text-xs uppercase tracking-wide text-ink/50 border-b border-fog">
+                <tr>
+                    <th class="px-3 py-2">Block</th>
+                    <th class="px-3 py-2">Section</th>
+                    @foreach (var lang in ContentLanguages.All)
+                    {
+                        <th class="px-2 py-2 text-center">@ContentLanguages.ShortLabel(lang)</th>
+                    }
+                </tr>
+            </thead>
+            <tbody>
+                @if (rows.Count == 0)
+                {
+                    <tr><td colspan="@(ContentLanguages.All.Count + 2)" class="px-3 py-6 text-center text-ink/50">No blocks match these filters.</td></tr>
+                }
+                @foreach (var (sec, block) in rows)
+                {
+                    <tr class="border-b border-fog/60 align-middle hover:bg-stone/50">
+                        <td class="px-3 py-2">
+                            <a href="/admin/content/edit/@Uri.EscapeDataString(block.Key)" class="text-river hover:underline">@block.DisplayName</a>
+                            <div class="text-[11px] text-ink/40 font-mono">@block.Key</div>
+                        </td>
+                        <td class="px-3 py-2 text-ink/60">@sec.DisplayName</td>
+                        @foreach (var l in block.Languages)
+                        {
+                            <td class="px-2 py-2 text-center">
+                                @if (l.IsEmpty)
+                                {
+                                    <a href="/admin/content/edit/@Uri.EscapeDataString(block.Key)" title="Empty — click to fix">
+                                        <span class="inline-block w-2.5 h-2.5 rounded-full bg-clay"></span>
+                                    </a>
+                                }
+                                else if (l.IsPlaceholder)
+                                {
+                                    <a href="/admin/content/edit/@Uri.EscapeDataString(block.Key)" title="Placeholder — click to translate">
+                                        <span class="inline-block w-2.5 h-2.5 rounded-full bg-[#C98A3A]"></span>
+                                    </a>
+                                }
+                                else
+                                {
+                                    <span class="inline-block w-2.5 h-2.5 rounded-full bg-river/30" title="Set"></span>
+                                }
+                            </td>
+                        }
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

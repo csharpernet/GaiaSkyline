@@ -44,6 +44,7 @@ public static class DependencyInjection
             options.UseSqlServer(connectionString, sql => sql.EnableRetryOnFailure()));
 
         services.AddScoped<IContentReadStore, ContentReadStore>();
+        services.AddScoped<GaiaSkyline.Application.Content.IAdminContentReadService, GaiaSkyline.Infrastructure.Content.AdminContentReadService>();
         services.AddSingleton<GaiaSkyline.Application.Content.IHtmlContentSanitizer, GaiaSkyline.Infrastructure.Content.HtmlContentSanitizer>();
         services.AddScoped<ContentSeeder>();
         services.AddScoped<BookingSeeder>();

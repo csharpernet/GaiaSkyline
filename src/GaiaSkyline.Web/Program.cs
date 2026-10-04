@@ -212,6 +212,11 @@ builder.Services.AddSingleton(sp =>
 QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
 
 // Per-IP rate limits on the booking endpoints (abuse protection; checkout is the stricter one).
+// Under the E2E seam the whole Playwright suite signs the one Owner in many times from a single IP
+// (each login hits /admin/login + /admin/two-factor), which would exhaust the production login budget;
+// relax the auth limits there only. The seam is dev/CI-only and throws if ever enabled in Production.
+var loginPermitLimit = e2eEnabled ? 10_000 : 10;
+var authPermitLimit = e2eEnabled ? 10_000 : 5;
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -234,14 +239,14 @@ builder.Services.AddRateLimiter(options =>
         partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         factory: _ => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
         {
-            PermitLimit = 10,
+            PermitLimit = loginPermitLimit,
             Window = TimeSpan.FromMinutes(15),
         }));
     options.AddPolicy("auth", httpContext => System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
         partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         factory: _ => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
         {
-            PermitLimit = 5,
+            PermitLimit = authPermitLimit,
             Window = TimeSpan.FromMinutes(15),
         }));
 });
