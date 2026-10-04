@@ -42,6 +42,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
 
     public DbSet<MediaAssetAlias> MediaAssetAliases => Set<MediaAssetAlias>();
 
+    public DbSet<HeroVideo> HeroVideos => Set<HeroVideo>();
+
     public DbSet<Review> Reviews => Set<Review>();
 
     public DbSet<Story> Stories => Set<Story>();
@@ -95,6 +97,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
         configurationBuilder.Properties<MediaCollectionItemId>().HaveConversion<MediaCollectionItemIdConverter>();
         configurationBuilder.Properties<MediaAssetAltTextId>().HaveConversion<MediaAssetAltTextIdConverter>();
         configurationBuilder.Properties<MediaAssetAliasId>().HaveConversion<MediaAssetAliasIdConverter>();
+        configurationBuilder.Properties<HeroVideoId>().HaveConversion<HeroVideoIdConverter>();
+        configurationBuilder.Properties<HeroVideoRenditionId>().HaveConversion<HeroVideoRenditionIdConverter>();
         configurationBuilder.Properties<ReviewId>().HaveConversion<ReviewIdConverter>();
         configurationBuilder.Properties<StoryId>().HaveConversion<StoryIdConverter>();
         configurationBuilder.Properties<StoryTranslationId>().HaveConversion<StoryTranslationIdConverter>();

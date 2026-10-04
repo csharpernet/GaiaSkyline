@@ -97,6 +97,16 @@ public static class DependencyInjection
         services.AddScoped<GaiaSkyline.Application.Media.IAdminMediaReadService, GaiaSkyline.Infrastructure.Media.AdminMediaReadService>();
         services.AddScoped<GaiaSkyline.Application.Media.IMediaAliasResolver, GaiaSkyline.Infrastructure.Media.MediaAliasResolver>();
 
+        // Hero background video (Stage 7E-4; transcoder swappable per ADR 0017). The job scheduler defaults to a
+        // no-op warning here and is overridden by Hangfire when background processing is enabled.
+        services.AddOptions<GaiaSkyline.Application.Media.VideoTranscodingOptions>()
+            .Bind(configuration.GetSection(GaiaSkyline.Application.Media.VideoTranscodingOptions.SectionName));
+        services.AddSingleton<GaiaSkyline.Application.Media.IVideoTranscoder, GaiaSkyline.Infrastructure.Media.FfmpegVideoTranscoder>();
+        services.AddScoped<GaiaSkyline.Application.Media.IHeroVideoService, GaiaSkyline.Infrastructure.Media.HeroVideoService>();
+        services.AddScoped<GaiaSkyline.Application.Media.IHeroVideoReadService, GaiaSkyline.Infrastructure.Media.HeroVideoReadService>();
+        services.AddScoped<GaiaSkyline.Application.Media.IHeroVideoTranscodeJob, GaiaSkyline.Infrastructure.Media.HeroVideoTranscodeJob>();
+        services.AddScoped<GaiaSkyline.Application.Media.IHeroVideoJobScheduler, GaiaSkyline.Infrastructure.Media.LoggingHeroVideoJobScheduler>();
+
         // Payments (Stage 4 / Increment C).
         services.AddOptions<StripeOptions>().Bind(configuration.GetSection(StripeOptions.SectionName));
         services.AddSingleton<IStripeClient>(sp =>

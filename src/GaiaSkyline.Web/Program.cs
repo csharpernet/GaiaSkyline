@@ -47,6 +47,7 @@ builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddBackgroundJobs(builder.Configuration);
 builder.Services.AddScoped<GaiaSkyline.Application.Storage.IMediaStorage, GaiaSkyline.Web.Storage.LocalDiskMediaStorage>();
+builder.Services.AddSingleton<GaiaSkyline.Application.Media.IMediaDirectoryProvider, GaiaSkyline.Web.Storage.LocalMediaDirectoryProvider>();
 
 // Owner content preview (Stage 7D): the signed cookie makes the public read render drafts.
 builder.Services.AddScoped<GaiaSkyline.Web.Content.ContentPreview>();

@@ -57,6 +57,9 @@ public static class DependencyInjection
         // Dispatch booking emails via Hangfire (overrides the inline fallback from AddInfrastructure).
         services.AddScoped<GaiaSkyline.Application.Notifications.IEmailJobScheduler, HangfireEmailJobScheduler>();
 
+        // Transcode hero videos via Hangfire (overrides the no-op scheduler from AddInfrastructure).
+        services.AddScoped<GaiaSkyline.Application.Media.IHeroVideoJobScheduler, HangfireHeroVideoJobScheduler>();
+
         return services;
     }
 }

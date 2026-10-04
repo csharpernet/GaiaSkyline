@@ -62,6 +62,22 @@ internal sealed class MediaAssetAliasIdConverter : ValueConverter<MediaAssetAlia
     }
 }
 
+internal sealed class HeroVideoIdConverter : ValueConverter<HeroVideoId, Guid>
+{
+    public HeroVideoIdConverter()
+        : base(id => id.Value, value => HeroVideoId.From(value))
+    {
+    }
+}
+
+internal sealed class HeroVideoRenditionIdConverter : ValueConverter<HeroVideoRenditionId, Guid>
+{
+    public HeroVideoRenditionIdConverter()
+        : base(id => id.Value, value => HeroVideoRenditionId.From(value))
+    {
+    }
+}
+
 internal sealed class ReviewIdConverter : ValueConverter<ReviewId, Guid>
 {
     public ReviewIdConverter()

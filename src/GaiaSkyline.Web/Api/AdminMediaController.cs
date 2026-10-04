@@ -16,9 +16,13 @@ namespace GaiaSkyline.Web.Api;
 [Authorize(Policy = AuthorizationPolicies.Owner)]
 public sealed class AdminMediaController(
     IAdminMediaService media,
+    IHeroVideoService heroVideo,
     IWebHostEnvironment environment,
     IAuditLog audit) : ControllerBase
 {
+    // 500 MB — the hero-video source upload limit (ADR 0017 / Stage 7E-4).
+    private const long HeroUploadByteLimit = 500L * 1024 * 1024;
+
     private string Actor => User.Identity?.Name ?? "owner";
 
     private Guid? ActorId => Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : null;
@@ -46,6 +50,36 @@ public sealed class AdminMediaController(
         var id = await media.UploadImageAsync(stream, directory, altText, file.FileName, Actor, cancellationToken);
         await audit.WriteAsync("media.upload", ActorId, Ip, "MediaAsset", id.ToString(), null, cancellationToken);
         return Ok(new { id });
+    }
+
+    [HttpPost("hero")]
+    [RequestSizeLimit(HeroUploadByteLimit)]
+    [RequestFormLimits(MultipartBodyLengthLimit = HeroUploadByteLimit)]
+    public async Task<IActionResult> UploadHero(
+        IFormFile file,
+        [FromForm] double? trimStart,
+        [FromForm] double? trimEnd,
+        [FromForm] double? crossfade,
+        [FromForm] double? focalX,
+        CancellationToken cancellationToken)
+    {
+        if (file is null || file.Length == 0)
+        {
+            return BadRequest(new { error = "No file uploaded." });
+        }
+
+        await using var stream = file.OpenReadStream();
+        var request = new HeroVideoUploadRequest(
+            stream, file.FileName, file.Length, file.ContentType,
+            trimStart, trimEnd, crossfade ?? 0, focalX ?? 0.5);
+        var result = await heroVideo.StartUploadAsync(request, Actor, cancellationToken);
+        if (!result.Accepted)
+        {
+            return BadRequest(new { error = result.Error });
+        }
+
+        await audit.WriteAsync("hero.upload", ActorId, Ip, "HeroVideo", result.HeroVideoId!.ToString(), null, cancellationToken);
+        return Ok(new { id = result.HeroVideoId, status = "transcoding" });
     }
 
     [HttpPut("collections/{key}/items")]
