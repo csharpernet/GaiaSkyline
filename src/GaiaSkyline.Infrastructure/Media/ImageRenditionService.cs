@@ -9,9 +9,9 @@ namespace GaiaSkyline.Infrastructure.Media;
 public sealed record RenditionResult(string Lqip, long MasterBytes, int Width, int Height);
 
 /// <summary>
-/// Generates the responsive raster set (WebP + JPEG at 400/800/1600w) plus a tiny LQIP, using the same
-/// encoder settings and the <c>{stem}-{w}.{ext}</c> naming the dev seeder and ResponsiveImage rely on.
-/// The 1600w JPEG is the canonical master (<c>{stem}-1600.jpg</c>).
+/// Generates the responsive raster set (AVIF + WebP + JPEG at 400/800/1600w) plus a tiny LQIP, using the
+/// same encoder settings and the <c>{stem}-{w}.{ext}</c> naming the dev seeder and ResponsiveImage rely on.
+/// The 1600w JPEG is the canonical master (<c>{stem}-1600.jpg</c>); AVIF comes from Magick.NET (ADR 0016).
 /// </summary>
 internal sealed class ImageRenditionService : IImageRenditionService
 {
@@ -39,6 +39,14 @@ internal sealed class ImageRenditionService : IImageRenditionService
             var webpPath = Path.Combine(destinationDirectory, $"{stem}-{width}.webp");
             await variant.SaveAsync(jpgPath, jpeg, cancellationToken);
             await variant.SaveAsync(webpPath, webp, cancellationToken);
+
+            // AVIF via Magick.NET, bridged through a lossless PNG of the same resized variant.
+            var avifPath = Path.Combine(destinationDirectory, $"{stem}-{width}.{AvifRaster.Extension}");
+            using (var png = new MemoryStream())
+            {
+                await variant.SaveAsPngAsync(png, cancellationToken);
+                await File.WriteAllBytesAsync(avifPath, AvifRaster.Encode(png.ToArray()), cancellationToken);
+            }
 
             if (width == MasterWidth)
             {

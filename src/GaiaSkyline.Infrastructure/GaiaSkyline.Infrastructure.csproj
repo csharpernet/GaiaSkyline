@@ -35,10 +35,15 @@
     <!--
       ImageSharp generates the responsive raster variants (WebP + JPEG at 400/800/1600w) and the
       LQIP previews in the dev seeder. Pinned to the 2.1.x line, which is Apache-2.0 (3.x moved to
-      the Six Labors Split License). AVIF has no managed encoder here, so real AVIF is deferred to
-      the Stage 7 asset pipeline; see ADR 0008.
+      the Six Labors Split License).
     -->
     <PackageReference Include="SixLabors.ImageSharp" Version="2.1.11" />
+    <!--
+      Magick.NET adds the AVIF rendition alongside WebP/JPEG (Stage 7E; ADR 0016). The Q8-AnyCPU
+      build bundles the native ImageMagick + libheif/aom AVIF encoder for Windows and Linux, so it
+      works in dev, CI and on Linux App Service with no system install. Apache-2.0.
+    -->
+    <PackageReference Include="Magick.NET-Q8-AnyCPU" Version="14.17.2" />
     <PackageReference Include="Stripe.net" Version="53.0.0" />
 
     <!--

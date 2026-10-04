@@ -30,6 +30,8 @@ public class ResponsiveImageTests
             wrapperClass: "aspect-[3/2]");
 
         image.Src.Should().Be("/media/home-gallery-1-1600.jpg");
+        image.AvifSrcset.Should().Be(
+            "/media/home-gallery-1-400.avif 400w, /media/home-gallery-1-800.avif 800w, /media/home-gallery-1-1600.avif 1600w");
         image.WebpSrcset.Should().Be(
             "/media/home-gallery-1-400.webp 400w, /media/home-gallery-1-800.webp 800w, /media/home-gallery-1-1600.webp 1600w");
         image.JpegSrcset.Should().Be(
@@ -48,6 +50,7 @@ public class ResponsiveImageTests
             sizes: "100vw",
             wrapperClass: "aspect-[3/2]");
 
+        image.AvifSrcset.Should().BeNull();
         image.WebpSrcset.Should().BeNull();
         image.JpegSrcset.Should().BeNull();
         image.Src.Should().Be("/media/legacy-photo.png");

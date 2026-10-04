@@ -4,9 +4,9 @@ using GaiaSkyline.Application.Content;
 namespace GaiaSkyline.Web.Media;
 
 /// <summary>
-/// View model for the shared <c>_Picture</c> partial. Builds the WebP + JPEG <c>srcset</c> for a
-/// media asset produced by the responsive raster pipeline (see ADR 0008). The <c>&lt;picture&gt;</c>
-/// markup already carries an AVIF-ready structure; real AVIF renditions arrive in Stage 7.
+/// View model for the shared <c>_Picture</c> partial. Builds the AVIF + WebP + JPEG <c>srcset</c> for a
+/// media asset produced by the responsive raster pipeline (see ADR 0008 and ADR 0016). AVIF is offered
+/// first so capable browsers pick the smallest format.
 /// </summary>
 public sealed record ResponsiveImage
 {
@@ -15,6 +15,7 @@ public sealed record ResponsiveImage
 
     private ResponsiveImage(
         string src,
+        string? avifSrcset,
         string? webpSrcset,
         string? jpegSrcset,
         string sizes,
@@ -27,6 +28,7 @@ public sealed record ResponsiveImage
         string wrapperClass)
     {
         Src = src;
+        AvifSrcset = avifSrcset;
         WebpSrcset = webpSrcset;
         JpegSrcset = jpegSrcset;
         Sizes = sizes;
@@ -41,6 +43,8 @@ public sealed record ResponsiveImage
 
     /// <summary>Fallback source: the full-width JPEG.</summary>
     public string Src { get; }
+
+    public string? AvifSrcset { get; }
 
     public string? WebpSrcset { get; }
 
@@ -81,10 +85,13 @@ public sealed record ResponsiveImage
         ArgumentNullException.ThrowIfNull(asset);
 
         var stem = Stem(asset.BlobUri);
+        string? avif = null;
         string? webp = null;
         string? jpeg = null;
         if (stem is not null)
         {
+            avif = string.Join(", ", Widths.Select(w => string.Create(
+                CultureInfo.InvariantCulture, $"{stem}-{w}.avif {w}w")));
             webp = string.Join(", ", Widths.Select(w => string.Create(
                 CultureInfo.InvariantCulture, $"{stem}-{w}.webp {w}w")));
             jpeg = string.Join(", ", Widths.Select(w => string.Create(
@@ -93,6 +100,7 @@ public sealed record ResponsiveImage
 
         return new ResponsiveImage(
             asset.BlobUri,
+            avif,
             webp,
             jpeg,
             sizes,

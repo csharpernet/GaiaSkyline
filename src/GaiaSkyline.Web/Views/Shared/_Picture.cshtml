@@ -1,8 +1,8 @@
 @model GaiaSkyline.Web.Media.ResponsiveImage
 @*
-    Responsive image: AVIF-ready <picture> with WebP + JPEG srcset, a blurred LQIP behind it, and
-    explicit width/height so the reserved box keeps CLS at zero. The wrapper must carry an
-    aspect-ratio utility (passed via Model.WrapperClass). See ADR 0008.
+    Responsive image: <picture> with AVIF + WebP + JPEG srcset (AVIF first, smallest), a blurred LQIP
+    behind it, and explicit width/height so the reserved box keeps CLS at zero. The wrapper must carry
+    an aspect-ratio utility (passed via Model.WrapperClass). See ADR 0008 and ADR 0016.
 *@
 <div class="gs-pic relative overflow-hidden bg-fog @Model.WrapperClass">
     @if (!string.IsNullOrEmpty(Model.Lqip))
@@ -11,6 +11,10 @@
              class="absolute inset-0 z-0 h-full w-full scale-105 object-cover blur-xl" />
     }
     <picture>
+        @if (Model.AvifSrcset is not null)
+        {
+            <source type="image/avif" srcset="@Model.AvifSrcset" sizes="@Model.Sizes" />
+        }
         @if (Model.WebpSrcset is not null)
         {
             <source type="image/webp" srcset="@Model.WebpSrcset" sizes="@Model.Sizes" />

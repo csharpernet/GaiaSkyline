@@ -5,6 +5,7 @@ using GaiaSkyline.Domain.Identifiers;
 using GaiaSkyline.Domain.Media;
 using GaiaSkyline.Domain.Reviews;
 using GaiaSkyline.Domain.Stories;
+using GaiaSkyline.Infrastructure.Media;
 using GaiaSkyline.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using SixLabors.ImageSharp;
@@ -163,9 +164,12 @@ public sealed class ContentSeeder(AppDbContext dbContext, IContentRevision revis
         var masterPath = mediaPhysicalRoot is null
             ? null
             : Path.Combine(mediaPhysicalRoot, $"{slug}-{MasterWidth}.jpg");
+        var avifMasterPath = mediaPhysicalRoot is null
+            ? null
+            : Path.Combine(mediaPhysicalRoot, $"{slug}-{MasterWidth}.{AvifRaster.Extension}");
 
-        // Idempotent fast path: the DB row exists and its rasters are on disk — nothing to do.
-        if (alreadySeeded && (masterPath is null || File.Exists(masterPath)))
+        // Idempotent fast path: the DB row exists and its rasters (incl. the AVIF master) are on disk.
+        if (alreadySeeded && (masterPath is null || (File.Exists(masterPath) && File.Exists(avifMasterPath!))))
         {
             return;
         }
@@ -219,8 +223,10 @@ public sealed class ContentSeeder(AppDbContext dbContext, IContentRevision revis
 
             var jpgPath = Path.Combine(root, $"{slug}-{width}.jpg");
             var webpPath = Path.Combine(root, $"{slug}-{width}.webp");
+            var avifPath = Path.Combine(root, $"{slug}-{width}.{AvifRaster.Extension}");
             WriteVariantAtomically(jpgPath, jpegEncoder, variant);
             WriteVariantAtomically(webpPath, webpEncoder, variant);
+            WriteAvifAtomically(avifPath, variant);
 
             if (width == MasterWidth)
             {
@@ -261,6 +267,47 @@ public sealed class ContentSeeder(AppDbContext dbContext, IContentRevision revis
         try
         {
             image.Save(tempPath, encoder);
+            File.Move(tempPath, finalPath, overwrite: true);
+        }
+        catch (IOException)
+        {
+            // Another seeder is producing the same file concurrently; its bytes are identical.
+        }
+        finally
+        {
+            if (File.Exists(tempPath))
+            {
+                try
+                {
+                    File.Delete(tempPath);
+                }
+                catch (IOException)
+                {
+                    // Best effort; a stray temp file is harmless and git-ignored.
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Writes the AVIF variant atomically (skipping if present), bridging the ImageSharp gradient through a
+    /// lossless PNG into Magick.NET (ADR 0016). Same concurrency/idempotency contract as the raster writer.
+    /// </summary>
+    private static void WriteAvifAtomically(string finalPath, Image<Rgba32> image)
+    {
+        if (File.Exists(finalPath))
+        {
+            return;
+        }
+
+        using var png = new MemoryStream();
+        image.SaveAsPng(png);
+        var avif = AvifRaster.Encode(png.ToArray());
+
+        var tempPath = $"{finalPath}.{Guid.NewGuid():N}.tmp";
+        try
+        {
+            File.WriteAllBytes(tempPath, avif);
             File.Move(tempPath, finalPath, overwrite: true);
         }
         catch (IOException)
