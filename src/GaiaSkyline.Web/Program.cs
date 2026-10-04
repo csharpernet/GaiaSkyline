@@ -436,6 +436,15 @@ if (GaiaSkyline.BackgroundJobs.DependencyInjection.IsEnabled(builder.Configurati
         "rate-sync",
         service => service.SyncAsync(CancellationToken.None),
         $"0 */{rateSyncHours} * * *");
+
+    // Daily 09:00 Europe/Lisbon nudge for direct bookings still to be mirrored in Hostify (manual mode);
+    // the job no-ops when nothing is overdue (Stage 7C).
+    Hangfire.RecurringJobManagerExtensions.AddOrUpdate<GaiaSkyline.Application.Admin.IManualSyncReminderService>(
+        recurringJobs,
+        "manual-sync-reminder",
+        service => service.SendDueRemindersAsync(CancellationToken.None),
+        "0 9 * * *",
+        new Hangfire.RecurringJobOptions { TimeZone = TimeZoneInfo.FindSystemTimeZoneById("Europe/Lisbon") });
 }
 
 app.Run();

@@ -163,6 +163,15 @@ public sealed class Booking : Entity<BookingId>
 
     public string? Notes { get; private set; }
 
+    /// <summary>
+    /// When the owner last confirmed this booking's change was mirrored in the management system
+    /// (Hostify). Null = never acknowledged. A later status change (confirm/cancel) past this time puts
+    /// the booking back on the manual-sync to-do until acknowledged again. See the Stage 5 preface.
+    /// </summary>
+    public DateTime? ExternalChannelSyncedAtUtc { get; private set; }
+
+    public string? ExternalChannelSyncNote { get; private set; }
+
     /// <summary>Associates the Stripe customer used for this booking.</summary>
     public void AttachStripeCustomer(string customerId)
     {
@@ -217,6 +226,13 @@ public sealed class Booking : Entity<BookingId>
 
     /// <summary>Appends an internal operations note.</summary>
     public void SetNotes(string? notes) => Notes = string.IsNullOrWhiteSpace(notes) ? null : notes.Trim();
+
+    /// <summary>Records that the owner mirrored this booking's current state in the management system.</summary>
+    public void MarkExternalChannelSynced(DateTime atUtc, string? note)
+    {
+        ExternalChannelSyncedAtUtc = atUtc;
+        ExternalChannelSyncNote = string.IsNullOrWhiteSpace(note) ? null : note.Trim();
+    }
 
     private void Transition(BookingStatus to)
     {

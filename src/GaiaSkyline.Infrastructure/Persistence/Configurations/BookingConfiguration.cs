@@ -56,6 +56,8 @@ internal sealed class BookingConfiguration : IEntityTypeConfiguration<Booking>
         builder.Property(b => b.CancelledAtUtc);
         builder.Property(b => b.CancellationReason).HasMaxLength(500);
         builder.Property(b => b.Notes).HasMaxLength(2000);
+        builder.Property(b => b.ExternalChannelSyncedAtUtc);
+        builder.Property(b => b.ExternalChannelSyncNote).HasMaxLength(500);
 
         builder.HasOne<PromoCode>()
             .WithMany()

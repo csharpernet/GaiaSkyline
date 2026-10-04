@@ -84,6 +84,10 @@ public static class DependencyInjection
         services.AddScoped<GaiaSkyline.Application.Partners.IPartnerRefreshTokenStore, GaiaSkyline.Infrastructure.Partners.PartnerRefreshTokenStore>();
         services.AddScoped<IInvoiceService, QuestPdfInvoiceService>();
 
+        // Admin dashboard + manual Hostify-sync to-do (Stage 7C).
+        services.AddScoped<GaiaSkyline.Application.Admin.IDashboardService, GaiaSkyline.Infrastructure.Admin.DashboardService>();
+        services.AddScoped<GaiaSkyline.Application.Admin.IManualSyncReminderService, GaiaSkyline.Infrastructure.Admin.ManualSyncReminderService>();
+
         // Owner write APIs (Stage 6E).
         services.AddScoped<GaiaSkyline.Application.Content.IAdminContentService, GaiaSkyline.Infrastructure.Content.AdminContentService>();
         services.AddScoped<GaiaSkyline.Infrastructure.Media.IImageRenditionService, GaiaSkyline.Infrastructure.Media.ImageRenditionService>();

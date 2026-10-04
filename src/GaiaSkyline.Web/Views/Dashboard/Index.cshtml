@@ -1,0 +1,145 @@
+@using System.Globalization
+@using GaiaSkyline.Application.Admin
+@model DashboardSummary
+@{
+    Layout = "_AdminShell";
+    ViewData["Title"] = "Dashboard";
+    string Eur(decimal a) => "€" + a.ToString("N0", CultureInfo.InvariantCulture);
+    var prev = Model.Month.AddMonths(-1).ToString("yyyy-MM", CultureInfo.InvariantCulture);
+    var next = Model.Month.AddMonths(1).ToString("yyyy-MM", CultureInfo.InvariantCulture);
+    string DayClass(DayOccupancy o) => o switch
+    {
+        DayOccupancy.DirectBooking => "bg-clay text-white",
+        DayOccupancy.ImportedBlock => "bg-river text-white",
+        DayOccupancy.ExternalOwnerBlock => "bg-[#C98A3A] text-white",
+        DayOccupancy.OwnerUnavailable => "bg-fog text-ink",
+        _ => "bg-white text-ink/80",
+    };
+}
+
+<div class="max-w-6xl">
+    <h1 class="font-display text-2xl font-semibold">Dashboard</h1>
+
+    <div class="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div class="bg-white border border-fog rounded-md p-4">
+            <p class="text-xs uppercase tracking-wide text-ink/50">Bookings this month</p>
+            <p class="mt-2 text-2xl font-display font-semibold">@Model.BookingsThisMonth</p>
+        </div>
+        <div class="bg-white border border-fog rounded-md p-4">
+            <p class="text-xs uppercase tracking-wide text-ink/50">Occupancy</p>
+            <p class="mt-2 text-2xl font-display font-semibold">@Model.OccupancyPercent%</p>
+        </div>
+        <div class="bg-white border border-fog rounded-md p-4">
+            <p class="text-xs uppercase tracking-wide text-ink/50">Revenue (MTD)</p>
+            <p class="mt-2 text-2xl font-display font-semibold">@Eur(Model.RevenueMonthToDate)</p>
+        </div>
+        <div class="bg-white border border-fog rounded-md p-4">
+            <p class="text-xs uppercase tracking-wide text-ink/50">Next check-in</p>
+            @if (Model.NextCheckIn is { } n)
+            {
+                <p class="mt-2 text-lg font-display font-semibold">@n.CheckIn.ToString("d MMM", CultureInfo.InvariantCulture)</p>
+                <p class="text-xs text-ink/60">@n.GuestName · @n.Reference</p>
+            }
+            else
+            {
+                <p class="mt-2 text-2xl font-display font-semibold text-ink/30">—</p>
+            }
+        </div>
+    </div>
+
+    <div class="mt-4 grid gap-4 sm:grid-cols-2">
+        <div class="bg-white border @(Model.CalendarManualMode ? "border-[#C98A3A]" : "border-fog") rounded-md p-4">
+            <p class="text-xs uppercase tracking-wide text-ink/50">Calendar</p>
+            <p class="mt-1 text-sm">@Model.CalendarStatus</p>
+        </div>
+        <div class="bg-white border @(Model.PricingManualMode ? "border-[#C98A3A]" : "border-fog") rounded-md p-4">
+            <p class="text-xs uppercase tracking-wide text-ink/50">Pricing</p>
+            <p class="mt-1 text-sm">@Model.PricingStatus</p>
+        </div>
+    </div>
+
+    @if (Model.ManualSyncItems.Count > 0)
+    {
+        <section class="mt-6 bg-white border border-fog rounded-md p-4">
+            <h2 class="font-display text-lg font-semibold">Mirror in Hostify (@Model.ManualSyncItems.Count)</h2>
+            <p class="text-xs text-ink/60">While the calendar is in manual mode, mirror each confirmed/cancelled direct booking in Hostify, then tick it off.</p>
+            <ul class="mt-3 divide-y divide-fog">
+                @foreach (var item in Model.ManualSyncItems)
+                {
+                    var verb = item.Action == ManualSyncAction.BlockInHostify ? "Block" : "Unblock";
+                    <li class="py-2 flex items-center justify-between gap-3 @(item.Overdue ? "text-clay" : "")">
+                        <span class="text-sm">
+                            <strong>@verb</strong> @item.CheckIn.ToString("d MMM", CultureInfo.InvariantCulture)–@item.CheckOut.ToString("d MMM yyyy", CultureInfo.InvariantCulture)
+                            · @item.Reference (@item.GuestName)
+                            @if (item.Overdue)
+                            {
+                                <span class="text-xs font-semibold uppercase">overdue</span>
+                            }
+                        </span>
+                        <form method="post" action="/admin/sync/@item.Reference/done">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="text-xs border border-river text-river rounded px-2 py-1 hover:bg-river hover:text-white transition-colors">
+                                Done in Hostify
+                            </button>
+                        </form>
+                    </li>
+                }
+            </ul>
+        </section>
+    }
+
+    <section class="mt-6">
+        <div class="flex items-center justify-between">
+            <h2 class="font-display text-lg font-semibold">@Model.Month.ToString("MMMM yyyy", CultureInfo.InvariantCulture)</h2>
+            <div class="text-sm flex gap-3">
+                <a href="/admin?month=@prev" class="text-river hover:underline">← Prev</a>
+                <a href="/admin" class="text-river hover:underline">Today</a>
+                <a href="/admin?month=@next" class="text-river hover:underline">Next →</a>
+            </div>
+        </div>
+        <div class="mt-3 grid grid-cols-7 gap-1 text-center text-xs">
+            @foreach (var dow in new[] { "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun" })
+            {
+                <div class="font-semibold text-ink/50 py-1">@dow</div>
+            }
+            @foreach (var day in Model.CalendarDays)
+            {
+                <div class="rounded aspect-square flex items-start justify-end p-1 border border-fog/60 @DayClass(day.Occupancy) @(day.InMonth ? "" : "opacity-30")">
+                    <span class="text-[11px]">@day.Date.Day</span>
+                </div>
+            }
+        </div>
+        <div class="mt-3 flex flex-wrap gap-4 text-xs">
+            <span class="flex items-center gap-1"><span class="inline-block w-3 h-3 rounded bg-clay"></span> Direct booking</span>
+            <span class="flex items-center gap-1"><span class="inline-block w-3 h-3 rounded bg-river"></span> iCal import</span>
+            <span class="flex items-center gap-1"><span class="inline-block w-3 h-3 rounded bg-[#C98A3A]"></span> External (owner-entered)</span>
+            <span class="flex items-center gap-1"><span class="inline-block w-3 h-3 rounded bg-fog"></span> Owner unavailable</span>
+        </div>
+    </section>
+
+    @if (Model.Conflicts.Count > 0)
+    {
+        <section class="mt-6 bg-white border border-clay rounded-md p-4">
+            <h2 class="font-display text-lg font-semibold text-clay">Calendar conflicts (@Model.Conflicts.Count)</h2>
+            <ul class="mt-2 text-sm space-y-1">
+                @foreach (var c in Model.Conflicts)
+                {
+                    <li>@c.BookingReference overlaps @c.SourceName (@c.StartDate.ToString("d MMM", CultureInfo.InvariantCulture)–@c.EndDate.ToString("d MMM yyyy", CultureInfo.InvariantCulture))</li>
+                }
+            </ul>
+        </section>
+    }
+
+    @if (Model.MultibancoPending.Count > 0)
+    {
+        <section class="mt-6 bg-white border border-fog rounded-md p-4">
+            <h2 class="font-display text-lg font-semibold">Multibanco — awaiting payment (@Model.MultibancoPending.Count)</h2>
+            <ul class="mt-2 text-sm space-y-1">
+                @foreach (var m in Model.MultibancoPending)
+                {
+                    <li>@m.Reference · @Eur(m.Total) · ref @m.Entity @m.MultibancoReference @(m.ExpiresAtUtc is { } e ? $"· expires {e.ToString("g", CultureInfo.InvariantCulture)} UTC" : "")</li>
+                }
+            </ul>
+        </section>
+    }
+</div>

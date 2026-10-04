@@ -128,7 +128,7 @@ public sealed class AdminController(
         if (result.Succeeded)
         {
             await audit.WriteAsync(model.IsRecoveryCode ? "2fa.recovery_used" : "2fa.success", user.Id, Ip);
-            return RedirectToAction(nameof(Index));
+            return LocalRedirect("/admin");
         }
 
         if (result.IsLockedOut)
@@ -183,14 +183,6 @@ public sealed class AdminController(
         await audit.WriteAsync("2fa.enabled", user.Id, Ip);
 
         return View("RecoveryCodes", recoveryCodes?.ToArray() ?? []);
-    }
-
-    [HttpGet("")]
-    [Authorize(Policy = AuthorizationPolicies.Owner)]
-    public IActionResult Index()
-    {
-        NoIndex();
-        return View();
     }
 
     private async Task<EnrollTwoFactorViewModel> BuildEnrollModelAsync(ApplicationUser user)
