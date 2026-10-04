@@ -87,6 +87,50 @@ internal sealed class AdminMediaReadService(AppDbContext dbContext) : IAdminMedi
         return asset is not null && ReadyForPublic(asset);
     }
 
+    public async Task<GalleryManagerDto?> GetCollectionAsync(string key, CancellationToken cancellationToken)
+    {
+        var collection = await dbContext.MediaCollections
+            .AsNoTracking()
+            .Include(c => c.Items)
+            .FirstOrDefaultAsync(c => c.Key == key, cancellationToken);
+        if (collection is null)
+        {
+            return null;
+        }
+
+        // All non-deleted images, with alt loaded for the readiness flag.
+        var images = await dbContext.MediaAssets
+            .AsNoTracking()
+            .Include(a => a.AltTexts)
+            .Where(a => a.Kind == MediaKind.Image && !a.IsDeleted)
+            .ToListAsync(cancellationToken);
+        var byId = images.ToDictionary(a => a.Id);
+
+        var items = collection.Items
+            .OrderBy(i => i.DisplayOrder)
+            .Where(i => byId.ContainsKey(i.MediaAssetId))
+            .Select(i => ToGalleryItem(byId[i.MediaAssetId], i.IsHero))
+            .ToList();
+
+        var inCollection = collection.Items.Select(i => i.MediaAssetId).ToHashSet();
+        var available = images
+            .Where(a => !inCollection.Contains(a.Id))
+            .OrderByDescending(a => a.UploadedAtUtc)
+            .Select(a => ToGalleryItem(a, isHero: false))
+            .ToList();
+
+        return new GalleryManagerDto(collection.Key, collection.DisplayName, items, available);
+    }
+
+    private static GalleryItemDto ToGalleryItem(MediaAsset asset, bool isHero) => new(
+        asset.Id.Value,
+        asset.BlobUri,
+        asset.Lqip,
+        asset.Width,
+        asset.Height,
+        isHero,
+        ReadyForPublic(asset));
+
     // An image needs explicit alt text for every content language; a video is decorative (aria-hidden).
     private static bool ReadyForPublic(MediaAsset asset) =>
         asset.Kind == MediaKind.Video || asset.HasExplicitAltTextForAllLanguages(ContentLanguages.All);

@@ -20,6 +20,7 @@
         <div>
             <h1 class="font-display text-2xl font-semibold">Media</h1>
             <p class="mt-1 text-sm text-ink/70">@Model.Count asset(s). Every image needs alt text in all five languages before it can go on a public page.</p>
+            <a href="/admin/media/gallery" class="mt-1 inline-block text-sm text-river hover:underline">Manage home gallery →</a>
         </div>
         <div class="flex gap-1 text-sm">
             <a href="/admin/media" class="rounded-md px-3 py-1.5 @TabClass(null)">All</a>
@@ -55,7 +56,7 @@
         <div class="mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
             @foreach (var m in Model)
             {
-                <a href="/admin/media/@m.Id" class="block rounded-md border border-fog bg-white overflow-hidden hover:shadow-md transition-shadow">
+                <a href="/admin/media/@m.Id" data-media-card class="block rounded-md border border-fog bg-white overflow-hidden hover:shadow-md transition-shadow">
                     <div class="relative aspect-[3/2] bg-fog">
                         @if (m.Kind == MediaKind.Image)
                         {

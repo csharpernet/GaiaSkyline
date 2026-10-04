@@ -16,7 +16,7 @@ test.describe('Admin media manager', () => {
     await page.goto('/admin/media');
     await expect(page.getByRole('heading', { name: 'Media', exact: true })).toBeVisible();
 
-    const cards = page.locator('a[href^="/admin/media/"]');
+    const cards = page.locator('a[data-media-card]');
     const before = await cards.count();
 
     // Upload via the hidden file input; the glue uploads then reloads, so the grid grows by one.
@@ -43,7 +43,7 @@ test.describe('Admin media manager', () => {
     await loginAsOwner(page);
     await page.goto('/admin/media');
 
-    const cards = page.locator('a[href^="/admin/media/"]');
+    const cards = page.locator('a[data-media-card]');
     const before = await cards.count();
     await page.locator('#media-file-input').setInputFiles({ name: 'temp.png', mimeType: 'image/png', buffer: PNG });
     await expect(cards).toHaveCount(before + 1, { timeout: 30000 });
@@ -61,5 +61,24 @@ test.describe('Admin media manager', () => {
     await expect(page.locator('a[href="' + assetPath + '"]')).toHaveCount(0);
     await page.goto('/admin/media?kind=deleted');
     await expect(page.locator('a[href="' + assetPath + '"]')).toBeVisible();
+  });
+
+  test('gallery manager: set a new hero and save → it persists', async ({ page }) => {
+    await loginAsOwner(page);
+    await page.goto('/admin/media/gallery');
+    await expect(page.getByRole('heading', { name: 'Home gallery' })).toBeVisible();
+
+    const items = page.locator('#gallery-items li[data-asset-id]');
+    const count = await items.count();
+    expect(count).toBeGreaterThan(1);
+
+    // Make the second image the hero, save, and confirm it sticks after the reload.
+    const second = items.nth(1);
+    const secondId = await second.getAttribute('data-asset-id');
+    await second.locator('input[data-hero]').check();
+    await page.locator('#gallery-save').click();
+
+    const heroRadio = page.locator('#gallery-items li[data-asset-id="' + secondId + '"] input[data-hero]');
+    await expect(heroRadio).toBeChecked({ timeout: 15000 });
   });
 });

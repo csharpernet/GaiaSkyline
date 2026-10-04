@@ -29,6 +29,19 @@ public sealed class MediaAdminController(
         return View(items);
     }
 
+    [HttpGet("gallery")]
+    public async Task<IActionResult> Gallery(CancellationToken cancellationToken)
+    {
+        ViewData["Title"] = "Home gallery";
+        var model = await read.GetCollectionAsync("home.gallery", cancellationToken);
+        if (model is null)
+        {
+            return NotFound();
+        }
+
+        return View(model);
+    }
+
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> Edit(Guid id, CancellationToken cancellationToken)
     {

@@ -40,10 +40,27 @@ public sealed record MediaAssetDetailDto(
     IReadOnlyList<MediaUsageDto> UsedBy,
     bool IsDeleted);
 
+/// <summary>One image in the gallery manager: its order comes from position; hero and readiness are flags.</summary>
+public sealed record GalleryItemDto(
+    Guid MediaAssetId,
+    string BlobUri,
+    string? Lqip,
+    int Width,
+    int Height,
+    bool IsHero,
+    bool ReadyForPublic);
+
+/// <summary>A media collection for the gallery manager: its ordered items plus the images available to add.</summary>
+public sealed record GalleryManagerDto(
+    string Key,
+    string DisplayName,
+    IReadOnlyList<GalleryItemDto> Items,
+    IReadOnlyList<GalleryItemDto> Available);
+
 /// <summary>
 /// Owner-only media reads for the admin manager: the library grid, one asset's detail with per-language alt
-/// and "where used", and the public-use readiness gate (an image needs alt text in every content language
-/// before it may be placed on a public page).
+/// and "where used", the public-use readiness gate (an image needs alt text in every content language before
+/// it may be placed on a public page), and the gallery collection for reorder/hero/add-remove.
 /// </summary>
 public interface IAdminMediaReadService
 {
@@ -53,4 +70,7 @@ public interface IAdminMediaReadService
 
     /// <summary>True when the image has explicit alt text for every content language (videos are decorative → always true).</summary>
     Task<bool> IsReadyForPublicAsync(Guid id, CancellationToken cancellationToken);
+
+    /// <summary>A media collection (e.g. "home.gallery") with its ordered items and the images available to add; null if unknown.</summary>
+    Task<GalleryManagerDto?> GetCollectionAsync(string key, CancellationToken cancellationToken);
 }

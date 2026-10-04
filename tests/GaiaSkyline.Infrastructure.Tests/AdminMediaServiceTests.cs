@@ -188,6 +188,47 @@ public sealed class AdminMediaServiceTests(LocalDbFixture fixture) : IClassFixtu
     }
 
     [Fact]
+    public async Task Gallery_read_lists_items_in_order_and_available_images_then_save_reorders_and_sets_hero()
+    {
+        var key = "testgallery." + Guid.NewGuid().ToString("N")[..8];
+        var a = NewImage();
+        var b = NewImage();
+        var c = NewImage(); // available (not added to the collection)
+        await using (var seed = _fixture.CreateContext())
+        {
+            seed.MediaAssets.AddRange(a, b, c);
+            var collection = new MediaCollection(MediaCollectionId.New(), key, "Test gallery");
+            collection.AddItem(MediaCollectionItemId.New(), a.Id, 0, isHero: true);
+            collection.AddItem(MediaCollectionItemId.New(), b.Id, 1, isHero: false);
+            seed.MediaCollections.Add(collection);
+            await seed.SaveChangesAsync();
+        }
+
+        await using var context = _fixture.CreateContext();
+        var read = new AdminMediaReadService(context);
+        var service = new AdminMediaService(context, new ImageRenditionService(), new ContentRevision(), TimeProvider.System);
+
+        var model = await read.GetCollectionAsync(key, CancellationToken.None);
+        model.Should().NotBeNull();
+        model!.Items.Select(i => i.MediaAssetId).Should().Equal(a.Id.Value, b.Id.Value);
+        model.Items.Single(i => i.MediaAssetId == a.Id.Value).IsHero.Should().BeTrue();
+        model.Available.Should().Contain(i => i.MediaAssetId == c.Id.Value);
+
+        // Reorder (b, a) and make b the hero.
+        var ok = await service.SetCollectionItemsAsync(key, new[]
+        {
+            new CollectionItemDto(b.Id.Value, IsHero: true),
+            new CollectionItemDto(a.Id.Value, IsHero: false),
+        }, "owner", CancellationToken.None);
+        ok.Should().BeTrue();
+
+        await using var verify = _fixture.CreateContext();
+        var after = await new AdminMediaReadService(verify).GetCollectionAsync(key, CancellationToken.None);
+        after!.Items.Select(i => i.MediaAssetId).Should().Equal(b.Id.Value, a.Id.Value);
+        after.Items.Single(i => i.MediaAssetId == b.Id.Value).IsHero.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task Image_without_alt_in_all_languages_is_not_ready()
     {
         var asset = NewImage();
