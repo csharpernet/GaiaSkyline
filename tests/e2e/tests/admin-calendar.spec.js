@@ -39,7 +39,13 @@ test.describe('Admin calendar', () => {
     await expect(page.locator('[data-toast]')).toContainText('overlap an active booking');
   });
 
-  test('add, edit and typed-delete an owner block', async ({ page }) => {
+  test('add, edit and typed-delete an owner block', async ({ page, request }) => {
+    const blockedDates = async () => {
+      const res = await request.post('/api/availability', { data: { from: iso(159), to: iso(164) } });
+      expect(res.ok()).toBeTruthy();
+      return (await res.json()).blockedDates;
+    };
+
     await loginAsOwner(page);
     await page.goto(`/admin/calendar?view=month&anchor=${iso(160)}`);
 
@@ -52,6 +58,12 @@ test.describe('Admin calendar', () => {
     const row = page.locator('[data-block-row]', { hasText: 'E2E temp block' });
     await expect(row).toBeVisible();
 
+    // The public availability API (what /en/book's calendar uses) now blocks those nights.
+    const blocked = await blockedDates();
+    expect(blocked).toContain(iso(160));
+    expect(blocked).toContain(iso(161));
+    expect(blocked).not.toContain(iso(162));
+
     // Edit the note through the inline form.
     await row.getByText('Edit').click();
     await row.locator('input[name=note]').fill('E2E temp block (edited)');
@@ -60,11 +72,12 @@ test.describe('Admin calendar', () => {
     const edited = page.locator('[data-block-row]', { hasText: 'E2E temp block (edited)' });
     await expect(edited).toBeVisible();
 
-    // Deleting requires typing DELETE into the prompt.
+    // Deleting requires typing DELETE into the prompt, and frees the nights again.
     page.once('dialog', (dialog) => dialog.accept('DELETE'));
     await edited.getByRole('button', { name: 'Delete' }).click();
     await expect(page.locator('[data-toast]')).toContainText('Block removed');
     await expect(page.locator('[data-block-row]', { hasText: 'E2E temp block' })).toHaveCount(0);
+    expect(await blockedDates()).not.toContain(iso(160));
   });
 
   test('conflict resolution, manual-mode reimport and the duplicates page', async ({ page }) => {
