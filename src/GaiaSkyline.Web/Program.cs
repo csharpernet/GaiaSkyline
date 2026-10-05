@@ -55,6 +55,15 @@ builder.Services.AddScoped<GaiaSkyline.Web.Seo.SitemapBuilder>();
 // In-memory Core Web Vitals field-sample store, read by the SEO dashboard (Stage 7 §5; prod sink is Stage 8).
 builder.Services.AddSingleton<GaiaSkyline.Web.Seo.IWebVitalsStore, GaiaSkyline.Web.Seo.WebVitalsStore>();
 
+// Server-side proxy for the location map's OSM raster tiles so the CSP needs no external tile host
+// (Stage 7 §5 / ADR 0018). A descriptive User-Agent is required by the OSM tile usage policy.
+builder.Services.AddHttpClient(GaiaSkyline.Web.Controllers.MapTilesController.HttpClientName, client =>
+{
+    client.BaseAddress = new Uri("https://tile.openstreetmap.org/");
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("GaiaSkyline/1.0 (+https://gaiaskyline.pt; location-map tile proxy)");
+    client.Timeout = TimeSpan.FromSeconds(10);
+});
+
 // Owner content preview (Stage 7D): the signed cookie makes the public read render drafts.
 builder.Services.AddScoped<GaiaSkyline.Web.Content.ContentPreview>();
 builder.Services.AddScoped<GaiaSkyline.Application.Content.IContentPreviewState>(

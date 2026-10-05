@@ -54,11 +54,9 @@ public sealed class SecurityHeadersMiddleware(RequestDelegate next)
         return Convert.ToBase64String(bytes);
     }
 
-    // The lazy MapLibre location map streams raster tiles from this host and runs its renderer in a
-    // blob: worker. Production should proxy/self-host tiles and drop the external allowance; see
-    // ADR 0008. Kept narrow: only the tile host is whitelisted, and only where it is actually needed
-    // (img-src for the tiles, connect-src for the fetches, worker-src for the blob worker).
-    private const string MapTileHost = "https://tile.openstreetmap.org";
+    // The lazy MapLibre location map now streams its raster tiles through our own origin (the
+    // /map/tiles/{z}/{x}/{y}.png proxy, Stage 7 §5 / ADR 0018), so 'self' covers them and no external
+    // tile host is whitelisted. It still runs its renderer in a blob: worker (worker-src blob:).
     private const string StripeJs = "https://js.stripe.com";
     private const string StripeApi = "https://api.stripe.com";
     private const string StripeHooks = "https://hooks.stripe.com";
@@ -69,8 +67,8 @@ public sealed class SecurityHeadersMiddleware(RequestDelegate next)
             ? $"script-src 'self' 'nonce-{nonce}' {StripeJs}"
             : $"script-src 'self' 'nonce-{nonce}'";
         var connectSrc = needsStripe
-            ? $"connect-src 'self' {MapTileHost} {StripeApi}"
-            : $"connect-src 'self' {MapTileHost}";
+            ? $"connect-src 'self' {StripeApi}"
+            : "connect-src 'self'";
         var frameSrc = needsStripe
             ? $"frame-src {StripeJs} {StripeHooks}"
             : "frame-src 'none'";
@@ -80,7 +78,7 @@ public sealed class SecurityHeadersMiddleware(RequestDelegate next)
             "base-uri 'self'",
             "object-src 'none'",
             "frame-ancestors 'none'",
-            $"img-src 'self' data: blob: {MapTileHost}",
+            "img-src 'self' data: blob:",
             // Hero videos are served from our origin; the admin previews the chosen file via a blob: URL.
             "media-src 'self' blob:",
             "font-src 'self' https://fonts.gstatic.com",

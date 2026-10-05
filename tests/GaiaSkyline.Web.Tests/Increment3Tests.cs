@@ -86,7 +86,9 @@ public class Increment3Tests(PublicSiteFactory factory)
 
         html.Should().Contain("id=\"location-map\"");
         html.Should().Contain("data-js=\"/js/vendor/maplibre-gl.js\"");
-        html.Should().Contain("https://tile.openstreetmap.org/{z}/{x}/{y}.png");
+        // Tiles are proxied through our own origin (Stage 7 §5 / ADR 0018), not fetched from OSM directly.
+        html.Should().Contain("data-tiles=\"/map/tiles/{z}/{x}/{y}.png\"");
+        html.Should().NotContain("tile.openstreetmap.org");
 
         // Coarse: coordinates are rounded to 3 decimals, not the precise stored value.
         var lat = Regex.Match(html, @"data-lat=""([^""]+)""").Groups[1].Value;
@@ -103,8 +105,10 @@ public class Increment3Tests(PublicSiteFactory factory)
         var html = await response.Content.ReadAsStringAsync();
 
         csp.Should().Contain("worker-src 'self' blob:");
-        csp.Should().Contain("connect-src 'self' https://tile.openstreetmap.org");
-        csp.Should().Contain("img-src 'self' data: blob: https://tile.openstreetmap.org");
+        // Tiles are proxied same-origin now, so no external tile host appears in the CSP (ADR 0018).
+        csp.Should().Contain("connect-src 'self'");
+        csp.Should().Contain("img-src 'self' data: blob:");
+        csp.Should().NotContain("tile.openstreetmap.org");
         csp.Should().MatchRegex(@"script-src 'self' 'nonce-[^']+'");
 
         // The cached body must not depend on the per-request nonce (else output caching would serve
