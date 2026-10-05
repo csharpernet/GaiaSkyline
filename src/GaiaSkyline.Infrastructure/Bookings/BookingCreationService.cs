@@ -4,6 +4,7 @@ using GaiaSkyline.Application.Bookings;
 using GaiaSkyline.Application.Pricing;
 using GaiaSkyline.Domain.Bookings;
 using GaiaSkyline.Domain.Identifiers;
+using GaiaSkyline.Domain.ValueObjects;
 using GaiaSkyline.Infrastructure.Persistence;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
@@ -111,8 +112,20 @@ internal sealed class BookingCreationService(
         return promo?.Id;
     }
 
-    private Booking BuildBooking(CreateBookingCommand command, QuoteBreakdown quote, PromoCodeId? promoId, DateTime nowUtc) =>
-        new(
+    private Booking BuildBooking(CreateBookingCommand command, QuoteBreakdown quote, PromoCodeId? promoId, DateTime nowUtc)
+    {
+        // A manual (owner-entered) total overrides the quote; the difference folds into the discount
+        // line so the stored lines still add up. Callers validate the range (fees ≤ override ≤ total).
+        var discount = quote.Discount.Amount;
+        var total = quote.Total;
+        if (command.TotalOverrideEur is { } agreed && agreed != total.Amount)
+        {
+            var gross = quote.NightlySubtotal.Amount + quote.CleaningFee.Amount + quote.TouristTax.Amount;
+            discount = new Money(gross - agreed, total.Currency);
+            total = new Money(agreed, total.Currency);
+        }
+
+        return new(
             BookingId.New(),
             referenceGenerator.Next(),
             command.CheckIn,
@@ -127,15 +140,16 @@ internal sealed class BookingCreationService(
             command.GuestLanguage,
             nightlyRateSnapshot: quote.Nightly.Count > 0 ? quote.Nightly[0].Rate : quote.NightlySubtotal,
             subtotal: quote.NightlySubtotal,
-            discountAmount: quote.Discount.Amount,
+            discountAmount: discount,
             cleaningFee: quote.CleaningFee,
             touristTax: quote.TouristTax,
-            total: quote.Total,
+            total: total,
             createdAtUtc: nowUtc,
             promoCodeId: promoId,
             accountCreationRequested: command.AccountCreationRequested,
             arrivalEstimateLocal: command.ArrivalEstimateLocal,
             specialRequests: command.SpecialRequests);
+    }
 
     private static List<DateOnly> EachNight(DateOnly checkIn, DateOnly checkOut)
     {

@@ -68,6 +68,29 @@ public sealed class AuditReadStoreTests : IClassFixture<LocalDbFixture>
     }
 
     [Fact]
+    public async Task Filters_by_any_of_the_entity_ids()
+    {
+        var bookingGuid = Guid.NewGuid().ToString();
+        await using (var seed = _fixture.CreateContext())
+        {
+            // A booking is audited under two keys: admin actions use the id, guest actions the reference.
+            seed.AuditEvents.Add(new AuditEvent(AuditEventId.New(), new DateTime(2026, 4, 1, 8, 0, 0, DateTimeKind.Utc), null, "1.1.1.1", "booking.checkin", "Booking", bookingGuid));
+            seed.AuditEvents.Add(new AuditEvent(AuditEventId.New(), new DateTime(2026, 4, 2, 8, 0, 0, DateTimeKind.Utc), null, "2.2.2.2", "booking.cancelled", "Booking", "GS-AAA111"));
+            seed.AuditEvents.Add(new AuditEvent(AuditEventId.New(), new DateTime(2026, 4, 3, 8, 0, 0, DateTimeKind.Utc), null, "3.3.3.3", "booking.notes", "Booking", "GS-OTHER"));
+            await seed.SaveChangesAsync();
+        }
+
+        await using var context = _fixture.CreateContext();
+        var store = new AuditReadStore(context);
+
+        var trail = await store.QueryAsync(
+            new AuditLogQuery(EntityType: "Booking", EntityIds: [bookingGuid, "GS-AAA111"]), CancellationToken.None);
+
+        trail.TotalCount.Should().Be(2);
+        trail.Items.Should().OnlyContain(i => i.EntityId == bookingGuid || i.EntityId == "GS-AAA111");
+    }
+
+    [Fact]
     public async Task Resolves_the_actor_email_from_the_user_id()
     {
         var userId = Guid.NewGuid();

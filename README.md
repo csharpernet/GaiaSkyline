@@ -207,12 +207,34 @@ The initial migration `0001_Init` creates the `Properties` table. A design-time
 
 ## Continuous integration
 
-`.github/workflows/ci.yml` runs on every push/PR on **`windows-latest`** (LocalDB is pre-installed,
+`.github/workflows/ci.yml` runs on pushes to **`main`**, pull requests to `main`, and manual
+dispatch (never on `wip/*` work branches) on **`windows-latest`** (LocalDB is pre-installed,
 verified with `sqllocaldb info`):
 
 restore → build (analyzers/warnings as errors) → `dotnet format --verify-no-changes` → tests
 (unit + LocalDB integration) → coverage report (Coverlet + ReportGenerator) → vulnerable package
-scan (`dotnet list package --vulnerable`, fails on High/Critical).
+scan (`dotnet list package --vulnerable`, fails on High/Critical). A second **browser-quality** job
+then boots the app (Release, migrated + seeded, E2E seam on) and runs Lighthouse CI budgets and the
+Playwright suite.
+
+### Run the full CI gates locally
+
+One command mirrors both CI jobs step by step — same configuration, same `tests.runsettings`
+(sequential test assemblies), same browser-quality environment, and the same Playwright isolation
+(`CI=1` → Playwright's one-worker CI mode and identical spec ordering, so cross-spec contamination
+reproduces locally instead of surfacing 20 minutes later on GitHub):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools/run-ci-gates.ps1                 # everything
+powershell -ExecutionPolicy Bypass -File tools/run-ci-gates.ps1 -SkipLighthouse # faster loop
+powershell -ExecutionPolicy Bypass -File tools/run-ci-gates.ps1 -SkipBrowser    # build-and-test job only
+```
+
+The browser-quality phase runs against the fixed throwaway database `GaiaSkyline_LocalGates`
+(dropped before and after each run so the E2E owner seeding is always fresh) and ends with a
+**leftover-database check** that fails if any throwaway `GaiaSkyline_*` database is still attached —
+accumulated AUTO_CLOSE test databases degrade the whole LocalDB instance over time (see
+`docs/runbook.md`). `tools/cleanup-test-dbs.ps1` drops any strays.
 
 ---
 

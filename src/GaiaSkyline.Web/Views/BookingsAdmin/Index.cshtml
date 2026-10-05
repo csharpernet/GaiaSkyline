@@ -1,3 +1,4 @@
+@using GaiaSkyline.Application.Bookings
 @using GaiaSkyline.Domain.Bookings
 @model GaiaSkyline.Web.Models.BookingsAdminIndexViewModel
 @{
@@ -11,14 +12,23 @@
         BookingStatus.Cancelled or BookingStatus.Refunded => "border-clay text-clay",
         _ => "border-ink/30 text-ink/60",
     };
+
+    // Stripe methods plus the manual (phone/walk-in) ones.
+    string[] paymentMethods = ["card", "multibanco", .. ManualPaymentMethods.All];
 }
 
 <div class="max-w-6xl">
-    <h1 class="font-display text-2xl font-semibold">Bookings</h1>
-    <p class="mt-1 text-sm text-ink/70">@Model.Bookings.Count booking(s). Filter by status, guest or dates.</p>
-
-    <form method="get" action="/admin/bookings" class="mt-5 grid gap-3 sm:grid-cols-[1fr_1fr_auto_auto_auto] sm:items-end">
+    <div class="flex items-start justify-between gap-4">
         <div>
+            <h1 class="font-display text-2xl font-semibold">Bookings</h1>
+            <p class="mt-1 text-sm text-ink/70">@Model.Bookings.Count booking(s). Filter by status, guest, dates, payment or sync state.</p>
+        </div>
+        <a href="/admin/bookings/new" data-new-manual-booking
+           class="bg-river text-white rounded-md px-4 py-2 text-sm whitespace-nowrap">New manual booking</a>
+    </div>
+
+    <form method="get" action="/admin/bookings" class="mt-5 grid gap-3 sm:grid-cols-3 lg:grid-cols-7 sm:items-end">
+        <div class="lg:col-span-2">
             <label class="block text-xs font-semibold text-river" for="q">Search</label>
             <input id="q" name="q" value="@Model.Query" placeholder="Reference, guest name or email"
                    class="mt-1 w-full rounded-md border border-fog px-3 py-2 text-sm" />
@@ -34,16 +44,36 @@
             </select>
         </div>
         <div>
-            <label class="block text-xs font-semibold text-river" for="from">Check-in from</label>
-            <input id="from" name="from" type="date" value="@(Model.From?.ToString("yyyy-MM-dd"))"
-                   class="mt-1 rounded-md border border-fog px-3 py-2 text-sm" />
+            <label class="block text-xs font-semibold text-river" for="payment">Payment</label>
+            <select id="payment" name="payment" class="mt-1 w-full rounded-md border border-fog px-3 py-2 text-sm">
+                <option value="">All</option>
+                @foreach (var m in paymentMethods)
+                {
+                    <option value="@m" selected="@(Model.PaymentMethod == m)">@m</option>
+                }
+            </select>
         </div>
         <div>
-            <label class="block text-xs font-semibold text-river" for="to">to</label>
-            <input id="to" name="to" type="date" value="@(Model.To?.ToString("yyyy-MM-dd"))"
-                   class="mt-1 rounded-md border border-fog px-3 py-2 text-sm" />
+            <label class="block text-xs font-semibold text-river" for="synced">Hostify sync</label>
+            <select id="synced" name="synced" class="mt-1 w-full rounded-md border border-fog px-3 py-2 text-sm">
+                <option value="">All</option>
+                <option value="no" selected="@(Model.Synced == "no")">Not synced</option>
+                <option value="yes" selected="@(Model.Synced == "yes")">Synced</option>
+            </select>
         </div>
-        <button type="submit" class="bg-river text-white rounded-md px-4 py-2 text-sm">Filter</button>
+        <div>
+            <label class="block text-xs font-semibold text-river" for="from">Check-in from</label>
+            <input id="from" name="from" type="date" value="@(Model.From?.ToString("yyyy-MM-dd"))"
+                   class="mt-1 w-full rounded-md border border-fog px-3 py-2 text-sm" />
+        </div>
+        <div class="flex items-end gap-2">
+            <div class="grow">
+                <label class="block text-xs font-semibold text-river" for="to">to</label>
+                <input id="to" name="to" type="date" value="@(Model.To?.ToString("yyyy-MM-dd"))"
+                       class="mt-1 w-full rounded-md border border-fog px-3 py-2 text-sm" />
+            </div>
+            <button type="submit" class="bg-river text-white rounded-md px-4 py-2 text-sm">Filter</button>
+        </div>
     </form>
 
     @if (Model.Bookings.Count == 0)
@@ -54,7 +84,7 @@
     {
         <table class="mt-6 w-full text-sm">
             <thead class="text-left text-ink/50 border-b border-fog">
-                <tr><th class="py-2">Reference</th><th>Guest</th><th>Dates</th><th>Nights</th><th>Status</th><th>Total</th><th>Payment</th></tr>
+                <tr><th class="py-2">Reference</th><th>Guest</th><th>Dates</th><th>Nights</th><th>Status</th><th>Total</th><th>Payment</th><th>Sync</th></tr>
             </thead>
             <tbody>
                 @foreach (var b in Model.Bookings)
@@ -74,6 +104,7 @@
                         </td>
                         <td class="text-xs text-ink/80">€@b.Total.ToString("0.00")</td>
                         <td class="text-xs text-ink/60">@(b.PaymentMethodType ?? "—")</td>
+                        <td class="text-xs">@(b.ChannelSynced ? "✓" : "—")</td>
                     </tr>
                 }
             </tbody>

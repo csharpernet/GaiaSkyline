@@ -1,0 +1,161 @@
+@using GaiaSkyline.Application.Bookings
+@model GaiaSkyline.Web.Models.ManualBookingViewModel
+@{
+    Layout = "_AdminShell";
+    ViewData["Title"] = "New manual booking";
+    var f = Model.Form;
+    string[] languages = ["en", "pt", "es", "fr", "de"];
+}
+
+<div class="max-w-3xl">
+    <a href="/admin/bookings" class="text-xs text-river hover:underline">← All bookings</a>
+    <h1 class="mt-2 font-display text-2xl font-semibold">New manual booking</h1>
+    <p class="mt-1 text-sm text-ink/70">
+        For phone or walk-in guests. No Stripe — the payment method and the agreed amount are recorded, the
+        nights are held like any direct booking, the booking appears in the calendar export, and the owner and
+        property manager are alerted.
+    </p>
+
+    @if (Model.QuoteError is { } error)
+    {
+        <p class="mt-4 rounded-md border border-clay/40 bg-clay/5 px-3 py-2 text-sm text-clay" data-manual-error>@error</p>
+    }
+
+    <form method="post" action="/admin/bookings/new" class="mt-5 space-y-5" data-manual-booking-form>
+        @Html.AntiForgeryToken()
+
+        <section class="rounded-md border border-fog bg-white p-4">
+            <h2 class="text-sm font-semibold text-ink/80">Stay</h2>
+            <div class="mt-3 grid gap-3 sm:grid-cols-5">
+                <div>
+                    <label class="block text-xs font-semibold text-river" for="CheckIn">Check-in</label>
+                    <input id="CheckIn" name="CheckIn" type="date" required value="@(f.CheckIn?.ToString("yyyy-MM-dd"))"
+                           class="mt-1 w-full rounded-md border border-fog px-3 py-2 text-sm" />
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-river" for="CheckOut">Check-out</label>
+                    <input id="CheckOut" name="CheckOut" type="date" required value="@(f.CheckOut?.ToString("yyyy-MM-dd"))"
+                           class="mt-1 w-full rounded-md border border-fog px-3 py-2 text-sm" />
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-river" for="Adults">Adults</label>
+                    <input id="Adults" name="Adults" type="number" min="1" max="10" value="@f.Adults"
+                           class="mt-1 w-full rounded-md border border-fog px-3 py-2 text-sm" />
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-river" for="Children">Children</label>
+                    <input id="Children" name="Children" type="number" min="0" max="10" value="@f.Children"
+                           class="mt-1 w-full rounded-md border border-fog px-3 py-2 text-sm" />
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-river" for="Infants">Infants</label>
+                    <input id="Infants" name="Infants" type="number" min="0" max="10" value="@f.Infants"
+                           class="mt-1 w-full rounded-md border border-fog px-3 py-2 text-sm" />
+                </div>
+            </div>
+            <button type="submit" formaction="/admin/bookings/new/preview"
+                    class="mt-3 border border-river text-river rounded-md px-3 py-2 text-sm" data-preview-quote>
+                Preview price
+            </button>
+        </section>
+
+        @if (Model.Quote is { } quote)
+        {
+            <section class="rounded-md border border-river/40 bg-river/5 p-4" data-quote-preview>
+                <h2 class="text-sm font-semibold text-ink/80">Quoted price (@quote.Nights night(s))</h2>
+                <dl class="mt-2 space-y-1 text-sm">
+                    <div class="flex justify-between"><dt class="text-ink/55">Nightly subtotal</dt><dd>€@quote.NightlySubtotal.Amount.ToString("0.00")</dd></div>
+                    @if (quote.Discount.Amount.Amount > 0)
+                    {
+                        <div class="flex justify-between"><dt class="text-ink/55">Discount (@quote.Discount.Kind, @quote.Discount.Percent%)</dt><dd>−€@quote.Discount.Amount.Amount.ToString("0.00")</dd></div>
+                    }
+                    <div class="flex justify-between"><dt class="text-ink/55">Cleaning fee</dt><dd>€@quote.CleaningFee.Amount.ToString("0.00")</dd></div>
+                    <div class="flex justify-between"><dt class="text-ink/55">Tourist tax</dt><dd>€@quote.TouristTax.Amount.ToString("0.00")</dd></div>
+                    <div class="flex justify-between border-t border-fog pt-1 font-semibold"><dt>Total</dt><dd data-quote-total>€@quote.Total.Amount.ToString("0.00")</dd></div>
+                </dl>
+                <p class="mt-2 text-xs text-ink/55">Leave "Agreed amount" blank to charge this total, or enter what was actually agreed.</p>
+            </section>
+        }
+
+        <section class="rounded-md border border-fog bg-white p-4">
+            <h2 class="text-sm font-semibold text-ink/80">Guest</h2>
+            <div class="mt-3 grid gap-3 sm:grid-cols-2">
+                <div>
+                    <label class="block text-xs font-semibold text-river" for="GuestName">Name</label>
+                    <input id="GuestName" name="GuestName" required maxlength="200" value="@f.GuestName"
+                           class="mt-1 w-full rounded-md border border-fog px-3 py-2 text-sm" />
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-river" for="GuestEmail">Email</label>
+                    <input id="GuestEmail" name="GuestEmail" type="email" required maxlength="320" value="@f.GuestEmail"
+                           class="mt-1 w-full rounded-md border border-fog px-3 py-2 text-sm" />
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-river" for="GuestPhone">Phone</label>
+                    <input id="GuestPhone" name="GuestPhone" required maxlength="40" value="@f.GuestPhone"
+                           class="mt-1 w-full rounded-md border border-fog px-3 py-2 text-sm" />
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-river" for="GuestCountry">Country (ISO-2)</label>
+                        <input id="GuestCountry" name="GuestCountry" required maxlength="2" minlength="2" value="@f.GuestCountry"
+                               class="mt-1 w-full rounded-md border border-fog px-3 py-2 text-sm uppercase" />
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-river" for="GuestLanguage">Email language</label>
+                        <select id="GuestLanguage" name="GuestLanguage" class="mt-1 w-full rounded-md border border-fog px-3 py-2 text-sm">
+                            @foreach (var lang in languages)
+                            {
+                                <option value="@lang" selected="@(f.GuestLanguage == lang)">@lang</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="rounded-md border border-fog bg-white p-4">
+            <h2 class="text-sm font-semibold text-ink/80">Payment</h2>
+            <div class="mt-3 grid gap-3 sm:grid-cols-2">
+                <div>
+                    <label class="block text-xs font-semibold text-river" for="PaymentMethod">Method</label>
+                    <select id="PaymentMethod" name="PaymentMethod" class="mt-1 w-full rounded-md border border-fog px-3 py-2 text-sm">
+                        @foreach (var method in ManualPaymentMethods.All)
+                        {
+                            <option value="@method" selected="@(f.PaymentMethod == method)">@method</option>
+                        }
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-river" for="amountReceivedText">Agreed amount (€, blank = quoted total)</label>
+                    <input id="amountReceivedText" name="amountReceivedText" inputmode="decimal" placeholder="e.g. 420.00"
+                           class="mt-1 w-full rounded-md border border-fog px-3 py-2 text-sm" />
+                </div>
+            </div>
+            <label class="mt-3 flex items-center gap-2 text-sm">
+                <input type="checkbox" name="SendGuestConfirmation" value="true" checked="@f.SendGuestConfirmation" />
+                Send the guest the confirmation email
+            </label>
+        </section>
+
+        <section class="rounded-md border border-fog bg-white p-4">
+            <h2 class="text-sm font-semibold text-ink/80">Notes</h2>
+            <div class="mt-3 grid gap-3">
+                <div>
+                    <label class="block text-xs font-semibold text-river" for="SpecialRequests">Special requests (shown on the booking)</label>
+                    <input id="SpecialRequests" name="SpecialRequests" maxlength="2000" value="@f.SpecialRequests"
+                           class="mt-1 w-full rounded-md border border-fog px-3 py-2 text-sm" />
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-river" for="Notes">Internal notes</label>
+                    <input id="Notes" name="Notes" maxlength="2000" value="@f.Notes"
+                           class="mt-1 w-full rounded-md border border-fog px-3 py-2 text-sm" />
+                </div>
+            </div>
+        </section>
+
+        <button type="submit" class="bg-river text-white rounded-md px-5 py-2.5 text-sm" data-create-manual-booking>
+            Create confirmed booking
+        </button>
+    </form>
+</div>

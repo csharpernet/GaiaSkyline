@@ -26,6 +26,11 @@ internal sealed class AuditReadStore(AppDbContext dbContext) : IAuditReadStore
             filtered = filtered.Where(a => a.EntityType == query.EntityType);
         }
 
+        if (query.EntityIds is { Count: > 0 } entityIds)
+        {
+            filtered = filtered.Where(a => a.EntityId != null && entityIds.Contains(a.EntityId));
+        }
+
         if (query.From is { } from)
         {
             var fromUtc = from.ToDateTime(TimeOnly.MinValue);

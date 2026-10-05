@@ -7,7 +7,9 @@ public sealed record BookingAdminFilter(
     BookingStatus? Status,
     string? Search,
     DateOnly? CheckInFrom,
-    DateOnly? CheckInTo);
+    DateOnly? CheckInTo,
+    string? PaymentMethod = null,
+    bool? Synced = null);
 
 /// <summary>A row in the admin bookings list. Amounts are in euros.</summary>
 public sealed record BookingAdminListItemDto(
@@ -65,7 +67,10 @@ public sealed record BookingAdminDetailDto(
     DateTime? CancelledAtUtc,
     string? CancellationReason,
     DateTime? ExternalChannelSyncedAtUtc,
-    string? ExternalChannelSyncNote);
+    string? ExternalChannelSyncNote,
+    string? StripeDashboardUrl = null,
+    int SuggestedRefundPct = 0,
+    decimal SuggestedRefundAmount = 0);
 
 /// <summary>Owner-only reads for the admin bookings manager (Stage 7 §6).</summary>
 public interface IAdminBookingReadService

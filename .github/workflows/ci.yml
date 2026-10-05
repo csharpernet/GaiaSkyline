@@ -5,6 +5,7 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -112,7 +113,7 @@ jobs:
       ASPNETCORE_ENVIRONMENT: "Development"
       # Dev seeding migrates, seeds canonical content and generates the raster variants on startup.
       Features__SeedContentOnStartup: "true"
-      ConnectionStrings__Default: "Server=(localdb)\\mssqllocaldb;Database=GaiaSkyline_CI;Trusted_Connection=True;TrustServerCertificate=True;MultipleActiveResultSets=true"
+      ConnectionStrings__Default: "Server=(localdb)\\mssqllocaldb;Database=GaiaSkyline_CI;Trusted_Connection=True;TrustServerCertificate=True"
       BASE_URL: "http://localhost:5080"
       # E2E seam: seeds an Owner (with a known authenticator key + 2FA) and a booking, and captures
       # outbound email in memory so Playwright can read the magic link. Never enabled outside CI/local.

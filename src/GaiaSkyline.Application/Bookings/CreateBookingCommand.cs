@@ -18,4 +18,5 @@ public sealed record CreateBookingCommand(
     string? PromoCode = null,
     TimeOnly? ArrivalEstimateLocal = null,
     string? SpecialRequests = null,
-    bool AccountCreationRequested = false);
+    bool AccountCreationRequested = false,
+    decimal? TotalOverrideEur = null);

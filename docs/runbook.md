@@ -193,3 +193,27 @@ URL set, so the admin UI never affects the public budgets.
 Card/wallet holds are released 30 minutes after creation; Multibanco holds at their voucher expiry. A
 Hangfire job (`unpaid-hold-expiry`, every 5 min) is the safety net if a webhook is missed. Force a run
 from the Hangfire dashboard (mapped with the admin area in Stage 7).
+
+## Local LocalDB health (dev-box only)
+
+Two local failure modes look like app regressions but are environmental — check these before
+debugging the app:
+
+1. **Leftover test databases.** Aborted test runs and manual E2E runs can leave dozens of
+   `GaiaSkyline_E2E_*/GaiaSkyline_Web_*/GaiaSkyline_Tests_*` databases attached with `AUTO_CLOSE`
+   on; every touch then pays a database open/recovery and the whole instance degrades. Fix:
+   `powershell -File tools/cleanup-test-dbs.ps1 -KillStrayProcesses`. The final step of
+   `tools/run-ci-gates.ps1` fails if any stray is left behind, so leaks surface immediately.
+2. **The 25-second named-pipe stall.** On some dev boxes, cold public-page renders stall in quanta
+   of ~25 s (25/50/95/125 s) inside the content-blocks query while SQL sits completely idle — the
+   client's async named-pipe read misses its completion and is nudged by a ~25 s timer. It is a
+   box-level LocalDB/named-pipe pathology (reproduced with and without MARS and TLS): CI
+   (windows-latest LocalDB) and production (TCP to Azure SQL) never see it. Signature check: EF
+   command logging shows `Executed DbCommand (25,0xx ms)` while `sys.dm_exec_requests` is empty.
+   Remediation: reboot the box; if it persists, point local dev at SQL Server Express over TCP.
+   Don't chase it as an app bug, and don't trust local cold-render timings on an affected box —
+   the CI Lighthouse `server-response-time` budget is the real gate.
+
+`MultipleActiveResultSets` was removed from every connection string in Stage 7 (2026-10-05): the app
+never needs MARS (EF buffers result sets), and it is one more moving part in the named-pipe stack.
+Don't reintroduce it.
