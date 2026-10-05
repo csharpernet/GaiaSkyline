@@ -14,6 +14,12 @@ public sealed record PageMetaOverrideDto(
 public interface IPageMetaResolver
 {
     Task<PageMetaOverrideDto?> ResolveAsync(string pageKey, string languageCode, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// The set of <c>"{pageKey}|{languageCode}"</c> overrides marked noindex — used to drop those URLs from
+    /// the sitemap and flag them in the admin preview. Resilient: returns an empty set if it cannot read.
+    /// </summary>
+    Task<IReadOnlySet<string>> GetNoIndexKeysAsync(CancellationToken cancellationToken);
 }
 
 /// <summary>Owner management of per-page, per-language meta + robots overrides. Stage 7 §5.</summary>

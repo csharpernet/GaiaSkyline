@@ -53,6 +53,23 @@ public sealed class PageMetaServiceTests(LocalDbFixture fixture) : IClassFixture
     }
 
     [Fact]
+    public async Task GetNoIndexKeys_returns_only_the_pages_marked_noindex()
+    {
+        await using var ctx = _fixture.CreateContext();
+        var admin = new PageMetaAdminService(ctx, new ContentRevision(), TimeProvider.System);
+        var resolver = new PageMetaResolver(ctx, NullLogger<PageMetaResolver>.Instance);
+
+        // An indexable override (has a title) and a noindex one, on pages no other test in this class touches.
+        await admin.UpsertAsync("legal/privacy", "en", "Privacy", null, noIndex: false, noFollow: false, "owner", CancellationToken.None);
+        await admin.UpsertAsync("legal/terms", "fr", null, null, noIndex: true, noFollow: false, "owner", CancellationToken.None);
+
+        var keys = await resolver.GetNoIndexKeysAsync(CancellationToken.None);
+
+        keys.Should().Contain("legal/terms|fr");
+        keys.Should().NotContain("legal/privacy|en", "it is indexable");
+    }
+
+    [Fact]
     public async Task Upsert_rejects_an_unknown_page_or_language()
     {
         await using var ctx = _fixture.CreateContext();

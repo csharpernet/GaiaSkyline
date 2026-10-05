@@ -28,4 +28,22 @@ internal sealed class PageMetaResolver(AppDbContext dbContext, ILogger<PageMetaR
             return null;
         }
     }
+
+    public async Task<IReadOnlySet<string>> GetNoIndexKeysAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            var rows = await dbContext.PageMetaOverrides
+                .AsNoTracking()
+                .Where(p => p.NoIndex)
+                .Select(p => new { p.PageKey, p.LanguageCode })
+                .ToListAsync(cancellationToken);
+            return rows.Select(r => $"{r.PageKey}|{r.LanguageCode}").ToHashSet();
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogWarning(ex, "Could not read the noindex overrides for the sitemap.");
+            return new HashSet<string>();
+        }
+    }
 }

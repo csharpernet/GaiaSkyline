@@ -36,6 +36,16 @@ test.describe('Admin SEO redirects', () => {
     expect(html).toContain(title);
   });
 
+  test('the sitemap preview lists the pages and links to /sitemap.xml', async ({ page }) => {
+    await loginAsOwner(page);
+    await page.goto('/admin/seo');
+
+    await expect(page.getByRole('heading', { name: 'Sitemap preview' })).toBeVisible();
+    await expect(page.locator('a[href="/sitemap.xml"]')).toBeVisible();
+    // A known page is listed with a per-language link (host-agnostic — the href ends with the path).
+    await expect(page.locator('a[href$="/en/book"]')).toBeVisible();
+  });
+
   test('uncheck Index for a page → the public page emits robots noindex, and re-checking clears it', async ({ page }) => {
     await loginAsOwner(page);
     await page.goto('/admin/seo');

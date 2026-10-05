@@ -49,6 +49,9 @@ builder.Services.AddBackgroundJobs(builder.Configuration);
 builder.Services.AddScoped<GaiaSkyline.Application.Storage.IMediaStorage, GaiaSkyline.Web.Storage.LocalDiskMediaStorage>();
 builder.Services.AddSingleton<GaiaSkyline.Application.Media.IMediaDirectoryProvider, GaiaSkyline.Web.Storage.LocalMediaDirectoryProvider>();
 
+// Shared sitemap model for /sitemap.xml and the owner's sitemap preview on /admin/seo (Stage 7 §5).
+builder.Services.AddScoped<GaiaSkyline.Web.Seo.SitemapBuilder>();
+
 // Owner content preview (Stage 7D): the signed cookie makes the public read render drafts.
 builder.Services.AddScoped<GaiaSkyline.Web.Content.ContentPreview>();
 builder.Services.AddScoped<GaiaSkyline.Application.Content.IContentPreviewState>(

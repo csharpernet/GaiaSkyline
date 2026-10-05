@@ -1,27 +1,31 @@
 using GaiaSkyline.Application.Auditing;
 using GaiaSkyline.Application.Seo;
 using GaiaSkyline.Web.Models;
+using GaiaSkyline.Web.Seo;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GaiaSkyline.Web.Controllers;
 
 /// <summary>
-/// The owner SEO tools at /admin/seo. Stage 7 §5: the redirects manager (add/list/delete with loop detection)
-/// and per-page, per-language meta overrides. Sitemap preview, Core Web Vitals and warnings follow.
+/// The owner SEO tools at /admin/seo. Stage 7 §5: the redirects manager (add/list/delete with loop detection),
+/// per-page, per-language meta/robots overrides and a sitemap preview. Core Web Vitals and warnings follow.
 /// </summary>
 [Route("admin/seo")]
 public sealed class SeoAdminController(
     IRedirectAdminService redirects,
     IPageMetaAdminService pageMeta,
+    SitemapBuilder sitemap,
     IAuditLog audit) : AdminControllerBase
 {
     [HttpGet("")]
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
     {
         ViewData["Title"] = "SEO";
+        var baseUrl = $"{Request.Scheme}://{Request.Host}";
         var model = new SeoAdminViewModel(
             await redirects.GetAllAsync(cancellationToken),
-            await pageMeta.GetAllAsync(cancellationToken));
+            await pageMeta.GetAllAsync(cancellationToken),
+            await sitemap.BuildAsync(baseUrl, cancellationToken));
         return View(model);
     }
 

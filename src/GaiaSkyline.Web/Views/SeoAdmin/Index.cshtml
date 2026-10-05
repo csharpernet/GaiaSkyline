@@ -77,6 +77,37 @@
         </form>
     </section>
 
+    <!-- ========== Sitemap preview ========== -->
+    <section class="mt-10">
+        <h2 class="font-display text-sm font-semibold text-ink/80">Sitemap preview</h2>
+        <p class="mt-1 text-xs text-ink/55">
+            The URLs in <a class="underline" href="/sitemap.xml" target="_blank" rel="noopener">/sitemap.xml</a>.
+            A page+language marked <span class="font-semibold">noindex</span> above is dropped from the sitemap (shown struck through).
+        </p>
+        <div class="mt-3 rounded-md border border-fog bg-white divide-y divide-fog">
+            @foreach (var entry in Model.Sitemap)
+            {
+                var anyIncluded = entry.Languages.Any(l => l.Included);
+                <div class="p-3 @(anyIncluded ? "" : "opacity-50")">
+                    <div class="font-mono text-xs text-ink/70">/@entry.Path</div>
+                    <div class="mt-1 flex flex-wrap gap-3">
+                        @foreach (var lang in entry.Languages)
+                        {
+                            if (lang.Included)
+                            {
+                                <a class="text-xs text-river hover:underline" href="@lang.Url" target="_blank" rel="noopener">@lang.Culture</a>
+                            }
+                            else
+                            {
+                                <span class="text-xs text-ink/40 line-through" title="noindex — excluded from the sitemap">@lang.Culture</span>
+                            }
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    </section>
+
     <!-- ========== Redirects ========== -->
     <section class="mt-10 rounded-md border border-fog bg-white p-5">
         <h2 class="font-display text-sm font-semibold text-ink/80">Add a redirect</h2>

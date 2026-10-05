@@ -1,4 +1,5 @@
 using GaiaSkyline.Application.Seo;
+using GaiaSkyline.Web.Seo;
 
 namespace GaiaSkyline.Web.Models;
 
@@ -20,7 +21,8 @@ public sealed class PageMetaForm
     public bool Follow { get; set; }
 }
 
-/// <summary>The /admin/seo page: redirect rules plus the per-page, per-language meta overrides.</summary>
+/// <summary>The /admin/seo page: redirect rules, per-page meta/robots overrides and a sitemap preview.</summary>
 public sealed record SeoAdminViewModel(
     IReadOnlyList<RedirectDto> Redirects,
-    IReadOnlyList<PageMetaOverrideDto> PageMeta);
+    IReadOnlyList<PageMetaOverrideDto> PageMeta,
+    IReadOnlyList<SitemapEntry> Sitemap);

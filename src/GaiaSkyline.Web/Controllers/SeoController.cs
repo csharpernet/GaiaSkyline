@@ -1,53 +1,49 @@
 using System.Security;
 using System.Text;
-using GaiaSkyline.Application.Content;
 using GaiaSkyline.Web.Localization;
+using GaiaSkyline.Web.Seo;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GaiaSkyline.Web.Controllers;
 
 /// <summary>Multi-language sitemap and robots.txt.</summary>
-public sealed class SeoController(IContentService content) : Controller
+public sealed class SeoController(SitemapBuilder sitemap) : Controller
 {
-    private static readonly string[] StaticPaths =
-    [
-        "",
-        "gallery",
-        "book",
-        "stories",
-        "legal/terms",
-        "legal/privacy",
-        "legal/cancellation-policy",
-        "legal/al-registration",
-    ];
-
     [HttpGet("/sitemap.xml")]
     public async Task<IActionResult> Sitemap(CancellationToken cancellationToken)
     {
-        var stories = await content.GetPublishedStoriesAsync(SupportedCultures.DefaultCulture, take: null, cancellationToken);
-        var paths = StaticPaths.Concat(stories.Select(s => $"stories/{s.Slug}")).ToList();
         var baseUrl = $"{Request.Scheme}://{Request.Host}";
+        var entries = await sitemap.BuildAsync(baseUrl, cancellationToken);
 
         var builder = new StringBuilder();
         builder.Append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
         builder.Append("<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\" xmlns:xhtml=\"http://www.w3.org/1999/xhtml\">\n");
 
-        foreach (var path in paths)
+        foreach (var entry in entries)
         {
-            foreach (var culture in SupportedCultures.All)
+            // A page the owner marked noindex (per language) is dropped from the sitemap; a page that is
+            // noindex in every language is omitted entirely, and hreflang alternates list only the indexable ones.
+            var included = entry.Languages.Where(l => l.Included).ToList();
+            if (included.Count == 0)
+            {
+                continue;
+            }
+
+            var xDefault = included.FirstOrDefault(l => l.Culture == SupportedCultures.DefaultCulture) ?? included[0];
+            foreach (var language in included)
             {
                 builder.Append("  <url>\n");
-                builder.Append(System.Globalization.CultureInfo.InvariantCulture, $"    <loc>{Escape(AbsoluteUrl(baseUrl, culture.Slug, path))}</loc>\n");
-                foreach (var alternate in SupportedCultures.All)
+                builder.Append(System.Globalization.CultureInfo.InvariantCulture, $"    <loc>{Escape(language.Url)}</loc>\n");
+                foreach (var alternate in included)
                 {
                     builder.Append(
                         System.Globalization.CultureInfo.InvariantCulture,
-                        $"    <xhtml:link rel=\"alternate\" hreflang=\"{alternate.Culture}\" href=\"{Escape(AbsoluteUrl(baseUrl, alternate.Slug, path))}\" />\n");
+                        $"    <xhtml:link rel=\"alternate\" hreflang=\"{alternate.Culture}\" href=\"{Escape(alternate.Url)}\" />\n");
                 }
 
                 builder.Append(
                     System.Globalization.CultureInfo.InvariantCulture,
-                    $"    <xhtml:link rel=\"alternate\" hreflang=\"x-default\" href=\"{Escape(AbsoluteUrl(baseUrl, SupportedCultures.DefaultSlug, path))}\" />\n");
+                    $"    <xhtml:link rel=\"alternate\" hreflang=\"x-default\" href=\"{Escape(xDefault.Url)}\" />\n");
                 builder.Append("  </url>\n");
             }
         }
@@ -76,9 +72,6 @@ public sealed class SeoController(IContentService content) : Controller
             $"Sitemap: {baseUrl}/sitemap.xml\n";
         return Content(body, "text/plain", Encoding.UTF8);
     }
-
-    private static string AbsoluteUrl(string baseUrl, string slug, string path) =>
-        string.IsNullOrEmpty(path) ? $"{baseUrl}/{slug}" : $"{baseUrl}/{slug}/{path}";
 
     private static string Escape(string url) => SecurityElement.Escape(url) ?? url;
 }
