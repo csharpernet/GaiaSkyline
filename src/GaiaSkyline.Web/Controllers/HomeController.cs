@@ -63,13 +63,13 @@ public sealed class HomeController(IContentService content, IHeroVideoReadServic
             jsonLd.Add(JsonLd.FaqPage(faqEntries));
         }
 
-        SetMeta(Meta(
+        await SetMetaAsync(Meta(
             relativePath: string.Empty,
             title: $"{BrandName} — {headline}",
             description: subheadline,
             ogType: "website",
             ogImagePath: poster?.BlobUri,
-            jsonLdBlocks: jsonLd));
+            jsonLdBlocks: jsonLd), cancellationToken);
 
         return View(new HomeViewModel(home, amenities, rules, faq, reviews, stories, gallery, property, liveHero));
     }

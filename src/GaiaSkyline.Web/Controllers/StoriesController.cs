@@ -14,12 +14,12 @@ public sealed class StoriesController(IContentService content, IStorySlugRedirec
         var pageUrl = $"{BaseUrl}/{CurrentSlug}/stories";
         var items = stories.Select(s => ($"{BaseUrl}/{CurrentSlug}/stories/{s.Slug}", s.Title)).ToList();
 
-        SetMeta(Meta(
+        await SetMetaAsync(Meta(
             relativePath: "stories",
             title: $"Stories — {BrandName}",
             description: "Guides and notes about the apartment, Vila Nova de Gaia and the Douro — written by the host.",
             breadcrumbs: [new Breadcrumb("Home", string.Empty), new Breadcrumb("Stories", null)],
-            jsonLdBlocks: [JsonLd.CollectionPage(pageUrl, $"Stories — {BrandName}", items)]));
+            jsonLdBlocks: [JsonLd.CollectionPage(pageUrl, $"Stories — {BrandName}", items)]), cancellationToken);
 
         return View(new StoriesIndexViewModel(stories));
     }

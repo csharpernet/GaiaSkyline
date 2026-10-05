@@ -118,6 +118,14 @@ internal sealed class RedirectIdConverter : ValueConverter<RedirectId, Guid>
     }
 }
 
+internal sealed class PageMetaOverrideIdConverter : ValueConverter<PageMetaOverrideId, Guid>
+{
+    public PageMetaOverrideIdConverter()
+        : base(id => id.Value, value => PageMetaOverrideId.From(value))
+    {
+    }
+}
+
 // Stage 4 (booking) identities.
 
 internal sealed class BookingIdConverter : ValueConverter<BookingId, Guid>

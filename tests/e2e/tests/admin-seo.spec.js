@@ -22,4 +22,17 @@ test.describe('Admin SEO redirects', () => {
     expect(resp.status()).toBe(301);
     expect(resp.headers()['location']).toBe(to);
   });
+
+  test('edit a page meta title → the public page shows it', async ({ page }) => {
+    await loginAsOwner(page);
+    await page.goto('/admin/seo');
+
+    const title = 'E2E Gallery Meta ' + Date.now();
+    await page.locator('input[data-page="/gallery"][data-lang="en"][data-seo-field="title"]').fill(title);
+    await page.getByRole('button', { name: /save page meta/i }).click();
+    await expect(page).toHaveURL(/\/admin\/seo$/);
+
+    const html = await (await page.request.get('/en/gallery')).text();
+    expect(html).toContain(title);
+  });
 });

@@ -26,11 +26,11 @@ public sealed class LegalController(IContentService content) : PublicController
         var footer = await content.GetSectionAsync("footer", CurrentCulture, cancellationToken);
         var registration = footer.TextOr("footer.registration_value", "175890/AL");
 
-        SetMeta(Meta(
+        await SetMetaAsync(Meta(
             relativePath: $"legal/{page}",
             title: $"{heading} — {BrandName}",
             description: $"{heading} for the Gaia Skyline apartment in Vila Nova de Gaia (AL registration {registration}).",
-            breadcrumbs: [new Breadcrumb("Home", string.Empty), new Breadcrumb(heading, null)]));
+            breadcrumbs: [new Breadcrumb("Home", string.Empty), new Breadcrumb(heading, null)]), cancellationToken);
 
         return View(new LegalViewModel(page, heading, registration));
     }

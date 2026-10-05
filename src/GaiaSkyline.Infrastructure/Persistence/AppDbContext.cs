@@ -54,6 +54,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
 
     public DbSet<GaiaSkyline.Domain.Seo.Redirect> Redirects => Set<GaiaSkyline.Domain.Seo.Redirect>();
 
+    public DbSet<GaiaSkyline.Domain.Seo.PageMetaOverride> PageMetaOverrides => Set<GaiaSkyline.Domain.Seo.PageMetaOverride>();
+
     // Stage 4 — booking & payments.
     public DbSet<Booking> Bookings => Set<Booking>();
 
@@ -108,6 +110,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
         configurationBuilder.Properties<StoryTranslationId>().HaveConversion<StoryTranslationIdConverter>();
         configurationBuilder.Properties<StorySlugAliasId>().HaveConversion<StorySlugAliasIdConverter>();
         configurationBuilder.Properties<RedirectId>().HaveConversion<RedirectIdConverter>();
+        configurationBuilder.Properties<PageMetaOverrideId>().HaveConversion<PageMetaOverrideIdConverter>();
 
         // Stage 4 identities.
         configurationBuilder.Properties<BookingId>().HaveConversion<BookingIdConverter>();

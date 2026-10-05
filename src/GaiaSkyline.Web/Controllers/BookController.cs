@@ -15,11 +15,11 @@ public sealed class BookController(IContentService content) : PublicController
         var property = await content.GetPropertyAsync(cancellationToken);
 
         var title = copy.TextOr("book.title", "Book your stay");
-        SetMeta(Meta(
+        await SetMetaAsync(Meta(
             relativePath: "book",
             title: $"{title} — {BrandName}",
             description: copy.TextOr("book.subtitle", "Check availability and book the Gaia Skyline apartment direct."),
-            breadcrumbs: [new Breadcrumb("Home", string.Empty), new Breadcrumb(title, null)]));
+            breadcrumbs: [new Breadcrumb("Home", string.Empty), new Breadcrumb(title, null)]), cancellationToken);
 
         return View(new BookPageViewModel(copy, property?.Sleeps ?? 6));
     }

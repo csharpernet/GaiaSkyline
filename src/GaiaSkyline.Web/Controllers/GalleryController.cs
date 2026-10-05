@@ -13,12 +13,12 @@ public sealed class GalleryController(IContentService content) : PublicControlle
         var images = await content.GetGalleryAsync("home.gallery", cancellationToken);
         var first = images.Count > 0 ? images[0].Asset : null;
 
-        SetMeta(Meta(
+        await SetMetaAsync(Meta(
             relativePath: "gallery",
             title: $"Photo gallery — {BrandName}",
             description: "Browse the apartment, the balcony view over the Douro and the Dom Luís I Bridge, and the private hot tub.",
             ogImagePath: first?.BlobUri,
-            breadcrumbs: [new Breadcrumb("Home", string.Empty), new Breadcrumb("Gallery", null)]));
+            breadcrumbs: [new Breadcrumb("Home", string.Empty), new Breadcrumb("Gallery", null)]), cancellationToken);
 
         return View(new GalleryViewModel(images));
     }

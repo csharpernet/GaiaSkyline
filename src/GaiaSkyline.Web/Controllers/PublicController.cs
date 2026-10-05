@@ -1,8 +1,10 @@
 using System.Globalization;
+using GaiaSkyline.Application.Seo;
 using GaiaSkyline.Web.Localization;
 using GaiaSkyline.Web.Seo;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.OutputCaching;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace GaiaSkyline.Web.Controllers;
 
@@ -18,6 +20,34 @@ public abstract class PublicController : Controller
     protected string CurrentSlug => SupportedCultures.SlugForCulture(CurrentCulture);
 
     protected void SetMeta(PageMeta meta) => ViewData["PageMeta"] = meta;
+
+    /// <summary>
+    /// Like <see cref="SetMeta"/> but first applies the owner's per-page, per-language meta override (keyed by
+    /// the page's <see cref="PageMeta.RelativePath"/>). A blank override field keeps the page default. Stage 7 §5.
+    /// </summary>
+    protected async Task SetMetaAsync(PageMeta meta, CancellationToken cancellationToken)
+    {
+        var resolver = HttpContext.RequestServices.GetService<IPageMetaResolver>();
+        var ovr = resolver is null ? null : await resolver.ResolveAsync(meta.RelativePath, meta.Culture, cancellationToken);
+        if (ovr is not null && (!string.IsNullOrWhiteSpace(ovr.Title) || !string.IsNullOrWhiteSpace(ovr.Description)))
+        {
+            meta = new PageMeta
+            {
+                Culture = meta.Culture,
+                Slug = meta.Slug,
+                Title = string.IsNullOrWhiteSpace(ovr.Title) ? meta.Title : ovr.Title!,
+                Description = string.IsNullOrWhiteSpace(ovr.Description) ? meta.Description : ovr.Description!,
+                RelativePath = meta.RelativePath,
+                OgType = meta.OgType,
+                NoIndex = meta.NoIndex,
+                OgImagePath = meta.OgImagePath,
+                Breadcrumbs = meta.Breadcrumbs,
+                JsonLdBlocks = meta.JsonLdBlocks,
+            };
+        }
+
+        ViewData["PageMeta"] = meta;
+    }
 
     protected PageMeta Meta(
         string relativePath,
