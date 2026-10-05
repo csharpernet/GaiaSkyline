@@ -235,3 +235,11 @@ internal sealed class RateSyncRejectionIdConverter : ValueConverter<RateSyncReje
     {
     }
 }
+
+internal sealed class PartnerApplicationIdConverter : ValueConverter<PartnerApplicationId, Guid>
+{
+    public PartnerApplicationIdConverter()
+        : base(id => id.Value, value => PartnerApplicationId.From(value))
+    {
+    }
+}

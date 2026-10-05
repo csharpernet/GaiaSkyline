@@ -21,7 +21,7 @@ public static class AdminNav
         new("Prices", "/admin/prices", Enabled: true),
         new("Payments", "/admin/payments", Enabled: true),
         new("Reviews", "/admin/reviews", Enabled: true),
-        new("Partners", "/admin/partners", Enabled: false),
+        new("Partners", "/admin/partners", Enabled: true),
         new("SEO", "/admin/seo", Enabled: true),
         new("Settings", "/admin/settings", Enabled: false),
         new("Audit log", "/admin/audit", Enabled: true),

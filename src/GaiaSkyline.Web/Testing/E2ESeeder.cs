@@ -28,6 +28,27 @@ public static class E2ESeeder
         await EnsureOwnerTwoFactorAsync(services, options, cancellationToken);
         await EnsureBookingAsync(services, options, cancellationToken);
         await EnsureCalendarFixturesAsync(services, options, cancellationToken);
+        await EnsurePartnerApplicationsAsync(services, cancellationToken);
+    }
+
+    /// <summary>Two pending partner applications (Stage 7 §11) — one per decision path, reset each startup.</summary>
+    private static async Task EnsurePartnerApplicationsAsync(IServiceProvider services, CancellationToken cancellationToken)
+    {
+        var dbContext = services.GetRequiredService<AppDbContext>();
+        var now = services.GetRequiredService<TimeProvider>().GetUtcNow().UtcDateTime;
+
+        var stale = await dbContext.PartnerApplications
+            .Where(a => a.Email.EndsWith("@partner.e2e")).ToListAsync(cancellationToken);
+        dbContext.PartnerApplications.RemoveRange(stale);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        dbContext.PartnerApplications.Add(new Domain.Partners.PartnerApplication(
+            Domain.Identifiers.PartnerApplicationId.New(), "Approve Me", "approve@partner.e2e",
+            "https://instagram.com/approveme", 42_000, "Travel", "Love the hot tub view!", now));
+        dbContext.PartnerApplications.Add(new Domain.Partners.PartnerApplication(
+            Domain.Identifiers.PartnerApplicationId.New(), "Reject Me", "reject@partner.e2e",
+            null, 120, null, "Collab?", now));
+        await dbContext.SaveChangesAsync(cancellationToken);
     }
 
     /// <summary>

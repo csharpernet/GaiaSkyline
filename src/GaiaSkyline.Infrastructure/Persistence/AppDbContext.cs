@@ -87,6 +87,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
 
     public DbSet<BookingConflict> BookingConflicts => Set<BookingConflict>();
 
+    public DbSet<Domain.Partners.PartnerApplication> PartnerApplications => Set<Domain.Partners.PartnerApplication>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -134,6 +136,9 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
 
         // Stage 7 §8.
         configurationBuilder.Properties<RateSyncRejectionId>().HaveConversion<RateSyncRejectionIdConverter>();
+
+        // Stage 7 §11.
+        configurationBuilder.Properties<PartnerApplicationId>().HaveConversion<PartnerApplicationIdConverter>();
 
         // Money persists as integer minor units (cents); EUR is re-attached on read.
         configurationBuilder.Properties<Money>().HaveConversion<MoneyToCentsConverter>();
