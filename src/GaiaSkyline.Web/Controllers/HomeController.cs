@@ -35,12 +35,17 @@ public sealed class HomeController(IContentService content, IHeroVideoReadServic
                 .Where(v => !string.IsNullOrWhiteSpace(v.Text))
                 .Select(v => (v.Text!, v.Boolean ?? true))
                 .ToList();
+            // The aggregate is computed from the published reviews themselves (Stage 7 §10), so
+            // publishing/unpublishing a review refreshes AggregateRating on the next cache miss.
+            decimal? ratingValue = reviews.Count > 0
+                ? Math.Round((decimal)reviews.Average(r => r.Rating), 2)
+                : null;
             jsonLd.Add(JsonLd.LodgingBusiness(
                 $"{BaseUrl}/{CurrentSlug}",
                 property,
                 posterAbsolute,
-                home.Number("home.reviews.aggregate.value"),
-                home.Number("home.reviews.aggregate.count"),
+                ratingValue,
+                reviews.Count > 0 ? reviews.Count : null,
                 amenityList,
                 reviews));
         }

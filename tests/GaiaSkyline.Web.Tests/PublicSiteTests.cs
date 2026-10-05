@@ -178,8 +178,9 @@ public class PublicSiteTests(PublicSiteFactory factory)
         lodging.GetProperty("geo").GetProperty("latitude").GetDouble().Should().BeApproximately(41.137, 0.1);
         lodging.GetProperty("checkinTime").GetString().Should().Be("16:00");
         lodging.GetProperty("numberOfRooms").GetInt32().Should().Be(2);
-        lodging.GetProperty("aggregateRating").GetProperty("ratingValue").GetDecimal().Should().Be(4.91m);
-        lodging.GetProperty("aggregateRating").GetProperty("reviewCount").GetDecimal().Should().Be(23m);
+        // The aggregate is computed from the published reviews (Stage 7 §10): six seeded 5-star reviews.
+        lodging.GetProperty("aggregateRating").GetProperty("ratingValue").GetDecimal().Should().Be(5m);
+        lodging.GetProperty("aggregateRating").GetProperty("reviewCount").GetDecimal().Should().Be(6m);
         lodging.GetProperty("review").GetArrayLength().Should().BeGreaterThan(0);
     }
 

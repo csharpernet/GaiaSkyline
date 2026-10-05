@@ -1,0 +1,105 @@
+@model IReadOnlyList<GaiaSkyline.Application.Reviews.ReviewAdminDto>
+@{
+    Layout = "_AdminShell";
+    ViewData["Title"] = "Reviews";
+    var published = Model.Count(r => r.IsPublished);
+}
+
+<div class="max-w-4xl">
+    <h1 class="font-display text-2xl font-semibold">Reviews</h1>
+    <p class="mt-1 text-sm text-ink/70">
+        @published published of @Model.Count. Published reviews drive the home page and its
+        AggregateRating/Review structured data; changes show on the next page request.
+    </p>
+
+    <!-- Add an off-platform review -->
+    <section class="mt-5 rounded-md border border-fog bg-white p-4" data-add-review>
+        <h2 class="text-sm font-semibold text-ink/80">Add a review (Airbnb, Google, email…)</h2>
+        <form method="post" action="/admin/reviews" class="mt-3 grid gap-3 sm:grid-cols-2">
+            @Html.AntiForgeryToken()
+            <div class="flex gap-3">
+                <div>
+                    <label class="block text-xs font-semibold text-river" for="new-rating">Rating</label>
+                    <select id="new-rating" name="rating" class="mt-1 rounded-md border border-fog px-3 py-2 text-sm">
+                        @for (var stars = 5; stars >= 1; stars--)
+                        {
+                            <option value="@stars">@stars ★</option>
+                        }
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-river" for="new-stayed">Stayed on</label>
+                    <input id="new-stayed" name="stayedOn" type="date" required class="mt-1 rounded-md border border-fog px-3 py-2 text-sm" />
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-river" for="new-source">Source</label>
+                    <input id="new-source" name="source" required maxlength="50" placeholder="Google" class="mt-1 w-28 rounded-md border border-fog px-3 py-2 text-sm" />
+                </div>
+            </div>
+            <div class="flex gap-3">
+                <div class="grow">
+                    <label class="block text-xs font-semibold text-river" for="new-name">Guest first name</label>
+                    <input id="new-name" name="guestFirstName" required maxlength="100" class="mt-1 w-full rounded-md border border-fog px-3 py-2 text-sm" />
+                </div>
+                <div class="grow">
+                    <label class="block text-xs font-semibold text-river" for="new-location">Location (optional)</label>
+                    <input id="new-location" name="guestLocation" maxlength="200" class="mt-1 w-full rounded-md border border-fog px-3 py-2 text-sm" />
+                </div>
+            </div>
+            <div class="sm:col-span-2">
+                <label class="block text-xs font-semibold text-river" for="new-body">Review text</label>
+                <textarea id="new-body" name="body" rows="3" required class="mt-1 w-full rounded-md border border-fog px-3 py-2 text-sm"></textarea>
+            </div>
+            <div class="flex items-center gap-4 sm:col-span-2">
+                <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="publish" value="true" checked /> publish immediately</label>
+                <button type="submit" class="bg-river text-white rounded-md px-4 py-2 text-sm">Add review</button>
+            </div>
+        </form>
+    </section>
+
+    <!-- List -->
+    <section class="mt-5 space-y-3">
+        @foreach (var review in Model)
+        {
+            <div class="rounded-md border @(review.IsPublished ? "border-fog" : "border-amber-600/50") bg-white p-4" data-review-row="@review.Id">
+                <div class="flex flex-wrap items-center gap-3 text-sm">
+                    <span class="font-semibold">@review.GuestFirstName</span>
+                    <span class="text-amber-600">@(new string('★', review.Rating))@(new string('☆', 5 - review.Rating))</span>
+                    <span class="text-xs text-ink/55">@review.Source · stayed @review.StayedOn.ToString("yyyy-MM")</span>
+                    @if (!review.IsPublished)
+                    {
+                        <span class="rounded bg-amber-600/10 px-2 py-0.5 text-xs text-amber-600">unpublished</span>
+                    }
+                    <form method="post" action="/admin/reviews/@review.Id/publish" class="ml-auto">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="published" value="@((!review.IsPublished).ToString().ToLowerInvariant())" />
+                        <button type="submit" class="border @(review.IsPublished ? "border-amber-600 text-amber-600" : "border-river text-river") rounded-md px-3 py-1.5 text-xs">
+                            @(review.IsPublished ? "Unpublish" : "Publish")
+                        </button>
+                    </form>
+                </div>
+                <p class="mt-2 text-sm text-ink/80">@review.Body</p>
+                <details class="mt-2">
+                    <summary class="cursor-pointer text-xs text-river hover:underline">Edit</summary>
+                    <form method="post" action="/admin/reviews/@review.Id/update" class="mt-2 grid gap-2">
+                        @Html.AntiForgeryToken()
+                        <div class="flex flex-wrap gap-2">
+                            <select name="rating" class="rounded-md border border-fog px-2 py-1.5 text-xs">
+                                @for (var stars = 5; stars >= 1; stars--)
+                                {
+                                    <option value="@stars" selected="@(review.Rating == stars)">@stars ★</option>
+                                }
+                            </select>
+                            <input name="guestFirstName" required maxlength="100" value="@review.GuestFirstName" class="rounded-md border border-fog px-2 py-1.5 text-xs" />
+                            <input name="guestLocation" maxlength="200" value="@review.GuestLocation" placeholder="Location" class="rounded-md border border-fog px-2 py-1.5 text-xs" />
+                            <input name="source" required maxlength="50" value="@review.Source" class="w-24 rounded-md border border-fog px-2 py-1.5 text-xs" />
+                            <input name="stayedOn" type="date" required value="@review.StayedOn.ToString("yyyy-MM-dd")" class="rounded-md border border-fog px-2 py-1.5 text-xs" />
+                        </div>
+                        <textarea name="body" rows="3" required class="w-full rounded-md border border-fog px-2 py-1.5 text-xs">@review.Body</textarea>
+                        <button type="submit" class="w-fit border border-river text-river rounded-md px-3 py-1.5 text-xs">Save changes</button>
+                    </form>
+                </details>
+            </div>
+        }
+    </section>
+</div>

@@ -96,6 +96,9 @@ public static class DependencyInjection
         services.AddScoped<GaiaSkyline.Application.Admin.IManualSyncReminderService, GaiaSkyline.Infrastructure.Admin.ManualSyncReminderService>();
         services.AddScoped<GaiaSkyline.Application.Admin.ICalendarAdminService, GaiaSkyline.Infrastructure.Admin.CalendarAdminService>();
 
+        // Reviews admin (Stage 7 §10).
+        services.AddScoped<GaiaSkyline.Application.Reviews.IReviewsAdminService, GaiaSkyline.Infrastructure.Content.ReviewsAdminService>();
+
         // Owner write APIs (Stage 6E).
         services.AddScoped<GaiaSkyline.Application.Content.IAdminContentService, GaiaSkyline.Infrastructure.Content.AdminContentService>();
         services.AddScoped<GaiaSkyline.Application.Content.IAdminStoryService, GaiaSkyline.Infrastructure.Content.AdminStoryService>();

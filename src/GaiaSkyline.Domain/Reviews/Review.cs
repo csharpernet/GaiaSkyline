@@ -37,6 +37,25 @@ public sealed class Review : Entity<ReviewId>
         IsPublished = isPublished;
     }
 
+    /// <summary>Admin edit (typo fixes, rating corrections) with the same validation as creation.</summary>
+    public void Update(int rating, string guestFirstName, string? guestLocation, string body, string source, DateOnly stayedOn)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(guestFirstName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(body);
+        ArgumentException.ThrowIfNullOrWhiteSpace(source);
+        ArgumentOutOfRangeException.ThrowIfLessThan(rating, 1);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(rating, 5);
+
+        Rating = rating;
+        GuestFirstName = guestFirstName.Trim();
+        GuestLocation = string.IsNullOrWhiteSpace(guestLocation) ? null : guestLocation.Trim();
+        Body = body.Trim();
+        Source = source.Trim();
+        StayedOn = stayedOn;
+    }
+
+    public void SetPublished(bool isPublished) => IsPublished = isPublished;
+
     /// <summary>Star rating, 1–5.</summary>
     public int Rating { get; private set; }
 
