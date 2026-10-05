@@ -1,5 +1,6 @@
 using GaiaSkyline.Domain.Bookings;
 using GaiaSkyline.Domain.Identifiers;
+using GaiaSkyline.Domain.Media;
 using GaiaSkyline.Domain.ValueObjects;
 using GaiaSkyline.Infrastructure.Identity;
 using GaiaSkyline.Infrastructure.Persistence;
@@ -26,6 +27,50 @@ public static class E2ESeeder
         var options = services.GetRequiredService<IOptions<E2EOptions>>().Value;
         await EnsureOwnerTwoFactorAsync(services, options, cancellationToken);
         await EnsureBookingAsync(services, options, cancellationToken);
+    }
+
+    /// <summary>
+    /// Seeds a live hero video (E2E only) with real DB rows but placeholder /media URLs. The Playwright hero
+    /// tests assert JS behaviour (poster-only on reduced-motion/Save-Data, portrait source selection), which
+    /// never fetches the video bytes — so no FFmpeg or real files are needed. Called on demand (not at startup)
+    /// so the Lighthouse run, which happens first, still measures the poster-only fallback. Idempotent.
+    /// </summary>
+    public static async Task SeedHeroAsync(IServiceProvider services, CancellationToken cancellationToken)
+    {
+        var dbContext = services.GetRequiredService<AppDbContext>();
+        var now = services.GetRequiredService<TimeProvider>().GetUtcNow().UtcDateTime;
+
+        var existing = await dbContext.HeroVideos.ToListAsync(cancellationToken);
+        if (existing.Count > 0)
+        {
+            dbContext.HeroVideos.RemoveRange(existing);
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+
+        var id = HeroVideoId.New();
+        var stem = $"hero-e2e-{id.Value:N}";
+        var hero = HeroVideo.CreatePending(
+            id, "e2e-sample.mp4", 1_000_000, sourceDurationSec: 20,
+            trimStartSec: 0, trimEndSec: 15, crossfadeSec: 1, focalX: 0.5, now, "e2e");
+        hero.MarkTranscoding();
+        hero.SetRenditions(Enum.GetValues<HeroRenditionKind>().Select(kind =>
+        {
+            var ext = kind is HeroRenditionKind.DesktopH264 or HeroRenditionKind.MobileH264 ? "mp4" : "webm";
+            var orientation = kind.IsMobile() ? "mobile" : "desktop";
+            var codec = kind.ToString().Contains("Av1", StringComparison.Ordinal) ? "av1"
+                : kind.ToString().Contains("Vp9", StringComparison.Ordinal) ? "vp9" : "h264";
+            var (w, h) = kind.IsMobile() ? (720, 1280) : (1920, 1080);
+            return new HeroVideoRendition(
+                HeroVideoRenditionId.New(), id, kind, $"/media/{stem}-{orientation}-{codec}.{ext}", w, h, 1_500_000);
+        }));
+        hero.SetPosters($"/media/{stem}-poster-desktop-1600.jpg", null, $"/media/{stem}-poster-mobile-1600.jpg", null);
+        hero.MarkReady(now);
+        hero.Promote();
+        dbContext.HeroVideos.Add(hero);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        // Invalidate the home output cache so the seeded hero renders on the next request.
+        services.GetService<GaiaSkyline.Application.Content.IContentRevision>()?.Bump();
     }
 
     private static async Task EnsureOwnerTwoFactorAsync(IServiceProvider services, E2EOptions options, CancellationToken cancellationToken)

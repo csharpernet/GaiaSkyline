@@ -19,6 +19,7 @@ public sealed class FfmpegArgumentBuilderTests
         foreach (var kind in Enum.GetValues<HeroRenditionKind>())
         {
             var args = Args(kind, Request());
+            args.Should().Contain("-nostdin", "ffmpeg must never block reading stdin as a subprocess");
             args.Should().Contain("-an", "the hero video is always muted");
             args.Should().Contain("-fps_mode cfr", "playback must be constant frame rate");
             args.Should().Contain("-g 60", "a keyframe at least every 2 s at 30 fps");

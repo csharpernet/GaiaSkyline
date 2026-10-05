@@ -51,6 +51,12 @@ jobs:
           sqllocaldb info
           sqllocaldb start MSSQLLocalDB
 
+      # FFmpeg powers the hero-video transcoder; the ffprobe integration test runs where it is present
+      # (and skips with a clear reason otherwise). Use the FULL Gyan build (ffmpeg-full) — the plain
+      # chocolatey 'ffmpeg' package omits the SVT-AV1 encoder (libsvtav1) the AV1 renditions need.
+      - name: Install FFmpeg
+        run: choco install ffmpeg-full -y --no-progress
+
       - name: Tests (unit + LocalDB integration)
         run: >
           dotnet test GaiaSkyline.sln

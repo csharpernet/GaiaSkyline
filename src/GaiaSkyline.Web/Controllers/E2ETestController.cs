@@ -19,4 +19,17 @@ public sealed class E2ETestController(IOptions<E2EOptions> options, E2EEmailSink
     [HttpGet("emails")]
     public IActionResult Emails() =>
         options.Value.Enabled ? Ok(sink.Snapshot()) : NotFound();
+
+    /// <summary>Seeds a live hero video so the Playwright hero-video specs have one to exercise.</summary>
+    [HttpPost("seed-hero")]
+    public async Task<IActionResult> SeedHero(CancellationToken cancellationToken)
+    {
+        if (!options.Value.Enabled)
+        {
+            return NotFound();
+        }
+
+        await E2ESeeder.SeedHeroAsync(HttpContext.RequestServices, cancellationToken);
+        return Ok();
+    }
 }

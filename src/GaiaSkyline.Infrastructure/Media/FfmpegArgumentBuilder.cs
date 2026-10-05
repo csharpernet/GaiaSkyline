@@ -49,6 +49,7 @@ internal static class FfmpegArgumentBuilder
 
         var args = new List<string>
         {
+            "-nostdin", // never read stdin — otherwise ffmpeg blocks forever when run as a background subprocess
             "-y",
             "-ss", Num(request.TrimStartSec),
             "-i", request.SourcePath,
@@ -87,6 +88,7 @@ internal static class FfmpegArgumentBuilder
         var (w, h) = mobile ? (720, 1280) : (1920, 1080);
         return
         [
+            "-nostdin",
             "-y",
             "-ss", Num(request.TrimStartSec),
             "-i", request.SourcePath,

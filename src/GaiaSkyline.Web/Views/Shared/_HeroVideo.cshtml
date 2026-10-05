@@ -68,8 +68,10 @@
         }
     </video>
 </div>
-<button type="button" data-hero-toggle aria-pressed="true" aria-label="Pause background video" hidden
-        class="absolute bottom-4 right-4 z-20 inline-flex h-10 w-10 items-center justify-center rounded-full bg-ink/50 text-white backdrop-blur-sm hover:bg-ink/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">
+@* Hidden via the `hidden` CLASS (not the attribute) — a Tailwind display utility would override [hidden]. The
+   script swaps `hidden`↔`inline-flex` once the video is actually playing. *@
+<button type="button" data-hero-toggle aria-pressed="true" aria-label="Pause background video"
+        class="hidden absolute bottom-4 right-4 z-20 h-10 w-10 items-center justify-center rounded-full bg-ink/50 text-white backdrop-blur-sm hover:bg-ink/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">
     <span data-icon-pause aria-hidden="true">❚❚</span>
     <span data-icon-play hidden aria-hidden="true">▶</span>
 </button>

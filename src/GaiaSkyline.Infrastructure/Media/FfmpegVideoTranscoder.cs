@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using System.Globalization;
-using System.Text;
 using GaiaSkyline.Application.Media;
 using GaiaSkyline.Domain.Media;
 using Microsoft.Extensions.Logging;
@@ -105,6 +104,7 @@ internal sealed class FfmpegVideoTranscoder(
         var psi = new ProcessStartInfo
         {
             FileName = executable,
+            RedirectStandardInput = true, // closed immediately so ffmpeg never blocks reading stdin
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
@@ -121,17 +121,18 @@ internal sealed class FfmpegVideoTranscoder(
         }
 
         using var process = new Process { StartInfo = psi };
-        var stdout = new StringBuilder();
-        var stderr = new StringBuilder();
-        process.OutputDataReceived += (_, e) => { if (e.Data is not null) { stdout.AppendLine(e.Data); } };
-        process.ErrorDataReceived += (_, e) => { if (e.Data is not null) { stderr.AppendLine(e.Data); } };
-
         process.Start();
-        process.BeginOutputReadLine();
-        process.BeginErrorReadLine();
-        await process.WaitForExitAsync(cancellationToken);
+        process.StandardInput.Close();
 
-        return (process.ExitCode, stdout.ToString(), stderr.ToString());
+        // Drain both pipes concurrently (ffmpeg is very chatty on stderr): reading one to end before the
+        // other deadlocks once the unread pipe's buffer fills and ffmpeg blocks writing to it.
+        var stdoutTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
+        var stderrTask = process.StandardError.ReadToEndAsync(cancellationToken);
+        await process.WaitForExitAsync(cancellationToken);
+        var stdout = await stdoutTask;
+        var stderr = await stderrTask;
+
+        return (process.ExitCode, stdout, stderr);
     }
 
     private static string Tail(string text, int max = 500) =>

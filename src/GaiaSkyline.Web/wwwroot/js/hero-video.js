@@ -42,13 +42,18 @@
     video.classList.remove('opacity-0');
     video.classList.add('opacity-100');
     if (toggle) {
-      toggle.hidden = false;
+      // Toggle classes, not the `hidden` attribute: the inline-flex display utility would override [hidden].
+      toggle.classList.remove('hidden');
+      toggle.classList.add('inline-flex');
       updateToggle();
     }
   }
 
   function posterOnly() {
-    if (toggle) toggle.hidden = true;
+    if (toggle) {
+      toggle.classList.add('hidden');
+      toggle.classList.remove('inline-flex');
+    }
   }
 
   function tryPlay() {
@@ -61,6 +66,9 @@
   function start() {
     if (started) return;
     started = true;
+    // Mark that the script committed to playing the video (not a poster-only bail). The browser sets
+    // video.currentSrc from passive <source> selection regardless, so this is the reliable "started" signal.
+    container.setAttribute('data-hero-started', 'true');
     if (!video.currentSrc) {
       var src = pickSource();
       if (src) video.src = src;
