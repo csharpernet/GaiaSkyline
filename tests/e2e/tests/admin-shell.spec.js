@@ -12,8 +12,9 @@ test.describe('Admin shell', () => {
     const sidebar = page.locator('aside');
     await expect(sidebar.getByRole('link', { name: 'Dashboard' })).toBeVisible();
     await expect(sidebar).toContainText('Audit log');
-    // Not-yet-built sections render disabled with a "soon" tag (no dead links).
-    await expect(sidebar).toContainText('soon');
+    // Stage 7 shipped every section: nothing renders as a disabled "soon" item any more.
+    await expect(sidebar).not.toContainText('soon');
+    await expect(sidebar.getByRole('link', { name: 'Settings' })).toBeVisible();
 
     await sidebar.getByRole('link', { name: 'Audit log' }).click();
     await expect(page).toHaveURL(/\/admin\/audit/);
