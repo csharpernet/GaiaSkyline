@@ -24,16 +24,15 @@ public sealed class StoryTranslation : Entity<StoryTranslationId>
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(languageCode);
         ArgumentException.ThrowIfNullOrWhiteSpace(title);
-        ArgumentException.ThrowIfNullOrWhiteSpace(excerpt);
-        ArgumentException.ThrowIfNullOrWhiteSpace(bodyRichText);
         ArgumentOutOfRangeException.ThrowIfNegative(readingTimeMinutes);
 
         Id = id;
         StoryId = storyId;
         LanguageCode = languageCode.Trim();
         Title = title.Trim();
-        Excerpt = excerpt.Trim();
-        BodyRichText = bodyRichText;
+        // Excerpt and body are optional (a title-only draft is valid); they are filled in as the story is written.
+        Excerpt = (excerpt ?? string.Empty).Trim();
+        BodyRichText = bodyRichText ?? string.Empty;
         MetaTitle = string.IsNullOrWhiteSpace(metaTitle) ? null : metaTitle.Trim();
         MetaDescription = string.IsNullOrWhiteSpace(metaDescription) ? null : metaDescription.Trim();
         ReadingTimeMinutes = readingTimeMinutes;
@@ -64,13 +63,11 @@ public sealed class StoryTranslation : Entity<StoryTranslationId>
         int readingTimeMinutes)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(title);
-        ArgumentException.ThrowIfNullOrWhiteSpace(excerpt);
-        ArgumentException.ThrowIfNullOrWhiteSpace(bodyRichText);
         ArgumentOutOfRangeException.ThrowIfNegative(readingTimeMinutes);
 
         Title = title.Trim();
-        Excerpt = excerpt.Trim();
-        BodyRichText = bodyRichText;
+        Excerpt = (excerpt ?? string.Empty).Trim();
+        BodyRichText = bodyRichText ?? string.Empty;
         MetaTitle = string.IsNullOrWhiteSpace(metaTitle) ? null : metaTitle.Trim();
         MetaDescription = string.IsNullOrWhiteSpace(metaDescription) ? null : metaDescription.Trim();
         ReadingTimeMinutes = readingTimeMinutes;

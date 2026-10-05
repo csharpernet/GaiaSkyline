@@ -12,6 +12,7 @@ public sealed class Story : Entity<StoryId>
     public const string SectionName = "stories";
 
     private readonly List<StoryTranslation> _translations = [];
+    private readonly List<StorySlugAlias> _aliases = [];
 
     // Required by EF Core's materialization.
     private Story()
@@ -61,6 +62,62 @@ public sealed class Story : Entity<StoryId>
     public string AuthorName { get; private set; } = null!;
 
     public IReadOnlyCollection<StoryTranslation> Translations => _translations.AsReadOnly();
+
+    /// <summary>Previous slugs kept alive after a rename so old published URLs 301 to the current one.</summary>
+    public IReadOnlyCollection<StorySlugAlias> Aliases => _aliases.AsReadOnly();
+
+    /// <summary>
+    /// Change the URL slug. When <paramref name="preservePreviousSlug"/> is true (the story is published), the
+    /// vacated slug is remembered so its old URL can 301 to the new one. Reclaiming a previously-aliased slug
+    /// drops that alias. No-op if the slug is unchanged.
+    /// </summary>
+    public void Rename(string newSlug, bool preservePreviousSlug)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(newSlug);
+        var normalized = newSlug.Trim().ToLowerInvariant();
+        if (!IsValidSlug(normalized))
+        {
+            throw new ArgumentException(
+                $"'{newSlug}' is not a valid URL slug (lowercase letters, digits and single hyphens).", nameof(newSlug));
+        }
+
+        if (string.Equals(normalized, Slug, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        var previous = Slug;
+        Slug = normalized;
+
+        if (preservePreviousSlug
+            && !_aliases.Any(a => string.Equals(a.OldSlug, previous, StringComparison.OrdinalIgnoreCase)))
+        {
+            _aliases.Add(new StorySlugAlias(StorySlugAliasId.New(), Id, previous));
+        }
+
+        var reclaimed = _aliases.FirstOrDefault(
+            a => string.Equals(a.OldSlug, normalized, StringComparison.OrdinalIgnoreCase));
+        if (reclaimed is not null)
+        {
+            _aliases.Remove(reclaimed);
+        }
+    }
+
+    public void Publish() => IsPublished = true;
+
+    public void Unpublish() => IsPublished = false;
+
+    public void SetPublishedDate(DateTime publishedAtUtc) => PublishedAtUtc = publishedAtUtc;
+
+    public void SetCover(MediaAssetId coverMediaAssetId) => CoverMediaAssetId = coverMediaAssetId;
+
+    public void SetDisplayOrder(int displayOrder) => DisplayOrder = displayOrder;
+
+    public void SetAuthor(string authorName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(authorName);
+        AuthorName = authorName.Trim();
+    }
 
     /// <summary>Insert or update the translation for a language (upsert by language code).</summary>
     public StoryTranslation SetTranslation(

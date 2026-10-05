@@ -92,6 +92,9 @@ public static class DependencyInjection
 
         // Owner write APIs (Stage 6E).
         services.AddScoped<GaiaSkyline.Application.Content.IAdminContentService, GaiaSkyline.Infrastructure.Content.AdminContentService>();
+        services.AddScoped<GaiaSkyline.Application.Content.IAdminStoryService, GaiaSkyline.Infrastructure.Content.AdminStoryService>();
+        services.AddScoped<GaiaSkyline.Application.Content.IAdminStoryReadService, GaiaSkyline.Infrastructure.Content.AdminStoryReadService>();
+        services.AddScoped<GaiaSkyline.Application.Content.IStorySlugRedirectResolver, GaiaSkyline.Infrastructure.Content.StorySlugRedirectResolver>();
         services.AddScoped<GaiaSkyline.Infrastructure.Media.IImageRenditionService, GaiaSkyline.Infrastructure.Media.ImageRenditionService>();
         services.AddScoped<GaiaSkyline.Application.Media.IAdminMediaService, GaiaSkyline.Infrastructure.Media.AdminMediaService>();
         services.AddScoped<GaiaSkyline.Application.Media.IAdminMediaReadService, GaiaSkyline.Infrastructure.Media.AdminMediaReadService>();

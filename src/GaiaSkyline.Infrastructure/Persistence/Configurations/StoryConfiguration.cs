@@ -35,5 +35,13 @@ internal sealed class StoryConfiguration : IEntityTypeConfiguration<Story>
         builder.Metadata
             .FindNavigation(nameof(Story.Translations))!
             .SetPropertyAccessMode(PropertyAccessMode.Field);
+
+        builder.HasMany(s => s.Aliases)
+            .WithOne()
+            .HasForeignKey(a => a.StoryId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.Metadata
+            .FindNavigation(nameof(Story.Aliases))!
+            .SetPropertyAccessMode(PropertyAccessMode.Field);
     }
 }

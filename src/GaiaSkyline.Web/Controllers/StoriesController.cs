@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace GaiaSkyline.Web.Controllers;
 
-public sealed class StoriesController(IContentService content) : PublicController
+public sealed class StoriesController(IContentService content, IStorySlugRedirectResolver slugRedirects) : PublicController
 {
     [HttpGet("{lang:culture}/stories")]
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
@@ -30,6 +30,13 @@ public sealed class StoriesController(IContentService content) : PublicControlle
         var story = await content.GetStoryAsync(slug, CurrentCulture, cancellationToken);
         if (story is null)
         {
+            // The slug may be a previous one kept after a rename — 301 to the current URL so old links survive.
+            var current = await slugRedirects.ResolveCurrentSlugAsync(slug, cancellationToken);
+            if (current is not null && !string.Equals(current, slug, StringComparison.OrdinalIgnoreCase))
+            {
+                return RedirectPermanent($"/{CurrentSlug}/stories/{current}");
+            }
+
             return NotFound();
         }
 

@@ -59,4 +59,82 @@ public class StoryTests
 
         story.Translations.Should().HaveCount(2);
     }
+
+    [Fact]
+    public void Rename_keeps_the_old_slug_as_an_alias_when_preserving()
+    {
+        var story = CreateStory("old-slug");
+
+        story.Rename("new-slug", preservePreviousSlug: true);
+
+        story.Slug.Should().Be("new-slug");
+        story.Aliases.Select(a => a.OldSlug).Should().ContainSingle().Which.Should().Be("old-slug");
+    }
+
+    [Fact]
+    public void Rename_without_preserving_records_no_alias()
+    {
+        var story = CreateStory("draft-slug");
+
+        story.Rename("final-slug", preservePreviousSlug: false);
+
+        story.Slug.Should().Be("final-slug");
+        story.Aliases.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Renaming_back_to_a_previous_slug_drops_that_alias()
+    {
+        var story = CreateStory("a");
+        story.Rename("b", preservePreviousSlug: true); // alias: a
+
+        story.Rename("a", preservePreviousSlug: true); // reclaim a → alias: b only
+
+        story.Slug.Should().Be("a");
+        story.Aliases.Select(a => a.OldSlug).Should().BeEquivalentTo(["b"]);
+    }
+
+    [Fact]
+    public void Rename_to_the_same_slug_is_a_no_op()
+    {
+        var story = CreateStory("same");
+
+        story.Rename("same", preservePreviousSlug: true);
+
+        story.Slug.Should().Be("same");
+        story.Aliases.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void SetTranslation_allows_a_title_only_draft_with_empty_excerpt_and_body()
+    {
+        var story = CreateStory();
+
+        var act = () => story.SetTranslation("en", "Just a title", string.Empty, string.Empty, null, null, 1);
+
+        act.Should().NotThrow();
+        var t = story.Translations.Single();
+        t.Excerpt.Should().BeEmpty();
+        t.BodyRichText.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void SetTranslation_still_requires_a_title()
+    {
+        var story = CreateStory();
+
+        var act = () => story.SetTranslation("en", "  ", "excerpt", "<p>body</p>", null, null, 1);
+
+        act.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void Publish_and_unpublish_toggle_the_flag()
+    {
+        var story = CreateStory();
+        story.Unpublish();
+        story.IsPublished.Should().BeFalse();
+        story.Publish();
+        story.IsPublished.Should().BeTrue();
+    }
 }

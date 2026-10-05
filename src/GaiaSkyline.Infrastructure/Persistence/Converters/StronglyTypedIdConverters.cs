@@ -102,6 +102,14 @@ internal sealed class StoryTranslationIdConverter : ValueConverter<StoryTranslat
     }
 }
 
+internal sealed class StorySlugAliasIdConverter : ValueConverter<StorySlugAliasId, Guid>
+{
+    public StorySlugAliasIdConverter()
+        : base(id => id.Value, value => StorySlugAliasId.From(value))
+    {
+    }
+}
+
 // Stage 4 (booking) identities.
 
 internal sealed class BookingIdConverter : ValueConverter<BookingId, Guid>

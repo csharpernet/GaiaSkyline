@@ -50,6 +50,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
 
     public DbSet<StoryTranslation> StoryTranslations => Set<StoryTranslation>();
 
+    public DbSet<StorySlugAlias> StorySlugAliases => Set<StorySlugAlias>();
+
     // Stage 4 — booking & payments.
     public DbSet<Booking> Bookings => Set<Booking>();
 
@@ -102,6 +104,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
         configurationBuilder.Properties<ReviewId>().HaveConversion<ReviewIdConverter>();
         configurationBuilder.Properties<StoryId>().HaveConversion<StoryIdConverter>();
         configurationBuilder.Properties<StoryTranslationId>().HaveConversion<StoryTranslationIdConverter>();
+        configurationBuilder.Properties<StorySlugAliasId>().HaveConversion<StorySlugAliasIdConverter>();
 
         // Stage 4 identities.
         configurationBuilder.Properties<BookingId>().HaveConversion<BookingIdConverter>();
