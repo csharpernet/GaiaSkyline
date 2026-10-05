@@ -26,6 +26,7 @@ public sealed class RateSyncServiceTests : IClassFixture<LocalDbFixture>
         // The class fixture shares one database across the class; start each test from a clean table.
         using var context = _fixture.CreateContext();
         context.DailyRates.ExecuteDelete();
+        context.RateSyncRejections.ExecuteDelete();
     }
 
     private static Money Eur(decimal amount) => new(amount, "EUR");
@@ -121,6 +122,35 @@ public sealed class RateSyncServiceTests : IClassFixture<LocalDbFixture>
         await using var verify = _fixture.CreateContext();
         (await verify.DailyRates.SingleAsync(d => d.Date == Soon)).NightlyRate.Amount.Should().Be(150m); // kept
         email.Sent.Should().ContainSingle();
+
+        // The rejection is persisted open for the §8 review page.
+        var rejection = await verify.RateSyncRejections.SingleAsync(r => r.Date == Soon);
+        rejection.Status.Should().Be(RateSyncRejectionStatus.Open);
+        rejection.OfferedPriceEur.Should().Be(300m);
+        rejection.Reason.Should().Contain("ceiling");
+    }
+
+    [Fact]
+    public async Task A_repeat_rejection_for_the_same_date_updates_the_open_row_instead_of_piling_up()
+    {
+        var options = new PricingProviderOptions { Provider = RateProviderType.Hostify, CeilingPrice = 200m };
+
+        await using (var context = _fixture.CreateContext())
+        {
+            await BuildService(context, [new FakeRateProvider([new ProviderRate(Soon, 300m, null)])], options)
+                .SyncAsync(CancellationToken.None);
+        }
+
+        await using (var context = _fixture.CreateContext())
+        {
+            await BuildService(context, [new FakeRateProvider([new ProviderRate(Soon, 350m, 2)])], options)
+                .SyncAsync(CancellationToken.None);
+        }
+
+        await using var verify = _fixture.CreateContext();
+        var rejection = await verify.RateSyncRejections.SingleAsync(r => r.Date == Soon);
+        rejection.OfferedPriceEur.Should().Be(350m, "the later offer replaces the open one");
+        rejection.OfferedMinNights.Should().Be(2);
     }
 
     [Fact]

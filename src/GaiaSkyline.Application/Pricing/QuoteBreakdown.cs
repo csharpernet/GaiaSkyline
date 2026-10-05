@@ -11,8 +11,12 @@ public enum DiscountKind
     Promo,
 }
 
-/// <summary>The nightly rate applied to a single night (handles stays that span pricing seasons).</summary>
-public sealed record NightlyCharge(DateOnly Date, Money Rate);
+/// <summary>
+/// The nightly rate applied to a single night (handles stays that span pricing seasons).
+/// <see cref="Source"/> names where the price came from — "Manual"/"PriceLabs"/"Hostify" (per-date
+/// rate), "Season" (pricing rule) or "Base" (fallback) — surfaced in the admin quote preview.
+/// </summary>
+public sealed record NightlyCharge(DateOnly Date, Money Rate, string Source = "Base");
 
 /// <summary>The single applied discount line (<see cref="DiscountKind.None"/> with a zero amount if none).</summary>
 public sealed record DiscountLine(DiscountKind Kind, int Percent, Money Amount);

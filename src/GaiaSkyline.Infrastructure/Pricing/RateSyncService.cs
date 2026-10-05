@@ -3,6 +3,7 @@ using GaiaSkyline.Application.Bookings;
 using GaiaSkyline.Application.Content;
 using GaiaSkyline.Application.Notifications;
 using GaiaSkyline.Application.Pricing;
+using GaiaSkyline.Domain.Identifiers;
 using GaiaSkyline.Domain.Pricing;
 using GaiaSkyline.Domain.ValueObjects;
 using GaiaSkyline.Infrastructure.Persistence;
@@ -63,6 +64,12 @@ internal sealed class RateSyncService(
         var rejected = new List<(DateOnly Date, decimal Price)>();
         var changed = false;
 
+        // Open rejections are upserted per date so the review page (Stage 7 §8) never piles up rows.
+        var openRejections = (await dbContext.RateSyncRejections
+            .Where(r => r.Status == RateSyncRejectionStatus.Open)
+            .ToListAsync(cancellationToken))
+            .ToDictionary(r => r.Date);
+
         foreach (var rate in providerRates)
         {
             // Owner-locked dates are never overwritten by an import.
@@ -77,6 +84,20 @@ internal sealed class RateSyncService(
             if (adjusted < config.FloorPrice || adjusted > config.CeilingPrice)
             {
                 rejected.Add((rate.Date, adjusted));
+                var reason = adjusted < config.FloorPrice
+                    ? $"below floor €{config.FloorPrice:0}"
+                    : $"above ceiling €{config.CeilingPrice:0}";
+                if (openRejections.TryGetValue(rate.Date, out var openRejection))
+                {
+                    openRejection.UpdateOffer(adjusted, rate.MinNights, reason, now);
+                }
+                else
+                {
+                    dbContext.RateSyncRejections.Add(new RateSyncRejection(
+                        RateSyncRejectionId.New(), rate.Date, adjusted, rate.MinNights,
+                        config.Provider.ToString(), reason, now));
+                }
+
                 continue; // keep the previous value
             }
 

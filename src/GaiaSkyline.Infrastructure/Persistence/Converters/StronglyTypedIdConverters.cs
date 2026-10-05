@@ -227,3 +227,11 @@ internal sealed class BookingConflictIdConverter : ValueConverter<BookingConflic
     {
     }
 }
+
+internal sealed class RateSyncRejectionIdConverter : ValueConverter<RateSyncRejectionId, Guid>
+{
+    public RateSyncRejectionIdConverter()
+        : base(id => id.Value, value => RateSyncRejectionId.From(value))
+    {
+    }
+}

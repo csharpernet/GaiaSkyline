@@ -3,8 +3,8 @@ using GaiaSkyline.Domain.ValueObjects;
 
 namespace GaiaSkyline.Application.Pricing;
 
-/// <summary>A resolved per-date rate for the calculator (nightly rate + optional minimum nights).</summary>
-public sealed record DailyRateValue(Money NightlyRate, int? MinNights);
+/// <summary>A resolved per-date rate for the calculator (nightly rate + optional minimum nights + origin).</summary>
+public sealed record DailyRateValue(Money NightlyRate, int? MinNights, RateSource Source = RateSource.Manual);
 
 /// <summary>
 /// Everything the pure <see cref="IPricingCalculator"/> needs beyond the request: the pricing rules

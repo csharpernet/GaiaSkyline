@@ -48,4 +48,21 @@ public class CancellationPolicyTests
             [new CancellationTier(30, 150)]);
         act.Should().Throw<ArgumentOutOfRangeException>();
     }
+
+    [Fact]
+    public void Replace_tiers_swaps_the_whole_set_with_the_same_validation_and_ordering()
+    {
+        var policy = Policy();
+
+        policy.ReplaceTiers([new CancellationTier(7, 50), new CancellationTier(60, 100)]);
+
+        policy.Tiers.Select(t => t.DaysBeforeCheckIn).Should().ContainInOrder(60, 7);
+        policy.RefundPercentageFor(10).Should().Be(50);
+
+        var empty = () => policy.ReplaceTiers([]);
+        empty.Should().Throw<ArgumentException>();
+        var outOfRange = () => policy.ReplaceTiers([new CancellationTier(7, 101)]);
+        outOfRange.Should().Throw<ArgumentOutOfRangeException>();
+        policy.Tiers.Should().HaveCount(2, "a failed replace leaves the tiers unchanged");
+    }
 }

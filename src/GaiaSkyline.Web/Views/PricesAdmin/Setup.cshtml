@@ -1,0 +1,184 @@
+@model GaiaSkyline.Web.Models.PricesSetupViewModel
+@{
+    Layout = "_AdminShell";
+    ViewData["Title"] = "Pricing setup";
+}
+
+<div class="max-w-4xl">
+    <a href="/admin/prices" class="text-xs text-river hover:underline">← Rates grid</a>
+    <h1 class="mt-2 font-display text-2xl font-semibold">Seasons, fees, policy &amp; promo codes</h1>
+    <p class="mt-1 text-sm text-ink/70">
+        Per-night price resolution is: per-date rate (grid/CSV) → season → base rate from configuration.
+        The widest season acts as the de-facto base price.
+    </p>
+
+    <!-- Seasons -->
+    <section class="mt-5 rounded-md border border-fog bg-white p-4" data-seasons>
+        <h2 class="text-sm font-semibold text-ink/80">Seasons (@Model.Seasons.Count)</h2>
+        <p class="mt-1 text-xs text-ink/55">Closed date ranges; overlaps are rejected. Discounts apply to stays of 7+/28+ nights starting in the season.</p>
+        <ul class="mt-2 divide-y divide-fog/60">
+            @foreach (var season in Model.Seasons)
+            {
+                <li class="py-3" data-season-row="@season.Id">
+                    <form method="post" action="/admin/prices/seasons/@season.Id/update" class="flex flex-wrap items-end gap-2">
+                        @Html.AntiForgeryToken()
+                        <input name="start" type="date" required value="@season.StartDate.ToString("yyyy-MM-dd")"
+                               class="rounded-md border border-fog px-2 py-1.5 text-xs" />
+                        <input name="end" type="date" required value="@season.EndDate.ToString("yyyy-MM-dd")"
+                               class="rounded-md border border-fog px-2 py-1.5 text-xs" />
+                        <label class="text-xs text-ink/55">€<input name="price" inputmode="decimal" value="@season.NightlyRateEur.ToString("0.##")"
+                               class="w-20 rounded-md border border-fog px-2 py-1.5 text-xs" /></label>
+                        <label class="text-xs text-ink/55">min <input name="minNights" type="number" min="1" max="30" value="@season.MinNights"
+                               class="w-14 rounded-md border border-fog px-2 py-1.5 text-xs" /></label>
+                        <label class="text-xs text-ink/55">7+ <input name="weeklyPct" type="number" min="0" max="100" value="@season.WeeklyDiscountPct"
+                               class="w-14 rounded-md border border-fog px-2 py-1.5 text-xs" />%</label>
+                        <label class="text-xs text-ink/55">28+ <input name="monthlyPct" type="number" min="0" max="100" value="@season.MonthlyDiscountPct"
+                               class="w-14 rounded-md border border-fog px-2 py-1.5 text-xs" />%</label>
+                        <button type="submit" class="border border-river text-river rounded-md px-3 py-1.5 text-xs">Save</button>
+                    </form>
+                    <form method="post" action="/admin/prices/seasons/@season.Id/delete" class="mt-1"
+                          data-confirm="Delete this season? Nights fall back to the next season or the base rate. Type DELETE to confirm."
+                          data-confirm-type="DELETE">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="text-xs text-clay hover:underline">Delete</button>
+                    </form>
+                </li>
+            }
+        </ul>
+        <form method="post" action="/admin/prices/seasons" class="mt-3 flex flex-wrap items-end gap-2 border-t border-fog pt-3" data-add-season>
+            @Html.AntiForgeryToken()
+            <div>
+                <label class="block text-xs font-semibold text-river">Start</label>
+                <input name="start" type="date" required class="mt-1 rounded-md border border-fog px-2 py-1.5 text-xs" />
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-river">End (inclusive)</label>
+                <input name="end" type="date" required class="mt-1 rounded-md border border-fog px-2 py-1.5 text-xs" />
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-river">€/night</label>
+                <input name="price" inputmode="decimal" required class="mt-1 w-20 rounded-md border border-fog px-2 py-1.5 text-xs" />
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-river">Min nights</label>
+                <input name="minNights" type="number" min="1" max="30" value="3" class="mt-1 w-16 rounded-md border border-fog px-2 py-1.5 text-xs" />
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-river">7+ %</label>
+                <input name="weeklyPct" type="number" min="0" max="100" value="0" class="mt-1 w-14 rounded-md border border-fog px-2 py-1.5 text-xs" />
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-river">28+ %</label>
+                <input name="monthlyPct" type="number" min="0" max="100" value="0" class="mt-1 w-14 rounded-md border border-fog px-2 py-1.5 text-xs" />
+            </div>
+            <button type="submit" class="bg-river text-white rounded-md px-4 py-1.5 text-sm">Add season</button>
+        </form>
+    </section>
+
+    <!-- Fees -->
+    <section class="mt-5 rounded-md border border-fog bg-white p-4" data-fees>
+        <h2 class="text-sm font-semibold text-ink/80">Fees</h2>
+        <form method="post" action="/admin/prices/fees" class="mt-3 flex flex-wrap items-end gap-3">
+            @Html.AntiForgeryToken()
+            <div>
+                <label class="block text-xs font-semibold text-river" for="fee-cleaning">Cleaning fee (€/stay)</label>
+                <input id="fee-cleaning" name="cleaning" inputmode="decimal" value="@Model.Fees.CleaningFeeEur.ToString("0.##")"
+                       class="mt-1 w-24 rounded-md border border-fog px-3 py-2 text-sm" />
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-river" for="fee-tax">Tourist tax (€/adult/night, blank = none)</label>
+                <input id="fee-tax" name="touristTax" inputmode="decimal" value="@(Model.Fees.TouristTaxPerAdultPerNightEur?.ToString("0.##"))"
+                       class="mt-1 w-24 rounded-md border border-fog px-3 py-2 text-sm" />
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-river" for="fee-tax-max">Tax nights cap</label>
+                <input id="fee-tax-max" name="touristTaxMaxNights" type="number" min="1" max="31" value="@Model.Fees.TouristTaxMaxNights"
+                       class="mt-1 w-20 rounded-md border border-fog px-3 py-2 text-sm" />
+            </div>
+            <button type="submit" class="bg-river text-white rounded-md px-4 py-2 text-sm">Save fees</button>
+        </form>
+    </section>
+
+    <!-- Cancellation policy -->
+    <section class="mt-5 rounded-md border border-fog bg-white p-4" data-policy>
+        <h2 class="text-sm font-semibold text-ink/80">Cancellation policy tiers</h2>
+        <p class="mt-1 text-xs text-ink/55">
+            A guest cancelling N+ days before check-in gets the matching refund; later than every tier refunds 0%.
+            Edit the rows and save — the whole set is replaced.
+        </p>
+        <form method="post" action="/admin/prices/policy" class="mt-3" data-policy-form>
+            @Html.AntiForgeryToken()
+            <div class="space-y-2" data-policy-rows>
+                @foreach (var tier in Model.Tiers)
+                {
+                    <div class="flex items-center gap-2 text-sm" data-policy-row>
+                        <input name="days" type="number" min="0" max="365" required value="@tier.DaysBeforeCheckIn"
+                               class="w-20 rounded-md border border-fog px-2 py-1.5 text-xs" />
+                        <span class="text-xs text-ink/55">days before check-in →</span>
+                        <input name="pct" type="number" min="0" max="100" required value="@tier.RefundPct"
+                               class="w-16 rounded-md border border-fog px-2 py-1.5 text-xs" />
+                        <span class="text-xs text-ink/55">% refund</span>
+                        <button type="button" class="text-xs text-clay hover:underline" data-remove-row>Remove</button>
+                    </div>
+                }
+            </div>
+            <div class="mt-3 flex gap-2">
+                <button type="button" class="border border-fog rounded-md px-3 py-1.5 text-xs hover:bg-stone/40" data-add-row>Add tier</button>
+                <button type="submit" class="bg-river text-white rounded-md px-4 py-1.5 text-sm"
+                        data-confirm="Replace the cancellation tiers? This changes the refund every future cancellation gets.">Save tiers</button>
+            </div>
+        </form>
+    </section>
+
+    <!-- Promo codes -->
+    <section class="mt-5 rounded-md border border-fog bg-white p-4" data-promos>
+        <h2 class="text-sm font-semibold text-ink/80">Promo codes (@Model.Promos.Count)</h2>
+        <ul class="mt-2 divide-y divide-fog/60">
+            @foreach (var promo in Model.Promos)
+            {
+                <li class="py-3" data-promo-row="@promo.Code">
+                    <form method="post" action="/admin/prices/promos/@promo.Id/update" class="flex flex-wrap items-end gap-2">
+                        @Html.AntiForgeryToken()
+                        <span class="font-mono text-sm font-semibold">@promo.Code</span>
+                        <label class="text-xs text-ink/55">−<input name="discountPct" type="number" min="1" max="100" value="@promo.DiscountPct"
+                               class="w-14 rounded-md border border-fog px-2 py-1.5 text-xs" />%</label>
+                        <input name="validFrom" type="date" value="@(promo.ValidFrom?.ToString("yyyy-MM-dd"))"
+                               class="rounded-md border border-fog px-2 py-1.5 text-xs" />
+                        <input name="validUntil" type="date" value="@(promo.ValidUntil?.ToString("yyyy-MM-dd"))"
+                               class="rounded-md border border-fog px-2 py-1.5 text-xs" />
+                        <label class="flex items-center gap-1 text-xs"><input type="checkbox" name="isActive" value="true" checked="@promo.IsActive" /> active</label>
+                        <button type="submit" class="border border-river text-river rounded-md px-3 py-1.5 text-xs">Save</button>
+                    </form>
+                    <form method="post" action="/admin/prices/promos/@promo.Id/delete" class="mt-1"
+                          data-confirm="Delete promo @promo.Code? Type DELETE to confirm." data-confirm-type="DELETE">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="text-xs text-clay hover:underline">Delete</button>
+                    </form>
+                </li>
+            }
+        </ul>
+        <form method="post" action="/admin/prices/promos" class="mt-3 flex flex-wrap items-end gap-2 border-t border-fog pt-3" data-add-promo>
+            @Html.AntiForgeryToken()
+            <div>
+                <label class="block text-xs font-semibold text-river">Code</label>
+                <input name="code" required maxlength="40" placeholder="SUMMER10" class="mt-1 w-32 rounded-md border border-fog px-2 py-1.5 text-xs uppercase" />
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-river">Discount %</label>
+                <input name="discountPct" type="number" min="1" max="100" value="10" class="mt-1 w-16 rounded-md border border-fog px-2 py-1.5 text-xs" />
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-river">Valid from</label>
+                <input name="validFrom" type="date" class="mt-1 rounded-md border border-fog px-2 py-1.5 text-xs" />
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-river">Valid until</label>
+                <input name="validUntil" type="date" class="mt-1 rounded-md border border-fog px-2 py-1.5 text-xs" />
+            </div>
+            <label class="flex items-center gap-1 text-xs"><input type="checkbox" name="isActive" value="true" checked /> active</label>
+            <button type="submit" class="bg-river text-white rounded-md px-4 py-1.5 text-sm">Add promo</button>
+        </form>
+    </section>
+</div>
+
+<script src="~/js/prices-admin.js" asp-append-version="true"></script>

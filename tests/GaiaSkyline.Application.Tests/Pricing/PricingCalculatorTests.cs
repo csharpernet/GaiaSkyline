@@ -86,6 +86,23 @@ public class PricingCalculatorTests
     }
 
     [Fact]
+    public void Each_night_names_its_price_source_for_the_admin_quote_preview()
+    {
+        // 6/1 priced by a PriceLabs per-date rate, 6/2 by the season, 6/3 by the base fallback.
+        var juneOnly = Rule(new DateOnly(2026, 6, 1), new DateOnly(2026, 6, 2), 100m, minNights: 1);
+        var daily = new Dictionary<DateOnly, DailyRateValue>
+        {
+            [new DateOnly(2026, 6, 1)] = new(Eur(130m), null, RateSource.PriceLabs),
+        };
+        var request = Request(new DateOnly(2026, 6, 1), new DateOnly(2026, 6, 4));
+
+        var quote = _calculator.Quote(request, Ctx([juneOnly], dailyRates: daily, baseRate: Eur(90m)));
+
+        quote.Nightly.Select(n => n.Source).Should().ContainInOrder("PriceLabs", "Season", "Base");
+        quote.NightlySubtotal.Amount.Should().Be(130m + 100m + 90m);
+    }
+
+    [Fact]
     public void Applies_the_weekly_discount_at_seven_nights()
     {
         var request = Request(new DateOnly(2026, 6, 1), new DateOnly(2026, 6, 8)); // 7 nights

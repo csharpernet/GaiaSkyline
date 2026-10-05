@@ -40,6 +40,22 @@ public sealed class PromoCode : Entity<PromoCodeId>
         PartnerId = partnerId;
     }
 
+    /// <summary>Admin edit: discount, active flag and validity window (the code itself never changes).</summary>
+    public void Update(int discountPct, bool isActive, DateOnly? validFrom, DateOnly? validUntil)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(discountPct);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(discountPct, 100);
+        if (validFrom is { } from && validUntil is { } until && until < from)
+        {
+            throw new ArgumentException("Promo code validUntil must be on or after validFrom.", nameof(validUntil));
+        }
+
+        DiscountPct = discountPct;
+        IsActive = isActive;
+        ValidFrom = validFrom;
+        ValidUntil = validUntil;
+    }
+
     /// <summary>The code as entered by guests, stored upper-cased for case-insensitive matching.</summary>
     public string Code { get; private set; } = null!;
 

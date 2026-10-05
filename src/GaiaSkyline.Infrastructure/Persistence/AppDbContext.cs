@@ -75,6 +75,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
 
     public DbSet<DailyRate> DailyRates => Set<DailyRate>();
 
+    public DbSet<RateSyncRejection> RateSyncRejections => Set<RateSyncRejection>();
+
     public DbSet<StripeEventLog> StripeEventLogs => Set<StripeEventLog>();
 
     public DbSet<ExternalCalendarBlock> ExternalCalendarBlocks => Set<ExternalCalendarBlock>();
@@ -129,6 +131,9 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
         configurationBuilder.Properties<OwnerBlockId>().HaveConversion<OwnerBlockIdConverter>();
         configurationBuilder.Properties<ExternalCalendarSourceId>().HaveConversion<ExternalCalendarSourceIdConverter>();
         configurationBuilder.Properties<BookingConflictId>().HaveConversion<BookingConflictIdConverter>();
+
+        // Stage 7 §8.
+        configurationBuilder.Properties<RateSyncRejectionId>().HaveConversion<RateSyncRejectionIdConverter>();
 
         // Money persists as integer minor units (cents); EUR is re-attached on read.
         configurationBuilder.Properties<Money>().HaveConversion<MoneyToCentsConverter>();

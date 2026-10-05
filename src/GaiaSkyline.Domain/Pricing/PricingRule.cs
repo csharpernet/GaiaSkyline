@@ -25,6 +25,28 @@ public sealed class PricingRule : Entity<PricingRuleId>
         int weeklyDiscountPct,
         int monthlyDiscountPct)
     {
+        Id = id;
+        Apply(startDate, endDate, nightlyRate, minNights, weeklyDiscountPct, monthlyDiscountPct);
+    }
+
+    /// <summary>Re-dates/re-prices the season (admin edit) with the same validation as creation.</summary>
+    public void Update(
+        DateOnly startDate,
+        DateOnly endDate,
+        Money nightlyRate,
+        int minNights,
+        int weeklyDiscountPct,
+        int monthlyDiscountPct) =>
+        Apply(startDate, endDate, nightlyRate, minNights, weeklyDiscountPct, monthlyDiscountPct);
+
+    private void Apply(
+        DateOnly startDate,
+        DateOnly endDate,
+        Money nightlyRate,
+        int minNights,
+        int weeklyDiscountPct,
+        int monthlyDiscountPct)
+    {
         if (endDate < startDate)
         {
             throw new ArgumentException("Pricing rule end date must be on or after the start date.", nameof(endDate));
@@ -35,7 +57,6 @@ public sealed class PricingRule : Entity<PricingRuleId>
         ThrowIfNotPercentage(weeklyDiscountPct, nameof(weeklyDiscountPct));
         ThrowIfNotPercentage(monthlyDiscountPct, nameof(monthlyDiscountPct));
 
-        Id = id;
         StartDate = startDate;
         EndDate = endDate;
         NightlyRate = nightlyRate;

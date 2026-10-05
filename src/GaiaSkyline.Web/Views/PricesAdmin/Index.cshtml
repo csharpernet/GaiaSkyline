@@ -1,0 +1,279 @@
+@using System.Globalization
+@model GaiaSkyline.Web.Models.PricesAdminViewModel
+@{
+    Layout = "_AdminShell";
+    ViewData["Title"] = "Prices";
+
+    string SourceBadge(string source) => source switch
+    {
+        "Manual" => "bg-river text-white",
+        "PriceLabs" or "Hostify" => "bg-[#C98A3A] text-white",
+        "Season" => "bg-stone text-ink/70",
+        _ => "bg-white text-ink/50 border border-fog",
+    };
+}
+
+<div class="max-w-6xl" data-prices-admin>
+    <div class="flex flex-wrap items-start justify-between gap-4">
+        <div>
+            <h1 class="font-display text-2xl font-semibold">Prices</h1>
+            <p class="mt-1 text-sm text-ink/70">
+                Each night shows its price, minimum stay, source and lock. Click a day to fill the range
+                below (first click = from, second = to), then bulk set, clear or lock.
+            </p>
+        </div>
+        <div class="flex gap-2">
+            <a href="/admin/prices/setup" class="border border-river text-river rounded-md px-4 py-2 text-sm">Seasons, fees &amp; promos</a>
+            <a href="/admin/prices/export.csv" class="border border-fog rounded-md px-4 py-2 text-sm hover:bg-stone/40">Export CSV</a>
+        </div>
+    </div>
+
+    @if (Model.QuoteError is { } topError && Model.CsvPreview is null && Model.Quote is null)
+    {
+        <p class="mt-4 rounded-md border border-clay/40 bg-clay/5 px-3 py-2 text-sm text-clay" data-prices-error>@topError</p>
+    }
+
+    <!-- Bulk actions -->
+    <section class="mt-5 rounded-md border border-fog bg-white p-4" data-bulk-panel>
+        <h2 class="text-sm font-semibold text-ink/80">Bulk edit a range</h2>
+        <div class="mt-3 flex flex-wrap items-end gap-3">
+            <div>
+                <label class="block text-xs font-semibold text-river" for="bulk-from">From</label>
+                <input id="bulk-from" name="from" form="bulk-set-form" type="date" required
+                       class="mt-1 rounded-md border border-fog px-3 py-2 text-sm" />
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-river" for="bulk-to">To (inclusive)</label>
+                <input id="bulk-to" name="to" form="bulk-set-form" type="date" required
+                       class="mt-1 rounded-md border border-fog px-3 py-2 text-sm" />
+            </div>
+            <form id="bulk-set-form" method="post" action="/admin/prices/bulk-set" class="flex items-end gap-2">
+                @Html.AntiForgeryToken()
+                <div>
+                    <label class="block text-xs font-semibold text-river" for="bulk-price">Price (€/night)</label>
+                    <input id="bulk-price" name="price" inputmode="decimal" placeholder="150"
+                           class="mt-1 w-28 rounded-md border border-fog px-3 py-2 text-sm" />
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-river" for="bulk-min">Min nights</label>
+                    <input id="bulk-min" name="minNights" inputmode="numeric" placeholder="—"
+                           class="mt-1 w-20 rounded-md border border-fog px-3 py-2 text-sm" />
+                </div>
+                <button type="submit" class="bg-river text-white rounded-md px-4 py-2 text-sm">Set</button>
+            </form>
+            <form method="post" action="/admin/prices/bulk-clear" class="flex items-end" data-sync-range
+                  data-confirm="Clear every per-date override in the range? Those nights fall back to season/base pricing.">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="from" data-range-from />
+                <input type="hidden" name="to" data-range-to />
+                <button type="submit" class="border border-clay text-clay rounded-md px-4 py-2 text-sm">Clear overrides</button>
+            </form>
+            <form method="post" action="/admin/prices/bulk-lock" class="flex items-end" data-sync-range>
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="from" data-range-from />
+                <input type="hidden" name="to" data-range-to />
+                <input type="hidden" name="locked" value="true" />
+                <button type="submit" class="border border-river text-river rounded-md px-4 py-2 text-sm">Lock</button>
+            </form>
+            <form method="post" action="/admin/prices/bulk-lock" class="flex items-end" data-sync-range>
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="from" data-range-from />
+                <input type="hidden" name="to" data-range-to />
+                <input type="hidden" name="locked" value="false" />
+                <button type="submit" class="border border-fog rounded-md px-4 py-2 text-sm hover:bg-stone/40">Unlock</button>
+            </form>
+        </div>
+    </section>
+
+    <!-- Rate-sync rejections -->
+    @if (Model.Rejections.Count > 0)
+    {
+        <section class="mt-5 rounded-md border border-amber-600/60 bg-white p-4" data-rejections>
+            <h2 class="text-sm font-semibold text-amber-600">Rate-sync rejections awaiting review (@Model.Rejections.Count)</h2>
+            <p class="mt-1 text-xs text-ink/55">The provider offered these values outside your floor/ceiling bounds; the previous rates were kept.</p>
+            <ul class="mt-2 divide-y divide-fog/60">
+                @foreach (var rejection in Model.Rejections)
+                {
+                    <li class="flex flex-wrap items-center gap-3 py-2 text-sm" data-rejection-row="@rejection.Id">
+                        <span class="font-mono text-xs">@rejection.Date.ToString("yyyy-MM-dd")</span>
+                        <span>€@rejection.OfferedPriceEur.ToString("0.##")@(rejection.OfferedMinNights is { } mn ? $" · min {mn}" : "")</span>
+                        <span class="text-xs text-ink/55">@rejection.Provider — @rejection.Reason</span>
+                        <form method="post" action="/admin/prices/rejections/@rejection.Id/accept" class="ml-auto">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="border border-river text-river rounded-md px-3 py-1.5 text-xs">Accept as manual price</button>
+                        </form>
+                        <form method="post" action="/admin/prices/rejections/@rejection.Id/dismiss">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="border border-fog rounded-md px-3 py-1.5 text-xs hover:bg-stone/40">Dismiss</button>
+                        </form>
+                    </li>
+                }
+            </ul>
+        </section>
+    }
+
+    <!-- 12-month grid -->
+    <section class="mt-5 space-y-5" data-rates-grid>
+        @foreach (var month in Model.Grid)
+        {
+            <div class="rounded-md border border-fog bg-white p-3">
+                <h3 class="text-sm font-semibold text-ink/80">@month.Month.ToString("MMMM yyyy", CultureInfo.InvariantCulture)</h3>
+                <div class="mt-2 grid grid-cols-7 gap-px rounded-md border border-fog bg-fog text-[11px]">
+                    @foreach (var dayName in new[] { "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun" })
+                    {
+                        <div class="bg-stone/60 px-1.5 py-0.5 font-semibold text-ink/60">@dayName</div>
+                    }
+                    @{
+                        var offset = ((int)month.Days[0].Date.DayOfWeek + 6) % 7;
+                    }
+                    @for (var i = 0; i < offset; i++)
+                    {
+                        <div class="bg-stone/30"></div>
+                    }
+                    @foreach (var day in month.Days)
+                    {
+                        <button type="button" class="min-h-14 bg-white px-1.5 py-1 text-left hover:bg-river/5"
+                                data-rate-cell="@day.Date.ToString("yyyy-MM-dd")"
+                                title="@day.Date.ToString("yyyy-MM-dd"): @(day.PriceEur is { } t ? $"€{t:0.##}" : "no price") · min @day.MinNights · @day.Source@(day.Locked ? " · locked" : "")">
+                            <div class="flex items-center justify-between">
+                                <span class="font-medium text-ink/70">@day.Date.Day</span>
+                                @if (day.Locked)
+                                {
+                                    <span title="Locked — imports never overwrite">🔒</span>
+                                }
+                            </div>
+                            <div class="font-semibold text-ink">@(day.PriceEur is { } p ? $"€{p:0.##}" : "—")</div>
+                            <div class="mt-0.5 flex items-center gap-1">
+                                <span class="rounded px-1 @SourceBadge(day.Source)">@day.Source</span>
+                                <span class="text-ink/45">×@day.MinNights</span>
+                            </div>
+                        </button>
+                    }
+                </div>
+            </div>
+        }
+    </section>
+
+    <!-- CSV import -->
+    <section class="mt-5 rounded-md border border-fog bg-white p-4" data-csv-panel>
+        <h2 class="text-sm font-semibold text-ink/80">CSV import</h2>
+        <p class="mt-1 text-xs text-ink/55">
+            Columns: <code>date,price,min_nights</code> (min nights optional).
+            <a href="/admin/prices/template.csv" class="text-river hover:underline">Download the template</a>.
+            Preview first — nothing is written until you apply.
+        </p>
+        <form method="post" action="/admin/prices/csv/preview" enctype="multipart/form-data" class="mt-3 flex flex-wrap items-end gap-3">
+            @Html.AntiForgeryToken()
+            <input type="file" name="csvFile" accept=".csv,text/csv" class="text-sm" />
+            <textarea name="csvText" rows="2" placeholder="…or paste CSV here"
+                      class="w-72 rounded-md border border-fog px-3 py-2 text-xs font-mono"></textarea>
+            <button type="submit" class="border border-river text-river rounded-md px-4 py-2 text-sm">Preview changes</button>
+        </form>
+
+        @if (Model.CsvPreview is { } preview)
+        {
+            <div class="mt-4" data-csv-preview>
+                <h3 class="text-sm font-semibold text-ink/80">Preview — old vs new</h3>
+                <table class="mt-2 w-full text-xs">
+                    <thead class="text-left text-ink/50 border-b border-fog">
+                        <tr><th class="py-1">Date</th><th>Current</th><th>New</th><th>Status</th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in preview)
+                        {
+                            <tr class="border-b border-fog/60 @(row.Changes ? "bg-amber-600/10" : "")">
+                                <td class="py-1 font-mono">@(row.Date?.ToString("yyyy-MM-dd") ?? "—")</td>
+                                <td>@(row.CurrentPriceEur is { } cp ? $"€{cp:0.##} · min {row.CurrentMinNights} ({row.CurrentSource})" : "—")</td>
+                                <td class="@(row.Changes ? "font-semibold" : "")">
+                                    @(row.NewPriceEur is { } np ? $"€{np:0.##}{(row.NewMinNights is { } nm ? $" · min {nm}" : "")}" : "—")
+                                </td>
+                                <td class="@(row.Status == "set" ? "text-river" : "text-clay")">@(row.Status == "set" ? (row.Changes ? "will change" : "no change") : row.Status)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+                <form method="post" action="/admin/prices/csv/apply" class="mt-3"
+                      data-confirm="Apply the valid CSV rows as manual rates?">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="csv" value="@Model.CsvRaw" />
+                    <button type="submit" class="bg-river text-white rounded-md px-4 py-2 text-sm" data-csv-apply>Apply CSV</button>
+                </form>
+            </div>
+        }
+    </section>
+
+    <!-- Quote preview -->
+    <section class="mt-5 rounded-md border border-fog bg-white p-4" data-quote-panel>
+        <h2 class="text-sm font-semibold text-ink/80">Quote preview</h2>
+        <p class="mt-1 text-xs text-ink/55">The exact breakdown a guest would see, with each night's price source.</p>
+        <form method="post" action="/admin/prices/quote-preview" class="mt-3 flex flex-wrap items-end gap-3">
+            @Html.AntiForgeryToken()
+            <div>
+                <label class="block text-xs font-semibold text-river" for="qp-in">Check-in</label>
+                <input id="qp-in" name="CheckIn" type="date" required value="@(Model.QuoteForm.CheckIn?.ToString("yyyy-MM-dd"))"
+                       class="mt-1 rounded-md border border-fog px-3 py-2 text-sm" />
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-river" for="qp-out">Check-out</label>
+                <input id="qp-out" name="CheckOut" type="date" required value="@(Model.QuoteForm.CheckOut?.ToString("yyyy-MM-dd"))"
+                       class="mt-1 rounded-md border border-fog px-3 py-2 text-sm" />
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-river" for="qp-adults">Adults</label>
+                <input id="qp-adults" name="Adults" type="number" min="1" max="10" value="@Model.QuoteForm.Adults"
+                       class="mt-1 w-16 rounded-md border border-fog px-3 py-2 text-sm" />
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-river" for="qp-children">Children</label>
+                <input id="qp-children" name="Children" type="number" min="0" max="10" value="@Model.QuoteForm.Children"
+                       class="mt-1 w-16 rounded-md border border-fog px-3 py-2 text-sm" />
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-river" for="qp-promo">Promo</label>
+                <input id="qp-promo" name="Promo" value="@Model.QuoteForm.Promo" placeholder="optional"
+                       class="mt-1 w-28 rounded-md border border-fog px-3 py-2 text-sm" />
+            </div>
+            <button type="submit" class="bg-river text-white rounded-md px-4 py-2 text-sm">Preview quote</button>
+        </form>
+
+        @if (Model.Quote is { } quote)
+        {
+            <div class="mt-4 grid gap-4 sm:grid-cols-2" data-quote-result>
+                <div>
+                    <h3 class="text-xs font-semibold text-ink/60">Per night (source)</h3>
+                    <ul class="mt-1 space-y-0.5 text-xs">
+                        @foreach (var night in quote.Nightly)
+                        {
+                            <li class="flex items-center gap-2" data-quote-night>
+                                <span class="font-mono">@night.Date.ToString("yyyy-MM-dd")</span>
+                                <span>€@night.Rate.Amount.ToString("0.##")</span>
+                                <span class="rounded px-1 @SourceBadge(night.Source)">@night.Source</span>
+                            </li>
+                        }
+                    </ul>
+                </div>
+                <dl class="space-y-1 text-sm">
+                    <div class="flex justify-between"><dt class="text-ink/55">Nights</dt><dd>@quote.Nights (min @quote.EffectiveMinNights)</dd></div>
+                    <div class="flex justify-between"><dt class="text-ink/55">Nightly subtotal</dt><dd>€@quote.NightlySubtotal.Amount.ToString("0.00")</dd></div>
+                    @if (quote.Discount.Amount.Amount > 0)
+                    {
+                        <div class="flex justify-between"><dt class="text-ink/55">Discount (@quote.Discount.Kind @quote.Discount.Percent%)</dt><dd>−€@quote.Discount.Amount.Amount.ToString("0.00")</dd></div>
+                    }
+                    @if (quote.PromoRequestedButInvalid)
+                    {
+                        <div class="text-xs text-clay">The promo code is not valid for these dates.</div>
+                    }
+                    <div class="flex justify-between"><dt class="text-ink/55">Cleaning fee</dt><dd>€@quote.CleaningFee.Amount.ToString("0.00")</dd></div>
+                    <div class="flex justify-between"><dt class="text-ink/55">Tourist tax</dt><dd>€@quote.TouristTax.Amount.ToString("0.00")</dd></div>
+                    <div class="flex justify-between border-t border-fog pt-1 font-semibold"><dt>Total</dt><dd data-quote-total>€@quote.Total.Amount.ToString("0.00")</dd></div>
+                </dl>
+            </div>
+        }
+        else if (Model.QuoteError is { } quoteError && Model.CsvPreview is null)
+        {
+            <p class="mt-3 text-sm text-clay" data-quote-error>@quoteError</p>
+        }
+    </section>
+</div>
+
+<script src="~/js/prices-admin.js" asp-append-version="true"></script>

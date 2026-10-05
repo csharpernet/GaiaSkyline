@@ -60,6 +60,9 @@ public static class DependencyInjection
         services.AddScoped<IPricingReadStore, PricingReadStore>();
         services.AddScoped<IQuoteService, GaiaSkyline.Application.Pricing.QuoteService>();
         services.AddScoped<GaiaSkyline.Application.Pricing.IDailyRateService, GaiaSkyline.Infrastructure.Pricing.DailyRateService>();
+        // Prices admin (Stage 7 §8).
+        services.AddScoped<GaiaSkyline.Application.Pricing.IPricingAdminService, GaiaSkyline.Infrastructure.Pricing.PricingAdminService>();
+        services.AddScoped<GaiaSkyline.Application.Pricing.IPricingAdminReadService, GaiaSkyline.Infrastructure.Pricing.PricingAdminReadService>();
         services.AddScoped<IAvailabilityService, AvailabilityService>();
         services.AddScoped<GaiaSkyline.Application.Availability.IOwnerBlockService, GaiaSkyline.Infrastructure.Availability.OwnerBlockService>();
 

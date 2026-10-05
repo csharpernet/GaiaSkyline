@@ -32,8 +32,8 @@ public sealed class PricingCalculator : IPricingCalculator
         var nightlySubtotal = Money.Zero(Currency);
         for (var night = request.CheckIn; night < request.CheckOut; night = night.AddDays(1))
         {
-            var rate = ResolveNightlyRate(night, context);
-            nightly.Add(new NightlyCharge(night, rate));
+            var (rate, source) = ResolveNightlyRate(night, context);
+            nightly.Add(new NightlyCharge(night, rate, source));
             nightlySubtotal += rate;
         }
 
@@ -59,20 +59,20 @@ public sealed class PricingCalculator : IPricingCalculator
             promoInvalid);
     }
 
-    private static Money ResolveNightlyRate(DateOnly night, PricingContext context)
+    private static (Money Rate, string Source) ResolveNightlyRate(DateOnly night, PricingContext context)
     {
         if (context.DailyRates is not null && context.DailyRates.TryGetValue(night, out var daily))
         {
-            return daily.NightlyRate;
+            return (daily.NightlyRate, daily.Source.ToString());
         }
 
         var rule = context.Rules.FirstOrDefault(r => r.Covers(night));
         if (rule is not null)
         {
-            return rule.NightlyRate;
+            return (rule.NightlyRate, "Season");
         }
 
-        return context.BaseNightlyRate ?? throw new NoPriceForDateException(night);
+        return (context.BaseNightlyRate ?? throw new NoPriceForDateException(night), "Base");
     }
 
     private static void EnsureMeetsMinimumNights(

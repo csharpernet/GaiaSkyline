@@ -44,6 +44,28 @@ public sealed class CancellationPolicy : Entity<CancellationPolicyId>
     /// <summary>The tiers, ordered from the most generous (furthest before check-in) downward.</summary>
     public IReadOnlyList<CancellationTier> Tiers => _tiers.AsReadOnly();
 
+    /// <summary>Replaces every tier (admin edit) with the same validation and ordering as creation.</summary>
+    public void ReplaceTiers(IEnumerable<CancellationTier> tiers)
+    {
+        ArgumentNullException.ThrowIfNull(tiers);
+
+        var ordered = tiers.OrderByDescending(t => t.DaysBeforeCheckIn).ToList();
+        if (ordered.Count == 0)
+        {
+            throw new ArgumentException("A cancellation policy needs at least one tier.", nameof(tiers));
+        }
+
+        foreach (var tier in ordered)
+        {
+            ArgumentOutOfRangeException.ThrowIfNegative(tier.DaysBeforeCheckIn);
+            ArgumentOutOfRangeException.ThrowIfNegative(tier.RefundPct);
+            ArgumentOutOfRangeException.ThrowIfGreaterThan(tier.RefundPct, 100);
+        }
+
+        _tiers.Clear();
+        _tiers.AddRange(ordered);
+    }
+
     /// <summary>
     /// The refund percentage (0–100) for a cancellation made <paramref name="daysBeforeCheckIn"/>
     /// days before check-in. Returns the highest tier whose threshold is still met, else 0.

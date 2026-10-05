@@ -28,7 +28,7 @@ public sealed class QuoteService(
 
         // Per-date rates (always read from storage; never an external API during a request).
         var dailyRates = await readStore.GetDailyRatesAsync(request.CheckIn, request.CheckOut, cancellationToken);
-        var dailyMap = dailyRates.ToDictionary(d => d.Date, d => new DailyRateValue(d.NightlyRate, d.MinNights));
+        var dailyMap = dailyRates.ToDictionary(d => d.Date, d => new DailyRateValue(d.NightlyRate, d.MinNights, d.Source));
 
         var context = new PricingContext(
             rules,
