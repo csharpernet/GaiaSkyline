@@ -1,11 +1,15 @@
+using GaiaSkyline.Web.Seo;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GaiaSkyline.Web.Api;
 
-/// <summary>Core Web Vitals field-metric sink. Dev stub logs them; production forwards to App Insights (Stage 8).</summary>
+/// <summary>
+/// Core Web Vitals field-metric sink. Logs each sample and feeds the in-memory rolling store that the owner's
+/// SEO dashboard reads (Stage 7 §5); production additionally forwards to App Insights (Stage 8).
+/// </summary>
 [ApiController]
 [Route("api/vitals")]
-public sealed partial class MetricsController(ILogger<MetricsController> logger) : ControllerBase
+public sealed partial class MetricsController(ILogger<MetricsController> logger, IWebVitalsStore vitals) : ControllerBase
 {
     [HttpPost]
     [IgnoreAntiforgeryToken]
@@ -14,6 +18,11 @@ public sealed partial class MetricsController(ILogger<MetricsController> logger)
     {
         ArgumentNullException.ThrowIfNull(metric);
         LogVital(logger, metric.Name, metric.Value, metric.Rating, metric.Path);
+        if (!string.IsNullOrWhiteSpace(metric.Name))
+        {
+            vitals.Record(metric.Name, metric.Value);
+        }
+
         return NoContent();
     }
 

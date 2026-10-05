@@ -36,9 +36,12 @@ test.describe('Admin SEO redirects', () => {
     expect(html).toContain(title);
   });
 
-  test('the sitemap preview lists the pages and links to /sitemap.xml', async ({ page }) => {
+  test('the SEO page shows the CWV panel, sitemap preview and a /sitemap.xml link', async ({ page }) => {
     await loginAsOwner(page);
     await page.goto('/admin/seo');
+
+    // Core Web Vitals panel always renders (shows "No field data yet" until samples arrive).
+    await expect(page.getByRole('heading', { name: 'Core Web Vitals (field)' })).toBeVisible();
 
     await expect(page.getByRole('heading', { name: 'Sitemap preview' })).toBeVisible();
     await expect(page.locator('a[href="/sitemap.xml"]')).toBeVisible();

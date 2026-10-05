@@ -21,8 +21,12 @@ public sealed class PageMetaForm
     public bool Follow { get; set; }
 }
 
-/// <summary>The /admin/seo page: redirect rules, per-page meta/robots overrides and a sitemap preview.</summary>
+/// <summary>
+/// The /admin/seo page: redirect rules, per-page meta/robots overrides, a sitemap preview and the recent
+/// Core Web Vitals field data.
+/// </summary>
 public sealed record SeoAdminViewModel(
     IReadOnlyList<RedirectDto> Redirects,
     IReadOnlyList<PageMetaOverrideDto> PageMeta,
-    IReadOnlyList<SitemapEntry> Sitemap);
+    IReadOnlyList<SitemapEntry> Sitemap,
+    IReadOnlyList<WebVitalSummary> Vitals);

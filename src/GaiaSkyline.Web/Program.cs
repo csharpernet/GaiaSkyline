@@ -52,6 +52,9 @@ builder.Services.AddSingleton<GaiaSkyline.Application.Media.IMediaDirectoryProvi
 // Shared sitemap model for /sitemap.xml and the owner's sitemap preview on /admin/seo (Stage 7 §5).
 builder.Services.AddScoped<GaiaSkyline.Web.Seo.SitemapBuilder>();
 
+// In-memory Core Web Vitals field-sample store, read by the SEO dashboard (Stage 7 §5; prod sink is Stage 8).
+builder.Services.AddSingleton<GaiaSkyline.Web.Seo.IWebVitalsStore, GaiaSkyline.Web.Seo.WebVitalsStore>();
+
 // Owner content preview (Stage 7D): the signed cookie makes the public read render drafts.
 builder.Services.AddScoped<GaiaSkyline.Web.Content.ContentPreview>();
 builder.Services.AddScoped<GaiaSkyline.Application.Content.IContentPreviewState>(
