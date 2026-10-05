@@ -19,7 +19,7 @@ public static class AdminNav
         new("Bookings", "/admin/bookings", Enabled: true, Shortcut: "g b"),
         new("Calendar", "/admin/calendar", Enabled: true, Shortcut: "g c"),
         new("Prices", "/admin/prices", Enabled: true),
-        new("Payments", "/admin/payments", Enabled: false),
+        new("Payments", "/admin/payments", Enabled: true),
         new("Reviews", "/admin/reviews", Enabled: false),
         new("Partners", "/admin/partners", Enabled: false),
         new("SEO", "/admin/seo", Enabled: true),

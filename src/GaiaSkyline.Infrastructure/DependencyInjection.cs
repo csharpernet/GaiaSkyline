@@ -136,6 +136,8 @@ public static class DependencyInjection
         services.AddScoped<IPaymentService, StripePaymentService>();
         services.AddScoped<IRefundService, StripeRefundService>();
         services.AddScoped<IStripeWebhookHandler, StripeWebhookHandler>();
+        // Payments admin (Stage 7 §9).
+        services.AddScoped<IPaymentsAdminReadService, PaymentsAdminReadService>();
         services.AddScoped<IBookingExpiryService, BookingExpiryService>();
 
         // Email (Stage 4 / Increment D). Provider selected by config; dev uses SMTP (smtp4dev).

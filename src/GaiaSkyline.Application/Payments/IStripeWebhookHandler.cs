@@ -23,4 +23,11 @@ public sealed record WebhookResult(WebhookOutcome Outcome, string? Message = nul
 public interface IStripeWebhookHandler
 {
     Task<WebhookResult> HandleAsync(string payload, string signatureHeader, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Re-runs a stored event's handler from its logged payload (admin "re-process" for failed events,
+    /// Stage 7 §9). No signature check — the payload was verified when it arrived. Marks the row
+    /// processed on success or records the new error.
+    /// </summary>
+    Task<WebhookResult> ReprocessAsync(Guid eventLogId, CancellationToken cancellationToken);
 }

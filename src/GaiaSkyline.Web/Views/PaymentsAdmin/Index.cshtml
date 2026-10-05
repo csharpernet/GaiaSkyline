@@ -1,0 +1,209 @@
+@model GaiaSkyline.Web.Models.PaymentsAdminViewModel
+@{
+    Layout = "_AdminShell";
+    ViewData["Title"] = "Payments";
+    var status = Model.Status;
+}
+
+<div class="max-w-6xl">
+    <h1 class="font-display text-2xl font-semibold">Payments</h1>
+
+    <!-- Stripe status -->
+    <section class="mt-5 rounded-md border border-fog bg-white p-4" data-stripe-status>
+        <div class="flex flex-wrap items-center gap-3">
+            <h2 class="text-sm font-semibold text-ink/80">Stripe</h2>
+            @if (status.Configured)
+            {
+                <span class="rounded px-2 py-0.5 text-xs uppercase tracking-wide @(status.LiveMode ? "bg-clay text-white" : "bg-amber-600 text-white")">
+                    @(status.LiveMode ? "LIVE mode" : "TEST mode")
+                </span>
+            }
+        </div>
+        <p class="mt-2 text-sm text-ink/80">@status.AccountSummary</p>
+        @if (status.PaymentMethods.Count > 0)
+        {
+            <p class="mt-1 text-xs text-ink/60">Payment methods: @string.Join(" · ", status.PaymentMethods)</p>
+        }
+        <p class="mt-1 text-xs text-ink/55" data-last-webhook>
+            Last webhook received:
+            @(status.LastWebhookUtc is { } last ? $"{last:yyyy-MM-dd HH:mm} UTC" : "never — confirm the endpoint is configured in Stripe")
+        </p>
+    </section>
+
+    <!-- Multibanco monitor -->
+    <section class="mt-5 rounded-md border border-fog bg-white p-4" data-multibanco>
+        <h2 class="text-sm font-semibold text-ink/80">Multibanco holds awaiting payment (@Model.Multibanco.Count)</h2>
+        @if (Model.Multibanco.Count == 0)
+        {
+            <p class="mt-2 text-sm text-ink/55">No vouchers outstanding.</p>
+        }
+        else
+        {
+            <ul class="mt-2 divide-y divide-fog/60">
+                @foreach (var hold in Model.Multibanco)
+                {
+                    <li class="flex flex-wrap items-center gap-3 py-2 text-sm" data-multibanco-row="@hold.Reference">
+                        <a href="/admin/bookings/@hold.BookingId" class="font-mono text-xs text-river hover:underline">@hold.Reference</a>
+                        <span>€@hold.TotalEur.ToString("0.00")</span>
+                        <span class="font-mono text-xs text-ink/60">@hold.Entity / @hold.MultibancoReference</span>
+                        <span class="text-xs text-ink/50">
+                            expires @(hold.ExpiresAtUtc is { } exp ? $"{exp:yyyy-MM-dd HH:mm} UTC" : "—")
+                        </span>
+                        <form method="post" action="/admin/payments/multibanco/@hold.BookingId/cancel" class="ml-auto"
+                              data-confirm="Cancel @hold.Reference and release its dates? The guest is emailed. Type CANCEL to confirm."
+                              data-confirm-type="CANCEL">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="border border-clay text-clay rounded-md px-3 py-1.5 text-xs">Cancel hold</button>
+                        </form>
+                    </li>
+                }
+            </ul>
+        }
+    </section>
+
+    <!-- Open disputes -->
+    <section class="mt-5 rounded-md border @(Model.Disputes.Count > 0 ? "border-clay/60" : "border-fog") bg-white p-4" data-disputes>
+        <h2 class="text-sm font-semibold @(Model.Disputes.Count > 0 ? "text-clay" : "text-ink/80")">Open disputes (@Model.Disputes.Count)</h2>
+        @if (Model.Disputes.Count == 0)
+        {
+            <p class="mt-2 text-sm text-ink/55">None — may it stay that way.</p>
+        }
+        else
+        {
+            <ul class="mt-2 divide-y divide-fog/60">
+                @foreach (var dispute in Model.Disputes)
+                {
+                    <li class="flex flex-wrap items-center gap-3 py-2 text-sm">
+                        @if (dispute.BookingId is { } bookingId)
+                        {
+                            <a href="/admin/bookings/@bookingId" class="font-mono text-xs text-river hover:underline">@dispute.BookingReference</a>
+                        }
+                        else
+                        {
+                            <span class="font-mono text-xs">@(dispute.PaymentIntentId ?? dispute.DisputeId)</span>
+                        }
+                        <span>€@dispute.AmountEur.ToString("0.00")</span>
+                        <span class="text-xs text-ink/60">@dispute.Reason · @dispute.Status</span>
+                        <span class="text-xs @(dispute.EvidenceDueUtc < DateTime.UtcNow.AddDays(3) ? "text-clay font-semibold" : "text-ink/50")">
+                            evidence due @(dispute.EvidenceDueUtc is { } due ? $"{due:yyyy-MM-dd}" : "—")
+                        </span>
+                        <a href="@dispute.DashboardUrl" target="_blank" rel="noopener" class="ml-auto text-xs text-river hover:underline">Open in Stripe ↗</a>
+                    </li>
+                }
+            </ul>
+        }
+    </section>
+
+    <!-- Refund history -->
+    <section class="mt-5 rounded-md border border-fog bg-white p-4" data-refunds>
+        <h2 class="text-sm font-semibold text-ink/80">Refund history (@Model.Refunds.Count)</h2>
+        @if (Model.Refunds.Count == 0)
+        {
+            <p class="mt-2 text-sm text-ink/55">No refunds recorded yet (driven by Stripe's charge.refunded events).</p>
+        }
+        else
+        {
+            <table class="mt-2 w-full text-xs">
+                <thead class="text-left text-ink/50 border-b border-fog">
+                    <tr><th class="py-1">When (UTC)</th><th>Booking</th><th>Amount</th><th>Kind</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var refund in Model.Refunds)
+                    {
+                        <tr class="border-b border-fog/60">
+                            <td class="py-1">@refund.ReceivedAtUtc.ToString("yyyy-MM-dd HH:mm")</td>
+                            <td>
+                                @if (refund.BookingId is { } bid)
+                                {
+                                    <a href="/admin/bookings/@bid" class="font-mono text-river hover:underline">@refund.BookingReference</a>
+                                }
+                                else
+                                {
+                                    <span class="font-mono">@refund.PaymentIntentId</span>
+                                }
+                            </td>
+                            <td>€@refund.AmountRefundedEur.ToString("0.00")</td>
+                            <td>@(refund.FullyRefunded ? "full" : "partial")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </section>
+
+    <!-- Event log browser -->
+    <section class="mt-5 rounded-md border border-fog bg-white p-4" data-event-log>
+        <h2 class="text-sm font-semibold text-ink/80">Stripe event log (@Model.Events.TotalCount)</h2>
+        <form method="get" action="/admin/payments" class="mt-3 flex flex-wrap items-end gap-3">
+            <div>
+                <label class="block text-xs font-semibold text-river" for="type">Event type</label>
+                <select id="type" name="type" class="mt-1 rounded-md border border-fog px-3 py-2 text-sm">
+                    <option value="">All</option>
+                    @foreach (var type in Model.Events.Types)
+                    {
+                        <option value="@type" selected="@(Model.TypeFilter == type)">@type</option>
+                    }
+                </select>
+            </div>
+            <label class="flex items-center gap-2 text-sm">
+                <input type="checkbox" name="failed" value="true" checked="@Model.FailedOnly" /> failed only
+            </label>
+            <button type="submit" class="bg-river text-white rounded-md px-4 py-2 text-sm">Filter</button>
+        </form>
+
+        @if (Model.Events.Items.Count == 0)
+        {
+            <p class="mt-3 text-sm text-ink/55" data-no-events>No events match.</p>
+        }
+        else
+        {
+            <table class="mt-3 w-full text-xs">
+                <thead class="text-left text-ink/50 border-b border-fog">
+                    <tr><th class="py-1">Received (UTC)</th><th>Type</th><th>Event id</th><th>State</th><th></th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in Model.Events.Items)
+                    {
+                        <tr class="border-b border-fog/60 align-top" data-event-row="@row.StripeEventId">
+                            <td class="py-1 whitespace-nowrap">@row.ReceivedAtUtc.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                            <td class="font-mono">@row.Type</td>
+                            <td class="font-mono text-ink/60">@row.StripeEventId</td>
+                            <td>
+                                @if (row.ProcessedAtUtc is not null)
+                                {
+                                    <span class="text-river">processed</span>
+                                }
+                                else
+                                {
+                                    <span class="text-clay" title="@row.Error">failed@(string.IsNullOrEmpty(row.Error) ? "" : $": {row.Error}")</span>
+                                }
+                            </td>
+                            <td>
+                                @if (row.ProcessedAtUtc is null)
+                                {
+                                    <form method="post" action="/admin/payments/events/@row.Id/reprocess">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" class="border border-river text-river rounded-md px-2 py-1 text-xs">Re-process</button>
+                                    </form>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+            @if (Model.Events.TotalCount > Model.Events.PageSize)
+            {
+                <div class="mt-3 flex gap-2 text-xs">
+                    @if (Model.Events.Page > 1)
+                    {
+                        <a class="text-river hover:underline" href="/admin/payments?type=@Model.TypeFilter&failed=@Model.FailedOnly&page=@(Model.Events.Page - 1)">← Newer</a>
+                    }
+                    @if (Model.Events.Page * Model.Events.PageSize < Model.Events.TotalCount)
+                    {
+                        <a class="text-river hover:underline" href="/admin/payments?type=@Model.TypeFilter&failed=@Model.FailedOnly&page=@(Model.Events.Page + 1)">Older →</a>
+                    }
+                </div>
+            }
+        }
+    </section>
+</div>

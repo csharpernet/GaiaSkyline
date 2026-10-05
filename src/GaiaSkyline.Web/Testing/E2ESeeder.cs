@@ -113,12 +113,14 @@ public static class E2ESeeder
         var magicRef = options.BookingReference.Trim().ToUpperInvariant();
         var confirmedRef = $"{magicRef}-C";
         var adminRef = $"{magicRef}-B";
+        var multibancoRef = $"{magicRef}-M";
 
-        // Reset all three on every startup so the destructive tests (magic-link cancel; dashboard "Done in
-        // Hostify"; bookings-admin check-in) always find fresh fixtures — a re-run must still pass.
+        // Reset all fixtures on every startup so the destructive tests (magic-link cancel; dashboard "Done in
+        // Hostify"; bookings-admin check-in; payments Multibanco cancel) always find fresh fixtures.
         await ResetBookingAsync(dbContext, magicRef, cancellationToken);
         await ResetBookingAsync(dbContext, confirmedRef, cancellationToken);
         await ResetBookingAsync(dbContext, adminRef, cancellationToken);
+        await ResetBookingAsync(dbContext, multibancoRef, cancellationToken);
 
         // AwaitingPayment booking for the guest magic-link → cancel flow (cancellable; no Stripe refund).
         var magicCheckIn = DateOnly.FromDateTime(now).AddDays(60);
@@ -141,6 +143,53 @@ public static class E2ESeeder
         adminBooking.MarkExternalChannelSynced(now, "seed");
         dbContext.Bookings.Add(adminBooking);
         AddOccupancy(dbContext, adminBooking);
+
+        // A Multibanco hold (voucher far from expiry so the booking-expiry job never races the test),
+        // dedicated to the payments-admin monitor + typed-cancel flow. Never reuse the magic-link booking.
+        var multibancoCheckIn = DateOnly.FromDateTime(now).AddDays(45);
+        var multibanco = BuildBooking(multibancoRef, options.GuestEmail, multibancoCheckIn, now);
+        multibanco.AttachPaymentIntent($"pi_e2e_{Guid.NewGuid():N}");
+        multibanco.SetMultibancoVoucher("12345", "123456789", now.AddDays(30));
+        dbContext.Bookings.Add(multibanco);
+        AddOccupancy(dbContext, multibanco);
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Deterministic calendar fixtures (Stage 7 §7): one block of each kind far in the future, plus an
+    /// open conflict against the Confirmed fixture booking for the resolve flow. Reset on every startup
+    /// so destructive calendar tests always find them fresh.
+    /// </summary>
+    private static async Task EnsureCalendarFixturesAsync(
+        IServiceProvider services, E2EOptions options, CancellationToken cancellationToken)
+    {
+        var dbContext = services.GetRequiredService<AppDbContext>();
+        var now = services.GetRequiredService<TimeProvider>().GetUtcNow().UtcDateTime;
+        var today = DateOnly.FromDateTime(now);
+        const string Marker = "E2E seed";
+        const string ConflictSource = "E2E-Source";
+
+        var staleBlocks = await dbContext.OwnerBlocks
+            .Where(b => b.Note != null && b.Note.StartsWith(Marker)).ToListAsync(cancellationToken);
+        dbContext.OwnerBlocks.RemoveRange(staleBlocks);
+        var staleConflicts = await dbContext.BookingConflicts
+            .Where(c => c.SourceName == ConflictSource).ToListAsync(cancellationToken);
+        dbContext.BookingConflicts.RemoveRange(staleConflicts);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        dbContext.OwnerBlocks.Add(new Domain.Availability.OwnerBlock(
+            Domain.Identifiers.OwnerBlockId.New(), today.AddDays(120), today.AddDays(123),
+            Domain.Availability.OwnerBlockKind.OwnerUnavailable, $"{Marker} — owner hold", now, "e2e"));
+        dbContext.OwnerBlocks.Add(new Domain.Availability.OwnerBlock(
+            Domain.Identifiers.OwnerBlockId.New(), today.AddDays(130), today.AddDays(133),
+            Domain.Availability.OwnerBlockKind.ExternalBooking, $"{Marker} — Hostify copy", now, "e2e"));
+
+        // The confirmed fixture booking sits at +90d; a fake imported range colliding with it.
+        var confirmedRef = $"{options.BookingReference.Trim().ToUpperInvariant()}-C";
+        dbContext.BookingConflicts.Add(new Domain.Availability.BookingConflict(
+            Domain.Identifiers.BookingConflictId.New(), confirmedRef, ConflictSource,
+            today.AddDays(90), today.AddDays(93), now));
 
         await dbContext.SaveChangesAsync(cancellationToken);
     }

@@ -90,6 +90,43 @@ internal sealed class StripeWebhookHandler(
         }
     }
 
+    public async Task<WebhookResult> ReprocessAsync(Guid eventLogId, CancellationToken cancellationToken)
+    {
+        var log = await dbContext.StripeEventLogs
+            .FirstOrDefaultAsync(e => e.Id == StripeEventLogId.From(eventLogId), cancellationToken);
+        if (log is null)
+        {
+            return new WebhookResult(WebhookOutcome.Error, "That event no longer exists.");
+        }
+
+        // The stored payload is the raw webhook body, already signature-verified on arrival.
+        Event stripeEvent;
+        try
+        {
+            stripeEvent = EventUtility.ParseEvent(log.PayloadJson, throwOnApiVersionMismatch: false);
+        }
+        catch (StripeException ex)
+        {
+            log.MarkFailed($"Payload no longer parses: {ex.Message}");
+            await dbContext.SaveChangesAsync(cancellationToken);
+            return new WebhookResult(WebhookOutcome.Error, ex.Message);
+        }
+
+        try
+        {
+            await DispatchAsync(stripeEvent, cancellationToken);
+            log.MarkProcessed(clock.GetUtcNow().UtcDateTime);
+            await dbContext.SaveChangesAsync(cancellationToken);
+            return new WebhookResult(WebhookOutcome.Ok);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            log.MarkFailed(ex.Message);
+            await dbContext.SaveChangesAsync(CancellationToken.None);
+            return new WebhookResult(WebhookOutcome.Error, ex.Message);
+        }
+    }
+
     private async Task DispatchAsync(Event stripeEvent, CancellationToken cancellationToken)
     {
         switch (stripeEvent.Type)
