@@ -2,6 +2,7 @@ using System.Net;
 using System.Text.Json;
 using FluentAssertions;
 using GaiaSkyline.Application.Content;
+using GaiaSkyline.Application.Seo;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -31,8 +32,19 @@ public sealed class ContentApiTests : IDisposable
             {
                 services.RemoveAll<IContentReadStore>();
                 services.AddSingleton<IContentReadStore, FakeContentReadStore>();
+
+                // This host fakes the content store and never migrates, so fake the redirect resolver too —
+                // otherwise the before-routing middleware would query a non-existent Redirects table.
+                services.RemoveAll<IRedirectResolver>();
+                services.AddSingleton<IRedirectResolver, NoRedirectResolver>();
             });
         });
+    }
+
+    private sealed class NoRedirectResolver : IRedirectResolver
+    {
+        public Task<RedirectTarget?> ResolveAsync(string path, CancellationToken cancellationToken) =>
+            Task.FromResult<RedirectTarget?>(null);
     }
 
     public void Dispose() => _factory.Dispose();

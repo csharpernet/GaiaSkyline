@@ -95,6 +95,11 @@ public static class DependencyInjection
         services.AddScoped<GaiaSkyline.Application.Content.IAdminStoryService, GaiaSkyline.Infrastructure.Content.AdminStoryService>();
         services.AddScoped<GaiaSkyline.Application.Content.IAdminStoryReadService, GaiaSkyline.Infrastructure.Content.AdminStoryReadService>();
         services.AddScoped<GaiaSkyline.Application.Content.IStorySlugRedirectResolver, GaiaSkyline.Infrastructure.Content.StorySlugRedirectResolver>();
+
+        // SEO redirects (Stage 7 §5): the resolver index is a singleton (cached, revision-invalidated); the
+        // admin service is scoped.
+        services.AddSingleton<GaiaSkyline.Application.Seo.IRedirectResolver, GaiaSkyline.Infrastructure.Seo.RedirectIndex>();
+        services.AddScoped<GaiaSkyline.Application.Seo.IRedirectAdminService, GaiaSkyline.Infrastructure.Seo.RedirectAdminService>();
         services.AddScoped<GaiaSkyline.Infrastructure.Media.IImageRenditionService, GaiaSkyline.Infrastructure.Media.ImageRenditionService>();
         services.AddScoped<GaiaSkyline.Application.Media.IAdminMediaService, GaiaSkyline.Infrastructure.Media.AdminMediaService>();
         services.AddScoped<GaiaSkyline.Application.Media.IAdminMediaReadService, GaiaSkyline.Infrastructure.Media.AdminMediaReadService>();

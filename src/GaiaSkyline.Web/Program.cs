@@ -401,6 +401,9 @@ app.Use(async (context, next) =>
     await next(context);
 });
 
+// Owner-configured redirect rules (Stage 7 §5), matched on the canonical (no trailing slash) path before routing.
+app.UseMiddleware<RedirectMiddleware>();
+
 app.UseRouting();
 app.UseRequestLocalization();
 app.UseOutputCache();
