@@ -28,6 +28,9 @@ public sealed class PageMeta
     /// <summary>When true, emit robots noindex and skip canonical/hreflang (checkout, confirmation).</summary>
     public bool NoIndex { get; init; }
 
+    /// <summary>When true, emit robots nofollow (an owner override; the page can still be indexable).</summary>
+    public bool NoFollow { get; init; }
+
     /// <summary>Page-specific OpenGraph image (relative path such as /media/...); made absolute in the layout.</summary>
     public string? OgImagePath { get; init; }
 

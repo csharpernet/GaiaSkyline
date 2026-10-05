@@ -4,8 +4,9 @@
 @{
     Layout = "_AdminShell";
     ViewData["Title"] = "SEO";
-    string? Title(string key, string lang) => Model.PageMeta.FirstOrDefault(p => p.PageKey == key && string.Equals(p.LanguageCode, lang, StringComparison.OrdinalIgnoreCase))?.Title;
-    string? Desc(string key, string lang) => Model.PageMeta.FirstOrDefault(p => p.PageKey == key && string.Equals(p.LanguageCode, lang, StringComparison.OrdinalIgnoreCase))?.Description;
+    PageMetaOverrideDto? Ovr(string key, string lang) => Model.PageMeta.FirstOrDefault(p => p.PageKey == key && string.Equals(p.LanguageCode, lang, StringComparison.OrdinalIgnoreCase));
+    string? Title(string key, string lang) => Ovr(key, lang)?.Title;
+    string? Desc(string key, string lang) => Ovr(key, lang)?.Description;
     var idx = 0;
 }
 
@@ -34,6 +35,9 @@
                         @foreach (var lang in ContentLanguages.All)
                         {
                             var i = idx++;
+                            var ovr = Ovr(pg.Key, lang);
+                            var canIndex = ovr?.NoIndex != true; // no override row → indexable + followable
+                            var canFollow = ovr?.NoFollow != true;
                             <div class="grid gap-2 sm:grid-cols-[2.5rem_1fr]">
                                 <span class="text-xs font-semibold text-river pt-2">@ContentLanguages.ShortLabel(lang)</span>
                                 <div class="space-y-1">
@@ -50,6 +54,18 @@
                                                data-seo-field="desc" data-page="/@pg.Key" data-lang="@lang" data-min="150" data-max="160"
                                                class="w-full rounded-md border border-fog px-2 py-1 text-sm" />
                                         <span data-counter class="text-xs text-ink/40 w-12 text-right">0/160</span>
+                                    </div>
+                                    <div class="flex items-center gap-4 pt-0.5">
+                                        <label class="inline-flex items-center gap-1.5 text-xs text-ink/60">
+                                            <input type="checkbox" name="items[@i].Index" value="true" @(canIndex ? "checked" : null)
+                                                   data-robots="index" data-page="/@pg.Key" data-lang="@lang" />
+                                            <span>Index</span>
+                                        </label>
+                                        <label class="inline-flex items-center gap-1.5 text-xs text-ink/60">
+                                            <input type="checkbox" name="items[@i].Follow" value="true" @(canFollow ? "checked" : null)
+                                                   data-robots="follow" data-page="/@pg.Key" data-lang="@lang" />
+                                            <span>Follow</span>
+                                        </label>
                                     </div>
                                 </div>
                             </div>

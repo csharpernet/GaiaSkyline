@@ -16,11 +16,12 @@ internal sealed class PageMetaAdminService(
     public async Task<IReadOnlyList<PageMetaOverrideDto>> GetAllAsync(CancellationToken cancellationToken)
     {
         var rows = await dbContext.PageMetaOverrides.AsNoTracking().ToListAsync(cancellationToken);
-        return rows.Select(p => new PageMetaOverrideDto(p.PageKey, p.LanguageCode, p.Title, p.Description)).ToList();
+        return rows.Select(p => new PageMetaOverrideDto(p.PageKey, p.LanguageCode, p.Title, p.Description, p.NoIndex, p.NoFollow)).ToList();
     }
 
     public async Task<bool> UpsertAsync(
-        string pageKey, string languageCode, string? title, string? description, string actor, CancellationToken cancellationToken)
+        string pageKey, string languageCode, string? title, string? description, bool noIndex, bool noFollow,
+        string actor, CancellationToken cancellationToken)
     {
         var key = (pageKey ?? string.Empty).Trim().ToLowerInvariant();
         if (!SeoPages.IsKnown(key) || !ContentLanguages.All.Contains(languageCode))
@@ -31,25 +32,26 @@ internal sealed class PageMetaAdminService(
         var now = clock.GetUtcNow().UtcDateTime;
         var existing = await dbContext.PageMetaOverrides
             .FirstOrDefaultAsync(p => p.PageKey == key && p.LanguageCode == languageCode, cancellationToken);
-        var blank = string.IsNullOrWhiteSpace(title) && string.IsNullOrWhiteSpace(description);
+        // Nothing but defaults (no title/description, index + follow) → no row needed.
+        var isDefault = string.IsNullOrWhiteSpace(title) && string.IsNullOrWhiteSpace(description) && !noIndex && !noFollow;
 
         if (existing is null)
         {
-            if (blank)
+            if (isDefault)
             {
                 return true; // nothing to store
             }
 
             dbContext.PageMetaOverrides.Add(
-                new PageMetaOverride(PageMetaOverrideId.New(), key, languageCode, title, description, now, actor));
+                new PageMetaOverride(PageMetaOverrideId.New(), key, languageCode, title, description, noIndex, noFollow, now, actor));
         }
-        else if (blank)
+        else if (isDefault)
         {
             dbContext.PageMetaOverrides.Remove(existing);
         }
         else
         {
-            existing.Set(title, description, now, actor);
+            existing.Set(title, description, noIndex, noFollow, now, actor);
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);

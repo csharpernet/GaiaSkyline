@@ -1,23 +1,32 @@
 namespace GaiaSkyline.Application.Seo;
 
-/// <summary>An owner override of a page's title/description for one language (blank = use the built-in default).</summary>
-public sealed record PageMetaOverrideDto(string PageKey, string LanguageCode, string? Title, string? Description);
+/// <summary>
+/// An owner override of a page's SEO for one language: title/description (blank = use the built-in default) and
+/// the robots directives (<see cref="NoIndex"/> / <see cref="NoFollow"/>; default is index + follow).
+/// </summary>
+public sealed record PageMetaOverrideDto(
+    string PageKey, string LanguageCode, string? Title, string? Description, bool NoIndex, bool NoFollow);
 
 /// <summary>
-/// Resolves a page's SEO meta override for a language (exact language, no fallback — a missing override leaves
-/// the page's built-in default). Used by the public pages. Resilient: returns null if it cannot read. Stage 7 §5.
+/// Resolves a page's SEO override for a language (exact language, no fallback — a missing override leaves the
+/// page's built-in default). Used by the public pages. Resilient: returns null if it cannot read. Stage 7 §5.
 /// </summary>
 public interface IPageMetaResolver
 {
     Task<PageMetaOverrideDto?> ResolveAsync(string pageKey, string languageCode, CancellationToken cancellationToken);
 }
 
-/// <summary>Owner management of per-page, per-language meta overrides. Stage 7 §5.</summary>
+/// <summary>Owner management of per-page, per-language meta + robots overrides. Stage 7 §5.</summary>
 public interface IPageMetaAdminService
 {
-    /// <summary>All currently-set overrides (empty rows are not returned).</summary>
+    /// <summary>All currently-set overrides (rows that are nothing but defaults are not returned).</summary>
     Task<IReadOnlyList<PageMetaOverrideDto>> GetAllAsync(CancellationToken cancellationToken);
 
-    /// <summary>Set (or clear, when both fields are blank) the override for a known page + language. False if the page is unknown.</summary>
-    Task<bool> UpsertAsync(string pageKey, string languageCode, string? title, string? description, string actor, CancellationToken cancellationToken);
+    /// <summary>
+    /// Set (or clear, when only defaults are left) the override for a known page + language. False if the page
+    /// or language is unknown.
+    /// </summary>
+    Task<bool> UpsertAsync(
+        string pageKey, string languageCode, string? title, string? description, bool noIndex, bool noFollow,
+        string actor, CancellationToken cancellationToken);
 }

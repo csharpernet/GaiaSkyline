@@ -29,7 +29,7 @@ public abstract class PublicController : Controller
     {
         var resolver = HttpContext.RequestServices.GetService<IPageMetaResolver>();
         var ovr = resolver is null ? null : await resolver.ResolveAsync(meta.RelativePath, meta.Culture, cancellationToken);
-        if (ovr is not null && (!string.IsNullOrWhiteSpace(ovr.Title) || !string.IsNullOrWhiteSpace(ovr.Description)))
+        if (ovr is not null)
         {
             meta = new PageMeta
             {
@@ -39,7 +39,10 @@ public abstract class PublicController : Controller
                 Description = string.IsNullOrWhiteSpace(ovr.Description) ? meta.Description : ovr.Description!,
                 RelativePath = meta.RelativePath,
                 OgType = meta.OgType,
-                NoIndex = meta.NoIndex,
+                // The page's built-in noindex (checkout/confirmation) always wins; the owner can additionally
+                // noindex/nofollow a normally-indexable page.
+                NoIndex = meta.NoIndex || ovr.NoIndex,
+                NoFollow = meta.NoFollow || ovr.NoFollow,
                 OgImagePath = meta.OgImagePath,
                 Breadcrumbs = meta.Breadcrumbs,
                 JsonLdBlocks = meta.JsonLdBlocks,

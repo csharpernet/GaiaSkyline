@@ -31,6 +31,10 @@
     }
     else
     {
+        @if (meta?.NoFollow == true)
+        {
+            <meta name="robots" content="nofollow" />
+        }
         <link rel="canonical" href="@canonical" />
         foreach (var c in SupportedCultures.All)
         {

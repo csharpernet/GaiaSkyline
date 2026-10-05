@@ -32,7 +32,7 @@ public sealed class SeoAdminController(
         var changed = 0;
         foreach (var item in items ?? [])
         {
-            if (await pageMeta.UpsertAsync(item.PageKey, item.LanguageCode, item.Title, item.Description, ActorName, cancellationToken))
+            if (await pageMeta.UpsertAsync(item.PageKey, item.LanguageCode, item.Title, item.Description, noIndex: !item.Index, noFollow: !item.Follow, ActorName, cancellationToken))
             {
                 changed++;
             }

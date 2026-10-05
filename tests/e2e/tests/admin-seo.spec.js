@@ -35,4 +35,29 @@ test.describe('Admin SEO redirects', () => {
     const html = await (await page.request.get('/en/gallery')).text();
     expect(html).toContain(title);
   });
+
+  test('uncheck Index for a page → the public page emits robots noindex, and re-checking clears it', async ({ page }) => {
+    await loginAsOwner(page);
+    await page.goto('/admin/seo');
+
+    const indexBox = page.locator('input[data-robots="index"][data-page="/book"][data-lang="en"]');
+
+    // Noindex it.
+    await indexBox.uncheck();
+    await page.getByRole('button', { name: /save page meta/i }).click();
+    await expect(page).toHaveURL(/\/admin\/seo$/);
+    // The checkbox reflects the stored state after the round-trip.
+    await expect(page.locator('input[data-robots="index"][data-page="/book"][data-lang="en"]')).not.toBeChecked();
+
+    let html = await (await page.request.get('/en/book')).text();
+    expect(html).toContain('name="robots" content="noindex, nofollow"');
+
+    // Back to indexable.
+    await page.locator('input[data-robots="index"][data-page="/book"][data-lang="en"]').check();
+    await page.getByRole('button', { name: /save page meta/i }).click();
+    await expect(page).toHaveURL(/\/admin\/seo$/);
+
+    html = await (await page.request.get('/en/book')).text();
+    expect(html).not.toContain('name="robots" content="noindex');
+  });
 });

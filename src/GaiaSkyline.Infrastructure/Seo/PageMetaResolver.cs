@@ -20,7 +20,7 @@ internal sealed class PageMetaResolver(AppDbContext dbContext, ILogger<PageMetaR
             var row = await dbContext.PageMetaOverrides
                 .AsNoTracking()
                 .FirstOrDefaultAsync(p => p.PageKey == key && p.LanguageCode == languageCode, cancellationToken);
-            return row is null ? null : new PageMetaOverrideDto(row.PageKey, row.LanguageCode, row.Title, row.Description);
+            return row is null ? null : new PageMetaOverrideDto(row.PageKey, row.LanguageCode, row.Title, row.Description, row.NoIndex, row.NoFollow);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
