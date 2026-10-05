@@ -23,7 +23,7 @@ public static class AdminNav
         new("Reviews", "/admin/reviews", Enabled: true),
         new("Partners", "/admin/partners", Enabled: true),
         new("SEO", "/admin/seo", Enabled: true),
-        new("Settings", "/admin/settings", Enabled: false),
+        new("Settings", "/admin/settings", Enabled: true),
         new("Audit log", "/admin/audit", Enabled: true),
     ];
 }

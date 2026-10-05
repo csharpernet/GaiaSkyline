@@ -13,7 +13,7 @@ namespace GaiaSkyline.Infrastructure.Admin;
 internal sealed class ManualSyncReminderService(
     IDashboardService dashboard,
     IEmailSender emailSender,
-    IOptions<EmailOptions> emailOptions,
+    IOptionsSnapshot<EmailOptions> emailOptions,
     ILogger<ManualSyncReminderService> logger) : IManualSyncReminderService
 {
     public async Task SendDueRemindersAsync(CancellationToken cancellationToken)

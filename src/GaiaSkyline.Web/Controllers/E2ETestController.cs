@@ -20,6 +20,25 @@ public sealed class E2ETestController(IOptions<E2EOptions> options, E2EEmailSink
     public IActionResult Emails() =>
         options.Value.Enabled ? Ok(sink.Snapshot()) : NotFound();
 
+    /// <summary>A tiny deterministic ICS feed for the settings "Test fetch" spec (Stage 7 §12).</summary>
+    [HttpGet("fixture.ics")]
+    public IActionResult FixtureIcs()
+    {
+        if (!options.Value.Enabled)
+        {
+            return NotFound();
+        }
+
+        var start = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(500);
+        static string D(DateOnly d) => d.ToString("yyyyMMdd", System.Globalization.CultureInfo.InvariantCulture);
+        var ics = string.Join("\r\n",
+            "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//GaiaSkyline-E2E//v1//EN",
+            "BEGIN:VEVENT", "UID:e2e-1@fixture", $"DTSTART;VALUE=DATE:{D(start)}", $"DTEND;VALUE=DATE:{D(start.AddDays(3))}", "SUMMARY:E2E block one", "END:VEVENT",
+            "BEGIN:VEVENT", "UID:e2e-2@fixture", $"DTSTART;VALUE=DATE:{D(start.AddDays(10))}", $"DTEND;VALUE=DATE:{D(start.AddDays(12))}", "SUMMARY:E2E block two", "END:VEVENT",
+            "END:VCALENDAR", string.Empty);
+        return Content(ics, "text/calendar");
+    }
+
     /// <summary>Seeds a live hero video so the Playwright hero-video specs have one to exercise.</summary>
     [HttpPost("seed-hero")]
     public async Task<IActionResult> SeedHero(CancellationToken cancellationToken)

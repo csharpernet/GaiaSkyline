@@ -68,7 +68,7 @@ public sealed class ExternalCalendarImporterTests(LocalDbFixture fixture) : ICla
         return new ExternalCalendarImporter(
             context, httpClient, new ExternalCalendarUrlProtector(new PassthroughDataProtection()),
             availability, new IcsCacheInvalidator(), new NoOpEmailSender(),
-            Options.Create(new EmailOptions { OwnerAddress = "owner@test", FromName = "Gaia Skyline" }),
+            TestOptions.Snapshot(new EmailOptions { OwnerAddress = "owner@test", FromName = "Gaia Skyline" }),
             TimeProvider.System, NullLogger<ExternalCalendarImporter>.Instance);
     }
 

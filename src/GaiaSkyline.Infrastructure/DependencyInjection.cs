@@ -74,11 +74,21 @@ public static class DependencyInjection
         services.AddHttpClient<GaiaSkyline.Application.Availability.IExternalCalendarImporter,
             GaiaSkyline.Infrastructure.Availability.ExternalCalendarImporter>(client =>
                 client.Timeout = TimeSpan.FromSeconds(35));
+        // Owner-editable runtime settings (Stage 7 §12): DB rows override configuration via options
+        // post-configuration. Consumers that must see live values use IOptionsSnapshot (per scope).
+        services.AddSingleton<GaiaSkyline.Infrastructure.Settings.SiteSettingsProtector>();
+        services.AddSingleton<GaiaSkyline.Application.Settings.ISiteSettings, GaiaSkyline.Infrastructure.Settings.SiteSettingsSnapshot>();
+        services.AddScoped<GaiaSkyline.Application.Settings.ISiteSettingsWriter, GaiaSkyline.Infrastructure.Settings.SiteSettingsWriter>();
+        services.AddScoped<GaiaSkyline.Application.Settings.ISettingsAdminService, GaiaSkyline.Infrastructure.Settings.SettingsAdminService>();
+        services.AddHttpClient("ics-test-fetch");
+
         // Automatic nightly-price import (Stage 5 item 2; dormant until a provider is configured).
         // No real PriceLabs/Hostify adapter ships yet — see ADR 0014 — so no IRateProvider is
         // registered here. When one exists, register it and set Pricing:Provider to activate the job.
         services.AddOptions<PricingProviderOptions>()
-            .Bind(configuration.GetSection(PricingProviderOptions.SectionName));
+            .Bind(configuration.GetSection(PricingProviderOptions.SectionName))
+            .PostConfigure<GaiaSkyline.Application.Settings.ISiteSettings>((options, settings) =>
+                GaiaSkyline.Infrastructure.Settings.SettingsOverrides.Apply(options, settings));
         services.AddScoped<GaiaSkyline.Application.Pricing.IRateSyncService, GaiaSkyline.Infrastructure.Pricing.RateSyncService>();
 
         services.AddScoped<IBookingCreationService, BookingCreationService>();
@@ -146,8 +156,15 @@ public static class DependencyInjection
         services.AddScoped<IBookingExpiryService, BookingExpiryService>();
 
         // Email (Stage 4 / Increment D). Provider selected by config; dev uses SMTP (smtp4dev).
-        services.AddOptions<EmailOptions>().Bind(configuration.GetSection(EmailOptions.SectionName));
-        services.AddOptions<PropertyManagerOptions>().Bind(configuration.GetSection(PropertyManagerOptions.SectionName));
+        // Owner-email + PM-recipient overrides come from the §12 settings store (IOptionsSnapshot consumers only).
+        services.AddOptions<EmailOptions>()
+            .Bind(configuration.GetSection(EmailOptions.SectionName))
+            .PostConfigure<GaiaSkyline.Application.Settings.ISiteSettings>((options, settings) =>
+                GaiaSkyline.Infrastructure.Settings.SettingsOverrides.Apply(options, settings));
+        services.AddOptions<PropertyManagerOptions>()
+            .Bind(configuration.GetSection(PropertyManagerOptions.SectionName))
+            .PostConfigure<GaiaSkyline.Application.Settings.ISiteSettings>((options, settings) =>
+                GaiaSkyline.Infrastructure.Settings.SettingsOverrides.Apply(options, settings));
         var emailProvider = configuration[$"{EmailOptions.SectionName}:Provider"] ?? "Smtp";
         if (string.Equals(emailProvider, "SendGrid", StringComparison.OrdinalIgnoreCase))
         {

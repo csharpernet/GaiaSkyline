@@ -1,0 +1,236 @@
+@using GaiaSkyline.Application.Pricing
+@model GaiaSkyline.Web.Models.SettingsAdminViewModel
+@{
+    Layout = "_AdminShell";
+    ViewData["Title"] = "Settings";
+    var anyCalendarEnabled = Model.Calendars.Any(c => c.IsEnabled);
+}
+
+<div class="max-w-4xl">
+    <h1 class="font-display text-2xl font-semibold">Settings</h1>
+
+    <!-- Property -->
+    @if (Model.Property is { } property)
+    {
+        <section class="mt-5 rounded-md border border-fog bg-white p-4" data-property-card>
+            <h2 class="text-sm font-semibold text-ink/80">Property</h2>
+            <form method="post" action="/admin/settings/property" class="mt-3 grid gap-3 sm:grid-cols-2">
+                @Html.AntiForgeryToken()
+                <div>
+                    <label class="block text-xs font-semibold text-river" for="p-name">Name</label>
+                    <input id="p-name" name="name" required maxlength="200" value="@property.Name" class="mt-1 w-full rounded-md border border-fog px-3 py-2 text-sm" />
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-river" for="p-reg">AL registration</label>
+                    <input id="p-reg" name="registrationCode" required maxlength="50" value="@property.RegistrationCode" class="mt-1 w-full rounded-md border border-fog px-3 py-2 text-sm" />
+                </div>
+                <div class="sm:col-span-2">
+                    <label class="block text-xs font-semibold text-river" for="p-address">Address</label>
+                    <input id="p-address" name="address" required maxlength="400" value="@property.Address" class="mt-1 w-full rounded-md border border-fog px-3 py-2 text-sm" />
+                </div>
+                <div class="flex gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-river" for="p-lat">Latitude</label>
+                        <input id="p-lat" name="lat" required value="@property.Lat.ToString(System.Globalization.CultureInfo.InvariantCulture)" class="mt-1 w-28 rounded-md border border-fog px-3 py-2 text-sm" />
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-river" for="p-lng">Longitude</label>
+                        <input id="p-lng" name="lng" required value="@property.Lng.ToString(System.Globalization.CultureInfo.InvariantCulture)" class="mt-1 w-28 rounded-md border border-fog px-3 py-2 text-sm" />
+                    </div>
+                </div>
+                <div class="flex gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-river" for="p-in">Check-in from</label>
+                        <input id="p-in" name="checkInFrom" type="time" required value="@property.CheckInFromLocal.ToString("HH:mm")" class="mt-1 rounded-md border border-fog px-3 py-2 text-sm" />
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-river" for="p-out">Check-out by</label>
+                        <input id="p-out" name="checkOutBy" type="time" required value="@property.CheckOutByLocal.ToString("HH:mm")" class="mt-1 rounded-md border border-fog px-3 py-2 text-sm" />
+                    </div>
+                </div>
+                <div class="flex gap-3">
+                    @foreach (var (label, field, value) in new[]
+                    {
+                        ("Sleeps", "sleeps", property.Sleeps), ("Bedrooms", "bedrooms", property.Bedrooms),
+                        ("Beds", "beds", property.Beds), ("Bathrooms", "bathrooms", property.Bathrooms),
+                    })
+                    {
+                        <div>
+                            <label class="block text-xs font-semibold text-river" for="p-@field">@label</label>
+                            <input id="p-@field" name="@field" type="number" min="0" max="50" value="@value" class="mt-1 w-20 rounded-md border border-fog px-3 py-2 text-sm" />
+                        </div>
+                    }
+                </div>
+                <div class="sm:col-span-2">
+                    <label class="block text-xs font-semibold text-river" for="p-beds">Beds breakdown</label>
+                    <input id="p-beds" name="bedsBreakdown" required maxlength="500" value="@property.BedsBreakdown" class="mt-1 w-full rounded-md border border-fog px-3 py-2 text-sm" />
+                </div>
+                <button type="submit" class="w-fit bg-river text-white rounded-md px-4 py-2 text-sm">Save property</button>
+            </form>
+        </section>
+    }
+
+    <!-- External calendars -->
+    <section class="mt-5 rounded-md border border-fog bg-white p-4" data-calendars-card>
+        <div class="flex items-center gap-3">
+            <h2 class="text-sm font-semibold text-ink/80">External calendars (iCal)</h2>
+            <span class="rounded px-2 py-0.5 text-xs @(anyCalendarEnabled ? "bg-river/10 text-river" : "bg-amber-600/10 text-amber-600")" data-calendar-mode>
+                @(anyCalendarEnabled ? "Connected" : "Manual mode")
+            </span>
+        </div>
+        @if (Model.TestFetch is { } fetch)
+        {
+            <p class="mt-2 rounded-md border px-3 py-2 text-sm @(fetch.Ok ? "border-river/40 bg-river/5 text-river" : "border-clay/40 bg-clay/5 text-clay")" data-test-fetch-result>
+                @(fetch.Ok
+                    ? $"Fetched OK — {fetch.Events} event(s){(fetch.From is { } from ? $", {from:yyyy-MM-dd} → {fetch.To:yyyy-MM-dd}" : "")}. Nothing was saved."
+                    : fetch.Error)
+            </p>
+        }
+        <ul class="mt-3 divide-y divide-fog/60">
+            @foreach (var source in Model.Calendars)
+            {
+                <li class="py-3" data-calendar-row="@source.Name">
+                    <div class="flex flex-wrap items-center gap-3 text-sm">
+                        <span class="font-semibold">@source.Name</span>
+                        <span class="font-mono text-xs text-ink/60" data-masked-url>@source.MaskedUrl</span>
+                        <span class="text-xs @(source.IsEnabled ? "text-river" : "text-ink/50")">@(source.IsEnabled ? "enabled" : "disabled")</span>
+                        <span class="text-xs text-ink/50">
+                            last sync @(source.LastSuccessUtc is { } ok ? $"{ok:yyyy-MM-dd HH:mm} UTC" : "never")@(source.ConsecutiveFailures > 0 ? $" · {source.ConsecutiveFailures} failure(s)" : "")
+                        </span>
+                        <form method="post" action="/admin/settings/calendars/test-fetch" class="ml-auto">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="sourceId" value="@source.Id" />
+                            <button type="submit" class="border border-river text-river rounded-md px-3 py-1.5 text-xs">Test fetch</button>
+                        </form>
+                        <form method="post" action="/admin/settings/calendars/@source.Id/enabled">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="enabled" value="@((!source.IsEnabled).ToString().ToLowerInvariant())" />
+                            <button type="submit" class="border @(source.IsEnabled ? "border-amber-600 text-amber-600" : "border-river text-river") rounded-md px-3 py-1.5 text-xs">
+                                @(source.IsEnabled ? "Disable" : "Enable")
+                            </button>
+                        </form>
+                    </div>
+                    @if (!string.IsNullOrEmpty(source.LastError))
+                    {
+                        <p class="mt-1 text-xs text-clay">@source.LastError</p>
+                    }
+                    <form method="post" action="/admin/settings/calendars/@source.Id/url" class="mt-2 flex flex-wrap items-end gap-2">
+                        @Html.AntiForgeryToken()
+                        <input name="icsUrl" type="url" required placeholder="Replace URL (paste the full ICS link)"
+                               class="w-96 max-w-full rounded-md border border-fog px-3 py-2 text-xs" />
+                        <button type="submit" class="border border-fog rounded-md px-3 py-1.5 text-xs hover:bg-stone/40">Replace URL</button>
+                    </form>
+                </li>
+            }
+        </ul>
+        <form method="post" action="/admin/settings/calendars" class="mt-3 flex flex-wrap items-end gap-2 border-t border-fog pt-3" data-add-calendar>
+            @Html.AntiForgeryToken()
+            <div>
+                <label class="block text-xs font-semibold text-river">Name</label>
+                <input name="name" required maxlength="100" placeholder="Hostify" class="mt-1 w-32 rounded-md border border-fog px-2 py-1.5 text-xs" />
+            </div>
+            <div class="grow">
+                <label class="block text-xs font-semibold text-river">ICS URL (stored encrypted, shown masked)</label>
+                <input name="icsUrl" type="url" required placeholder="https://…/calendar.ics" class="mt-1 w-full rounded-md border border-fog px-2 py-1.5 text-xs" />
+            </div>
+            <label class="flex items-center gap-1 text-xs"><input type="checkbox" name="enabled" value="true" /> enable now</label>
+            <button type="submit" class="bg-river text-white rounded-md px-4 py-1.5 text-sm">Add calendar</button>
+        </form>
+        <form method="post" action="/admin/settings/calendars/test-fetch" class="mt-2 flex flex-wrap items-end gap-2" data-test-url>
+            @Html.AntiForgeryToken()
+            <input name="url" type="url" placeholder="…or test any ICS URL without saving" class="w-96 max-w-full rounded-md border border-fog px-3 py-2 text-xs" />
+            <button type="submit" class="border border-river text-river rounded-md px-3 py-1.5 text-xs">Test fetch URL</button>
+        </form>
+    </section>
+
+    <!-- Notifications -->
+    <section class="mt-5 rounded-md border border-fog bg-white p-4" data-notifications-card>
+        <h2 class="text-sm font-semibold text-ink/80">Notifications</h2>
+        <form method="post" action="/admin/settings/notifications" class="mt-3 grid gap-3">
+            @Html.AntiForgeryToken()
+            <div>
+                <label class="block text-xs font-semibold text-river" for="n-pm">Property-manager emails (semicolon-separated; blank = none)</label>
+                <input id="n-pm" name="pmEmails" value="@string.Join("; ", Model.PropertyManagerEmails)"
+                       class="mt-1 w-full rounded-md border border-fog px-3 py-2 text-sm" />
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-river" for="n-owner">Owner notification email</label>
+                <input id="n-owner" name="ownerEmail" type="email" value="@Model.OwnerEmail"
+                       class="mt-1 w-80 max-w-full rounded-md border border-fog px-3 py-2 text-sm" />
+            </div>
+            <div class="flex gap-2">
+                <button type="submit" class="bg-river text-white rounded-md px-4 py-2 text-sm">Save recipients</button>
+            </div>
+        </form>
+        <form method="post" action="/admin/settings/notifications/test" class="mt-2">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="border border-river text-river rounded-md px-4 py-2 text-sm" data-send-test-email>Send test email</button>
+        </form>
+    </section>
+
+    <!-- Pricing provider -->
+    <section class="mt-5 rounded-md border border-fog bg-white p-4" data-pricing-card>
+        <h2 class="text-sm font-semibold text-ink/80">Pricing provider</h2>
+        @if (Model.Pricing.Provider != RateProviderType.None)
+        {
+            <p class="mt-1 text-xs text-amber-600" data-adapter-note>Adapter not yet available — settings are stored and the sync activates when the @Model.Pricing.Provider integration ships.</p>
+        }
+        <form method="post" action="/admin/settings/pricing" class="mt-3 flex flex-wrap items-end gap-3">
+            @Html.AntiForgeryToken()
+            <div>
+                <label class="block text-xs font-semibold text-river" for="pr-provider">Provider</label>
+                <select id="pr-provider" name="provider" class="mt-1 rounded-md border border-fog px-3 py-2 text-sm">
+                    @foreach (var provider in Enum.GetValues<RateProviderType>())
+                    {
+                        <option value="@provider" selected="@(Model.Pricing.Provider == provider)">@provider</option>
+                    }
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-river" for="pr-key">API key @(Model.PricingApiKeyMasked is { } masked ? $"(stored: {masked})" : "(not set)")</label>
+                <input id="pr-key" name="apiKey" type="password" autocomplete="off" placeholder="paste to replace"
+                       class="mt-1 w-48 rounded-md border border-fog px-3 py-2 text-sm" />
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-river" for="pr-listing">Listing id</label>
+                <input id="pr-listing" name="listingId" value="@Model.Pricing.ListingId" class="mt-1 w-32 rounded-md border border-fog px-3 py-2 text-sm" />
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-river" for="pr-adj">Direct-booking adj. %</label>
+                <input id="pr-adj" name="adjustmentPct" inputmode="decimal" value="@Model.Pricing.DirectBookingAdjustmentPct.ToString(System.Globalization.CultureInfo.InvariantCulture)" class="mt-1 w-24 rounded-md border border-fog px-3 py-2 text-sm" />
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-river" for="pr-floor">Floor €</label>
+                <input id="pr-floor" name="floor" inputmode="decimal" value="@Model.Pricing.FloorPrice.ToString(System.Globalization.CultureInfo.InvariantCulture)" class="mt-1 w-20 rounded-md border border-fog px-3 py-2 text-sm" />
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-river" for="pr-ceiling">Ceiling €</label>
+                <input id="pr-ceiling" name="ceiling" inputmode="decimal" value="@Model.Pricing.CeilingPrice.ToString(System.Globalization.CultureInfo.InvariantCulture)" class="mt-1 w-24 rounded-md border border-fog px-3 py-2 text-sm" />
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-river" for="pr-interval">Sync every (h)</label>
+                <input id="pr-interval" name="syncIntervalHours" type="number" min="1" max="24" value="@Model.Pricing.SyncIntervalHours" class="mt-1 w-20 rounded-md border border-fog px-3 py-2 text-sm" />
+            </div>
+            <button type="submit" class="bg-river text-white rounded-md px-4 py-2 text-sm">Save pricing settings</button>
+        </form>
+    </section>
+
+    <!-- Languages -->
+    <section class="mt-5 rounded-md border border-fog bg-white p-4" data-languages-card>
+        <h2 class="text-sm font-semibold text-ink/80">Languages</h2>
+        <p class="mt-1 text-xs text-ink/55">Disabling a language removes it from routing (its pages 404), hreflang and the sitemap. @GaiaSkyline.Web.Localization.SupportedCultures.DefaultSlug.ToUpperInvariant() cannot be disabled.</p>
+        <form method="post" action="/admin/settings/languages" class="mt-3 flex flex-wrap items-center gap-4"
+              data-confirm="Apply the language changes? Disabled languages immediately 404 on the public site.">
+            @Html.AntiForgeryToken()
+            @foreach (var (culture, enabled) in Model.Languages)
+            {
+                var isDefault = culture.Slug == GaiaSkyline.Web.Localization.SupportedCultures.DefaultSlug;
+                <label class="flex items-center gap-2 text-sm @(isDefault ? "text-ink/50" : "")">
+                    <input type="checkbox" name="enabled" value="@culture.Slug" checked="@enabled" disabled="@isDefault" />
+                    @culture.NativeName (@culture.Slug)
+                </label>
+            }
+            <button type="submit" class="bg-river text-white rounded-md px-4 py-2 text-sm">Save languages</button>
+        </form>
+    </section>
+</div>

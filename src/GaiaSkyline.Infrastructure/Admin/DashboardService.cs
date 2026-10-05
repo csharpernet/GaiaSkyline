@@ -18,7 +18,7 @@ namespace GaiaSkyline.Infrastructure.Admin;
 /// </summary>
 internal sealed class DashboardService(
     AppDbContext dbContext,
-    IOptions<PricingProviderOptions> pricingOptions,
+    IOptionsSnapshot<PricingProviderOptions> pricingOptions,
     IAuditLog audit,
     TimeProvider clock) : IDashboardService
 {

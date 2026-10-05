@@ -21,11 +21,11 @@ namespace GaiaSkyline.Infrastructure.Pricing;
 internal sealed class RateSyncService(
     AppDbContext dbContext,
     IEnumerable<IRateProvider> providers,
-    IOptions<PricingProviderOptions> options,
+    IOptionsSnapshot<PricingProviderOptions> options,
     IContentRevision revision,
     IAvailabilityService availabilityService,
     IEmailSender emailSender,
-    IOptions<EmailOptions> emailOptions,
+    IOptionsSnapshot<EmailOptions> emailOptions,
     TimeProvider clock,
     ILogger<RateSyncService> logger) : IRateSyncService
 {

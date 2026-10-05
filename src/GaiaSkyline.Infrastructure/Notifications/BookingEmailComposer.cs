@@ -16,7 +16,7 @@ namespace GaiaSkyline.Infrastructure.Notifications;
 internal sealed class BookingEmailComposer(
     IContentService content,
     IBookingTokenService tokens,
-    IOptions<EmailOptions> options)
+    IOptionsSnapshot<EmailOptions> options)
 {
     private readonly EmailOptions _options = options.Value;
 

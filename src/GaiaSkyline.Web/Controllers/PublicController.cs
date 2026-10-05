@@ -19,6 +19,19 @@ public abstract class PublicController : Controller
 
     protected string CurrentSlug => SupportedCultures.SlugForCulture(CurrentCulture);
 
+    /// <summary>A language the owner disabled (Stage 7 §12) serves 404s — it is out of routing entirely.</summary>
+    public override void OnActionExecuting(Microsoft.AspNetCore.Mvc.Filters.ActionExecutingContext context)
+    {
+        var enabled = context.HttpContext.RequestServices.GetService<IEnabledLanguages>();
+        if (enabled is not null && !enabled.IsEnabled(CurrentSlug))
+        {
+            context.Result = NotFound();
+            return;
+        }
+
+        base.OnActionExecuting(context);
+    }
+
     protected void SetMeta(PageMeta meta) => ViewData["PageMeta"] = meta;
 
     /// <summary>

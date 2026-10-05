@@ -16,7 +16,7 @@ public sealed record SitemapEntryLanguage(string Culture, string Slug, string Ur
 /// on <c>/admin/seo</c>. Pages the owner marked noindex (per language) are flagged so the XML can drop them and
 /// the preview can show why. Stage 7 §5.
 /// </summary>
-public sealed class SitemapBuilder(IContentService content, IPageMetaResolver pageMeta)
+public sealed class SitemapBuilder(IContentService content, IPageMetaResolver pageMeta, GaiaSkyline.Web.Localization.IEnabledLanguages enabledLanguages)
 {
     /// <summary>The fixed public pages, keyed by site-relative path (matches <c>SeoPages</c> and the resolver keys).</summary>
     private static readonly string[] StaticPaths =
@@ -51,10 +51,11 @@ public sealed class SitemapBuilder(IContentService content, IPageMetaResolver pa
         return entries;
     }
 
-    private static SitemapEntry BuildEntry(string baseUrl, string path, IReadOnlySet<string> noIndex)
+    private SitemapEntry BuildEntry(string baseUrl, string path, IReadOnlySet<string> noIndex)
     {
         var key = path.ToLowerInvariant();
-        var languages = SupportedCultures.All
+        // Only owner-enabled languages appear in the sitemap (Stage 7 §12).
+        var languages = enabledLanguages.All
             .Select(c => new SitemapEntryLanguage(
                 c.Culture,
                 c.Slug,

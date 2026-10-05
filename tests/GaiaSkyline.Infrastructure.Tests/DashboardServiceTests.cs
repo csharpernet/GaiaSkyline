@@ -131,7 +131,7 @@ public sealed class DashboardServiceTests : IClassFixture<LocalDbFixture>
     }
 
     private static DashboardService Service(AppDbContext context) =>
-        new(context, Options.Create(new PricingProviderOptions()), new NoOpAuditLog(), new FixedClock(Now));
+        new(context, TestOptions.Snapshot(new PricingProviderOptions()), new NoOpAuditLog(), new FixedClock(Now));
 
     private static Money Eur(decimal amount) => new(amount, "EUR");
 

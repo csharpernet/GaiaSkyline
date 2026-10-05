@@ -13,7 +13,7 @@ namespace GaiaSkyline.Web.Health;
 /// </summary>
 public sealed class PricingHealthCheck(
     AppDbContext dbContext,
-    IOptions<PricingProviderOptions> options,
+    IOptionsSnapshot<PricingProviderOptions> options,
     TimeProvider clock) : IHealthCheck
 {
     public async Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken = default)

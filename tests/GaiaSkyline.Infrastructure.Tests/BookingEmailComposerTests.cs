@@ -104,7 +104,7 @@ public sealed class BookingEmailComposerTests(LocalDbFixture fixture) : IClassFi
     private BookingEmailComposer Composer()
     {
         var content = new ContentService(new ContentReadStore(_fixture.CreateContext()), _cache, new ContentRevision());
-        var options = Options.Create(new EmailOptions
+        var options = TestOptions.Snapshot(new EmailOptions
         {
             OwnerAddress = "owner@gaiaskyline.test",
             FromName = "Gaia Skyline",

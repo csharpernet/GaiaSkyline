@@ -30,7 +30,7 @@ internal sealed class ExternalCalendarImporter(
     IAvailabilityService availabilityService,
     IIcsCacheInvalidator icsCacheInvalidator,
     IEmailSender emailSender,
-    IOptions<EmailOptions> emailOptions,
+    IOptionsSnapshot<EmailOptions> emailOptions,
     TimeProvider clock,
     ILogger<ExternalCalendarImporter> logger) : IExternalCalendarImporter
 {

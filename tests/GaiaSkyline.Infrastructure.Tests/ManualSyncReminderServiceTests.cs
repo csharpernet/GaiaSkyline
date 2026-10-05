@@ -50,7 +50,7 @@ public sealed class ManualSyncReminderServiceTests
 
     private static ManualSyncReminderService Build(IReadOnlyList<ManualSyncItem> items, IEmailSender email) =>
         new(new FakeDashboard(items), email,
-            Options.Create(new EmailOptions { OwnerAddress = "owner@test", FromName = "Gaia Skyline" }),
+            TestOptions.Snapshot(new EmailOptions { OwnerAddress = "owner@test", FromName = "Gaia Skyline" }),
             NullLogger<ManualSyncReminderService>.Instance);
 
     private sealed class FakeDashboard(IReadOnlyList<ManualSyncItem> items) : IDashboardService

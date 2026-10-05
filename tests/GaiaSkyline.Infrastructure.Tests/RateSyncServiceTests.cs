@@ -184,9 +184,9 @@ public sealed class RateSyncServiceTests : IClassFixture<LocalDbFixture>
     {
         var availability = new AvailabilityService(context, new MemoryCache(new MemoryCacheOptions()), new AvailabilityCacheState());
         return new RateSyncService(
-            context, providers, Options.Create(options), new ContentRevision(), availability,
+            context, providers, TestOptions.Snapshot(options), new ContentRevision(), availability,
             email ?? new RecordingEmailSender(),
-            Options.Create(new EmailOptions { OwnerAddress = "owner@test", FromName = "Gaia Skyline" }),
+            TestOptions.Snapshot(new EmailOptions { OwnerAddress = "owner@test", FromName = "Gaia Skyline" }),
             TimeProvider.System, NullLogger<RateSyncService>.Instance);
     }
 

@@ -76,6 +76,53 @@ public sealed class Property : Entity<PropertyId>
         BedsBreakdown = bedsBreakdown.Trim();
     }
 
+    /// <summary>Admin edit (Stage 7 §12) with the same validation as creation.</summary>
+    public void Update(
+        string name,
+        string registrationCode,
+        string address,
+        double lat,
+        double lng,
+        TimeOnly checkInFromLocal,
+        TimeOnly checkOutByLocal,
+        int sleeps,
+        int bedrooms,
+        int beds,
+        int bathrooms,
+        string bedsBreakdown)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentException.ThrowIfNullOrWhiteSpace(registrationCode);
+        ArgumentException.ThrowIfNullOrWhiteSpace(address);
+        ArgumentException.ThrowIfNullOrWhiteSpace(bedsBreakdown);
+        ArgumentOutOfRangeException.ThrowIfNegative(sleeps);
+        ArgumentOutOfRangeException.ThrowIfNegative(bedrooms);
+        ArgumentOutOfRangeException.ThrowIfNegative(beds);
+        ArgumentOutOfRangeException.ThrowIfNegative(bathrooms);
+        if (lat is < -90d or > 90d)
+        {
+            throw new ArgumentOutOfRangeException(nameof(lat), lat, "Latitude must be between -90 and 90.");
+        }
+
+        if (lng is < -180d or > 180d)
+        {
+            throw new ArgumentOutOfRangeException(nameof(lng), lng, "Longitude must be between -180 and 180.");
+        }
+
+        Name = name.Trim();
+        RegistrationCode = registrationCode.Trim();
+        Address = address.Trim();
+        Lat = lat;
+        Lng = lng;
+        CheckInFromLocal = checkInFromLocal;
+        CheckOutByLocal = checkOutByLocal;
+        Sleeps = sleeps;
+        Bedrooms = bedrooms;
+        Beds = beds;
+        Bathrooms = bathrooms;
+        BedsBreakdown = bedsBreakdown.Trim();
+    }
+
     /// <summary>Public-facing name of the listing.</summary>
     public string Name { get; private set; } = null!;
 

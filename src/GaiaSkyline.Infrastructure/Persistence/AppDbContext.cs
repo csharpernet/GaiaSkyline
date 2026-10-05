@@ -89,6 +89,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
 
     public DbSet<Domain.Partners.PartnerApplication> PartnerApplications => Set<Domain.Partners.PartnerApplication>();
 
+    public DbSet<Domain.Settings.SiteSetting> SiteSettings => Set<Domain.Settings.SiteSetting>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);

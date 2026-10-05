@@ -12,7 +12,7 @@ internal sealed class BookingEmailDispatcher(
     AppDbContext dbContext,
     BookingEmailComposer composer,
     IEmailSender emailSender,
-    IOptions<PropertyManagerOptions> propertyManagerOptions,
+    IOptionsSnapshot<PropertyManagerOptions> propertyManagerOptions,
     ILogger<BookingEmailDispatcher> logger) : IBookingEmailDispatcher
 {
     public async Task DispatchAsync(Guid bookingId, BookingEmailKind kind, CancellationToken cancellationToken)

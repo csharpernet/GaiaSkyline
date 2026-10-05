@@ -1,3 +1,4 @@
+@inject GaiaSkyline.Web.Localization.IEnabledLanguages EnabledLanguages
 @{
     var meta = ViewData["PageMeta"] as PageMeta;
     var culture = meta?.Culture ?? SupportedCultures.DefaultCulture;
@@ -36,7 +37,7 @@
             <meta name="robots" content="nofollow" />
         }
         <link rel="canonical" href="@canonical" />
-        foreach (var c in SupportedCultures.All)
+        foreach (var c in EnabledLanguages.All)
         {
             <link rel="alternate" hreflang="@c.Culture" href="@AbsFor(c.Slug)" />
         }
@@ -115,7 +116,7 @@
                     <li><a class="hover:text-clay" href="/@slug/stories">Stories</a></li>
                 </ul>
                 <ul class="flex items-center gap-1 text-xs" aria-label="Language">
-                    @foreach (var c in SupportedCultures.All)
+                    @foreach (var c in EnabledLanguages.All)
                     {
                         var current = string.Equals(c.Culture, culture, StringComparison.OrdinalIgnoreCase);
                         <li>
