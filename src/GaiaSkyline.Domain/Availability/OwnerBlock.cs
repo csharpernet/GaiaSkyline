@@ -65,6 +65,19 @@ public sealed class OwnerBlock : Entity<OwnerBlockId>
 
     public string CreatedBy { get; private set; } = null!;
 
+    /// <summary>Re-dates and/or re-annotates the block. The kind never changes after creation.</summary>
+    public void Reschedule(DateOnly startDate, DateOnly endDateExclusive, string? note)
+    {
+        if (endDateExclusive <= startDate)
+        {
+            throw new ArgumentException("Owner block end date must be after the start date (exclusive).", nameof(endDateExclusive));
+        }
+
+        StartDate = startDate;
+        EndDate = endDateExclusive;
+        Note = string.IsNullOrWhiteSpace(note) ? null : note.Trim();
+    }
+
     /// <summary>Whether <paramref name="night"/> falls within this block (half-open [Start, End)).</summary>
     public bool Covers(DateOnly night) => night >= StartDate && night < EndDate;
 

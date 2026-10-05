@@ -39,4 +39,19 @@ public sealed class BookingConflict
     public DateOnly EndDate { get; private set; }
 
     public DateTime DetectedAtUtc { get; private set; }
+
+    /// <summary>When the owner marked this conflict handled (null = still open).</summary>
+    public DateTime? ResolvedAtUtc { get; private set; }
+
+    /// <summary>How it was handled (e.g. "guest moved", "Hostify block removed").</summary>
+    public string? ResolvedNote { get; private set; }
+
+    public bool IsResolved => ResolvedAtUtc is not null;
+
+    /// <summary>Marks the conflict handled. Resolving an already-resolved conflict updates the note/time.</summary>
+    public void Resolve(DateTime atUtc, string? note)
+    {
+        ResolvedAtUtc = atUtc;
+        ResolvedNote = string.IsNullOrWhiteSpace(note) ? null : note.Trim();
+    }
 }

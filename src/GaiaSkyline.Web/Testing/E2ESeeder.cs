@@ -27,6 +27,7 @@ public static class E2ESeeder
         var options = services.GetRequiredService<IOptions<E2EOptions>>().Value;
         await EnsureOwnerTwoFactorAsync(services, options, cancellationToken);
         await EnsureBookingAsync(services, options, cancellationToken);
+        await EnsureCalendarFixturesAsync(services, options, cancellationToken);
     }
 
     /// <summary>
@@ -140,6 +141,44 @@ public static class E2ESeeder
         adminBooking.MarkExternalChannelSynced(now, "seed");
         dbContext.Bookings.Add(adminBooking);
         AddOccupancy(dbContext, adminBooking);
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Deterministic calendar fixtures (Stage 7 §7): one block of each kind far in the future, plus an
+    /// open conflict against the Confirmed fixture booking for the resolve flow. Reset on every startup
+    /// so destructive calendar tests always find them fresh.
+    /// </summary>
+    private static async Task EnsureCalendarFixturesAsync(
+        IServiceProvider services, E2EOptions options, CancellationToken cancellationToken)
+    {
+        var dbContext = services.GetRequiredService<AppDbContext>();
+        var now = services.GetRequiredService<TimeProvider>().GetUtcNow().UtcDateTime;
+        var today = DateOnly.FromDateTime(now);
+        const string Marker = "E2E seed";
+        const string ConflictSource = "E2E-Source";
+
+        var staleBlocks = await dbContext.OwnerBlocks
+            .Where(b => b.Note != null && b.Note.StartsWith(Marker)).ToListAsync(cancellationToken);
+        dbContext.OwnerBlocks.RemoveRange(staleBlocks);
+        var staleConflicts = await dbContext.BookingConflicts
+            .Where(c => c.SourceName == ConflictSource).ToListAsync(cancellationToken);
+        dbContext.BookingConflicts.RemoveRange(staleConflicts);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        dbContext.OwnerBlocks.Add(new Domain.Availability.OwnerBlock(
+            Domain.Identifiers.OwnerBlockId.New(), today.AddDays(120), today.AddDays(123),
+            Domain.Availability.OwnerBlockKind.OwnerUnavailable, $"{Marker} — owner hold", now, "e2e"));
+        dbContext.OwnerBlocks.Add(new Domain.Availability.OwnerBlock(
+            Domain.Identifiers.OwnerBlockId.New(), today.AddDays(130), today.AddDays(133),
+            Domain.Availability.OwnerBlockKind.ExternalBooking, $"{Marker} — Hostify copy", now, "e2e"));
+
+        // The confirmed fixture booking sits at +90d; a fake imported range colliding with it.
+        var confirmedRef = $"{options.BookingReference.Trim().ToUpperInvariant()}-C";
+        dbContext.BookingConflicts.Add(new Domain.Availability.BookingConflict(
+            Domain.Identifiers.BookingConflictId.New(), confirmedRef, ConflictSource,
+            today.AddDays(90), today.AddDays(93), now));
 
         await dbContext.SaveChangesAsync(cancellationToken);
     }

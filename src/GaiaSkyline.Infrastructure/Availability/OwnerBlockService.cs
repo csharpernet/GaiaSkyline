@@ -20,15 +20,7 @@ internal sealed class OwnerBlockService(
     public async Task<Guid> CreateAsync(
         DateOnly startDate, DateOnly endDateExclusive, OwnerBlockKind kind, string? note, string createdBy, CancellationToken cancellationToken)
     {
-        // Reject overlap with an active direct booking, naming it.
-        var conflictingReference = await dbContext.Bookings.AsNoTracking()
-            .Where(b => ActiveStatuses.Contains(b.Status) && b.CheckIn < endDateExclusive && startDate < b.CheckOut)
-            .Select(b => b.ReferenceCode)
-            .FirstOrDefaultAsync(cancellationToken);
-        if (conflictingReference is not null)
-        {
-            throw new OwnerBlockConflictsWithBookingException(conflictingReference);
-        }
+        await ThrowIfOverlapsActiveBookingAsync(startDate, endDateExclusive, cancellationToken);
 
         var block = new OwnerBlock(
             OwnerBlockId.New(), startDate, endDateExclusive, kind, note, clock.GetUtcNow().UtcDateTime, createdBy);
@@ -38,6 +30,39 @@ internal sealed class OwnerBlockService(
         availabilityService.Invalidate();
         icsCacheInvalidator.Invalidate();
         return block.Id.Value;
+    }
+
+    public async Task<bool> UpdateAsync(
+        Guid id, DateOnly startDate, DateOnly endDateExclusive, string? note, CancellationToken cancellationToken)
+    {
+        var block = await dbContext.OwnerBlocks.FirstOrDefaultAsync(b => b.Id == OwnerBlockId.From(id), cancellationToken);
+        if (block is null)
+        {
+            return false;
+        }
+
+        await ThrowIfOverlapsActiveBookingAsync(startDate, endDateExclusive, cancellationToken);
+
+        block.Reschedule(startDate, endDateExclusive, note);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        availabilityService.Invalidate();
+        icsCacheInvalidator.Invalidate();
+        return true;
+    }
+
+    /// <summary>Rejects a range that overlaps an active direct booking, naming the booking.</summary>
+    private async Task ThrowIfOverlapsActiveBookingAsync(
+        DateOnly startDate, DateOnly endDateExclusive, CancellationToken cancellationToken)
+    {
+        var conflictingReference = await dbContext.Bookings.AsNoTracking()
+            .Where(b => ActiveStatuses.Contains(b.Status) && b.CheckIn < endDateExclusive && startDate < b.CheckOut)
+            .Select(b => b.ReferenceCode)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (conflictingReference is not null)
+        {
+            throw new OwnerBlockConflictsWithBookingException(conflictingReference);
+        }
     }
 
     public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken)

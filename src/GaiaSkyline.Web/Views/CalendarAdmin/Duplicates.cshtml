@@ -1,0 +1,47 @@
+@model GaiaSkyline.Web.Models.CalendarDuplicatesViewModel
+@{
+    Layout = "_AdminShell";
+    ViewData["Title"] = "Duplicate blocks";
+}
+
+<div class="max-w-4xl">
+    <a href="/admin/calendar" class="text-xs text-river hover:underline">← Calendar</a>
+    <h1 class="mt-2 font-display text-2xl font-semibold">Duplicate cleanup</h1>
+    <p class="mt-1 text-sm text-ink/70">
+        Manual "external booking" blocks whose dates exactly match a block imported over iCal — once a
+        calendar is connected these are redundant copies and safe to delete (the imported block keeps the
+        dates closed).
+    </p>
+
+    @if (Model.Duplicates.Count == 0)
+    {
+        <p class="mt-6 text-sm text-ink/55" data-no-duplicates>No duplicates — every manual external-booking block is unique.</p>
+    }
+    else
+    {
+        <form method="post" action="/admin/calendar/duplicates/delete"
+              data-confirm="Delete the selected duplicate blocks? The imported iCal blocks keep those dates closed. Type DELETE to confirm."
+              data-confirm-type="DELETE">
+            @Html.AntiForgeryToken()
+            <table class="mt-5 w-full text-sm">
+                <thead class="text-left text-ink/50 border-b border-fog">
+                    <tr><th class="py-2 w-8"></th><th>Dates</th><th>Note</th><th>Created</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var block in Model.Duplicates)
+                    {
+                        <tr class="border-b border-fog/60">
+                            <td class="py-2"><input type="checkbox" name="ids" value="@block.Id" checked /></td>
+                            <td class="font-mono text-xs">@block.StartDate.ToString("yyyy-MM-dd") → @block.EndDate.ToString("yyyy-MM-dd")</td>
+                            <td class="text-xs text-ink/60">@block.Note</td>
+                            <td class="text-xs text-ink/50">@block.CreatedAtUtc.ToString("yyyy-MM-dd") by @block.CreatedBy</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+            <button type="submit" class="mt-4 border border-clay text-clay rounded-md px-4 py-2 text-sm">
+                Delete selected duplicates
+            </button>
+        </form>
+    }
+</div>

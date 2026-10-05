@@ -21,6 +21,14 @@ public interface IOwnerBlockService
     Task<Guid> CreateAsync(
         DateOnly startDate, DateOnly endDateExclusive, OwnerBlockKind kind, string? note, string createdBy, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Re-dates and/or re-annotates a block (the kind is fixed — delete and recreate to change it).
+    /// Throws <see cref="OwnerBlockConflictsWithBookingException"/> when the new dates overlap an
+    /// active booking. Returns false when the block does not exist.
+    /// </summary>
+    Task<bool> UpdateAsync(
+        Guid id, DateOnly startDate, DateOnly endDateExclusive, string? note, CancellationToken cancellationToken);
+
     Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken);
 
     Task<IReadOnlyList<OwnerBlockDto>> ListAsync(DateOnly from, DateOnly to, CancellationToken cancellationToken);

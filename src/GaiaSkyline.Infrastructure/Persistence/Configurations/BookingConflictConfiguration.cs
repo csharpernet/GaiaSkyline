@@ -18,6 +18,7 @@ internal sealed class BookingConflictConfiguration : IEntityTypeConfiguration<Bo
         builder.Property(c => c.StartDate).IsRequired();
         builder.Property(c => c.EndDate).IsRequired();
         builder.Property(c => c.DetectedAtUtc).IsRequired();
+        builder.Property(c => c.ResolvedNote).HasMaxLength(500);
 
         // Record a given conflict once (per booking + source + range).
         builder.HasIndex(c => new { c.BookingReference, c.SourceName, c.StartDate, c.EndDate }).IsUnique();

@@ -251,7 +251,9 @@ internal sealed class DashboardService(
     }
 
     private async Task<IReadOnlyList<ConflictItem>> ConflictsAsync(CancellationToken cancellationToken) =>
+        // Resolved conflicts (Stage 7 §7 calendar) stay queryable there; the dashboard shows open ones.
         await dbContext.BookingConflicts.AsNoTracking()
+            .Where(c => c.ResolvedAtUtc == null)
             .OrderByDescending(c => c.DetectedAtUtc)
             .Take(50)
             .Select(c => new ConflictItem(c.BookingReference, c.SourceName, c.StartDate, c.EndDate, c.DetectedAtUtc))
