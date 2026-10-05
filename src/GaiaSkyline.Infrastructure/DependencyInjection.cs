@@ -102,6 +102,7 @@ public static class DependencyInjection
         services.AddScoped<GaiaSkyline.Application.Seo.IRedirectAdminService, GaiaSkyline.Infrastructure.Seo.RedirectAdminService>();
         services.AddScoped<GaiaSkyline.Application.Seo.IPageMetaResolver, GaiaSkyline.Infrastructure.Seo.PageMetaResolver>();
         services.AddScoped<GaiaSkyline.Application.Seo.IPageMetaAdminService, GaiaSkyline.Infrastructure.Seo.PageMetaAdminService>();
+        services.AddScoped<GaiaSkyline.Application.Seo.ISeoWarningsService, GaiaSkyline.Application.Seo.SeoWarningsService>();
         services.AddScoped<GaiaSkyline.Infrastructure.Media.IImageRenditionService, GaiaSkyline.Infrastructure.Media.ImageRenditionService>();
         services.AddScoped<GaiaSkyline.Application.Media.IAdminMediaService, GaiaSkyline.Infrastructure.Media.AdminMediaService>();
         services.AddScoped<GaiaSkyline.Application.Media.IAdminMediaReadService, GaiaSkyline.Infrastructure.Media.AdminMediaReadService>();

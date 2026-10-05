@@ -16,6 +16,7 @@ public sealed class SeoAdminController(
     IPageMetaAdminService pageMeta,
     SitemapBuilder sitemap,
     IWebVitalsStore vitals,
+    ISeoWarningsService warnings,
     IAuditLog audit) : AdminControllerBase
 {
     [HttpGet("")]
@@ -27,7 +28,8 @@ public sealed class SeoAdminController(
             await redirects.GetAllAsync(cancellationToken),
             await pageMeta.GetAllAsync(cancellationToken),
             await sitemap.BuildAsync(baseUrl, cancellationToken),
-            vitals.Snapshot());
+            vitals.Snapshot(),
+            await warnings.GetWarningsAsync(cancellationToken));
         return View(model);
     }
 

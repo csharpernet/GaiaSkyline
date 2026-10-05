@@ -43,6 +43,9 @@ test.describe('Admin SEO redirects', () => {
     // Core Web Vitals panel always renders (shows "No field data yet" until samples arrive).
     await expect(page.getByRole('heading', { name: 'Core Web Vitals (field)' })).toBeVisible();
 
+    // The warnings section always renders (its count may be zero).
+    await expect(page.getByRole('heading', { name: /^Warnings/ })).toBeVisible();
+
     await expect(page.getByRole('heading', { name: 'Sitemap preview' })).toBeVisible();
     await expect(page.locator('a[href="/sitemap.xml"]')).toBeVisible();
     // A known page is listed with a per-language link (host-agnostic — the href ends with the path).

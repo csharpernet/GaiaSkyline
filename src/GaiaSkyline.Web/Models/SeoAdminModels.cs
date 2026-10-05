@@ -29,4 +29,5 @@ public sealed record SeoAdminViewModel(
     IReadOnlyList<RedirectDto> Redirects,
     IReadOnlyList<PageMetaOverrideDto> PageMeta,
     IReadOnlyList<SitemapEntry> Sitemap,
-    IReadOnlyList<WebVitalSummary> Vitals);
+    IReadOnlyList<WebVitalSummary> Vitals,
+    IReadOnlyList<SeoWarning> Warnings);

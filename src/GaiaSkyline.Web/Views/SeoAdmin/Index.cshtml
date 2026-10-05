@@ -37,6 +37,34 @@
         }
     </section>
 
+    <!-- ========== Warnings ========== -->
+    <section class="mt-6">
+        <h2 class="font-display text-sm font-semibold text-ink/80">Warnings (@Model.Warnings.Count)</h2>
+        @if (Model.Warnings.Count == 0)
+        {
+            <p class="mt-2 text-sm text-ink/55">No SEO issues found.</p>
+        }
+        else
+        {
+            <ul class="mt-2 space-y-1">
+                @foreach (var w in Model.Warnings)
+                {
+                    <li class="flex items-start gap-2 text-sm">
+                        <span class="mt-0.5 inline-block rounded px-1.5 py-0.5 text-[10px] uppercase tracking-wide bg-clay/10 text-clay">@w.Category</span>
+                        @if (w.Link is not null)
+                        {
+                            <a class="text-ink/80 hover:text-clay hover:underline" href="@w.Link">@w.Message</a>
+                        }
+                        else
+                        {
+                            <span class="text-ink/80">@w.Message</span>
+                        }
+                    </li>
+                }
+            </ul>
+        }
+    </section>
+
     <!-- ========== Per-page meta ========== -->
     <section class="mt-6">
         <h2 class="font-display text-sm font-semibold text-ink/80">Page meta</h2>
