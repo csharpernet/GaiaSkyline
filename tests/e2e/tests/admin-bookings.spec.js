@@ -75,6 +75,12 @@ test.describe('Admin bookings', () => {
     await page.getByRole('button', { name: 'Cancel booking' }).click();
     await expect(page.locator('[data-toast]')).toContainText('cancelled');
     await expect(page.locator('body')).toContainText('Cancelled');
+
+    // Acknowledge the cancel as mirrored in Hostify so this throwaway booking leaves the dashboard
+    // manual-sync to-do exactly as the dashboard spec expects (the §6 cross-spec-fixture lesson).
+    await page.fill('input[name=note]', 'e2e cleanup');
+    await page.getByRole('button', { name: 'Mark synced' }).click();
+    await expect(page.locator('[data-toast]')).toContainText('synced');
   });
 
   test('detail allows a check-in transition and saving notes', async ({ page }) => {

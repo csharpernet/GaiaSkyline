@@ -15,13 +15,15 @@ test.describe('Admin dashboard', () => {
     await expect(page.getByText('Revenue (MTD)', { exact: true })).toBeVisible();
     await expect(page.getByText('Direct booking', { exact: true })).toBeVisible();
 
-    // The seeded confirmed booking is on the manual-sync to-do.
+    // The seeded confirmed booking is on the manual-sync to-do. Scope everything to ITS row — other
+    // specs may legitimately leave their own to-do items (e.g. a cancelled manual booking).
     await expect(page.getByRole('heading', { name: /Mirror in Hostify/i })).toBeVisible();
-    await expect(page.getByRole('button', { name: /done in hostify/i })).toBeVisible();
+    const syncItem = page.locator('li', { has: page.locator('form[action="/admin/sync/GS-E2E01-C/done"]') });
+    await expect(syncItem).toBeVisible();
 
-    // Mark it done → redirect to /admin and the to-do item is gone.
-    await page.locator('form[action*="/sync/"]').first().getByRole('button', { name: /done in hostify/i }).click();
+    // Mark it done → redirect to /admin and THAT row is gone.
+    await syncItem.getByRole('button', { name: /done in hostify/i }).click();
     await expect(page).toHaveURL(/\/admin$/);
-    await expect(page.getByRole('heading', { name: /Mirror in Hostify/i })).toHaveCount(0);
+    await expect(page.locator('form[action="/admin/sync/GS-E2E01-C/done"]')).toHaveCount(0);
   });
 });
