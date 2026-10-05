@@ -111,11 +111,13 @@ public static class E2ESeeder
         var now = services.GetRequiredService<TimeProvider>().GetUtcNow().UtcDateTime;
         var magicRef = options.BookingReference.Trim().ToUpperInvariant();
         var confirmedRef = $"{magicRef}-C";
+        var adminRef = $"{magicRef}-B";
 
-        // Reset both on every startup so the destructive tests (magic-link cancel; dashboard "Done in
-        // Hostify") always find fresh fixtures — a re-run against the same database must still pass.
+        // Reset all three on every startup so the destructive tests (magic-link cancel; dashboard "Done in
+        // Hostify"; bookings-admin check-in) always find fresh fixtures — a re-run must still pass.
         await ResetBookingAsync(dbContext, magicRef, cancellationToken);
         await ResetBookingAsync(dbContext, confirmedRef, cancellationToken);
+        await ResetBookingAsync(dbContext, adminRef, cancellationToken);
 
         // AwaitingPayment booking for the guest magic-link → cancel flow (cancellable; no Stripe refund).
         var magicCheckIn = DateOnly.FromDateTime(now).AddDays(60);
@@ -129,6 +131,15 @@ public static class E2ESeeder
         confirmed.ConfirmPayment("card", now.AddHours(-48));
         dbContext.Bookings.Add(confirmed);
         AddOccupancy(dbContext, confirmed);
+
+        // A second Confirmed booking for the bookings-admin test to mutate (check-in). It is marked synced so
+        // it never lands on the dashboard manual-sync to-do, keeping that test's single-item expectation intact.
+        var adminCheckIn = DateOnly.FromDateTime(now).AddDays(75);
+        var adminBooking = BuildBooking(adminRef, options.GuestEmail, adminCheckIn, now);
+        adminBooking.ConfirmPayment("card", now.AddHours(-48));
+        adminBooking.MarkExternalChannelSynced(now, "seed");
+        dbContext.Bookings.Add(adminBooking);
+        AddOccupancy(dbContext, adminBooking);
 
         await dbContext.SaveChangesAsync(cancellationToken);
     }

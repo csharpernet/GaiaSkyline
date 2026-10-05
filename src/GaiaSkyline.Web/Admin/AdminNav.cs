@@ -16,7 +16,7 @@ public static class AdminNav
         new("Content", "/admin/content", Enabled: true),
         new("Media", "/admin/media", Enabled: true),
         new("Stories", "/admin/stories", Enabled: true),
-        new("Bookings", "/admin/bookings", Enabled: false, Shortcut: "g b"),
+        new("Bookings", "/admin/bookings", Enabled: true, Shortcut: "g b"),
         new("Calendar", "/admin/calendar", Enabled: false, Shortcut: "g c"),
         new("Prices", "/admin/prices", Enabled: false),
         new("Payments", "/admin/payments", Enabled: false),

@@ -1,0 +1,201 @@
+@using GaiaSkyline.Domain.Bookings
+@model GaiaSkyline.Application.Bookings.BookingAdminDetailDto
+@{
+    Layout = "_AdminShell";
+    ViewData["Title"] = $"Booking {Model.ReferenceCode}";
+
+    string StatusClass(BookingStatus s) => s switch
+    {
+        BookingStatus.Confirmed or BookingStatus.CheckedIn => "border-river text-river",
+        BookingStatus.AwaitingPayment or BookingStatus.PartiallyRefunded => "border-amber-600 text-amber-600",
+        BookingStatus.Cancelled or BookingStatus.Refunded => "border-clay text-clay",
+        _ => "border-ink/30 text-ink/60",
+    };
+    bool Can(BookingStatus s) => Model.AllowedTransitions.Contains(s);
+}
+
+<div class="max-w-4xl">
+    <a href="/admin/bookings" class="text-xs text-river hover:underline">← All bookings</a>
+
+    <div class="mt-2 flex items-center gap-3">
+        <h1 class="font-display text-2xl font-semibold font-mono">@Model.ReferenceCode</h1>
+        <span class="text-xs uppercase tracking-wide border rounded px-2 py-0.5 @StatusClass(Model.Status)">@Model.Status</span>
+    </div>
+
+    <!-- ========== Actions ========== -->
+    <section class="mt-5 rounded-md border border-fog bg-white p-4">
+        <h2 class="text-sm font-semibold text-ink/80">Actions</h2>
+        @if (!Can(BookingStatus.CheckedIn) && !Can(BookingStatus.Completed) && !Can(BookingStatus.Cancelled)
+            && !Can(BookingStatus.Refunded) && !Can(BookingStatus.PartiallyRefunded))
+        {
+            <p class="mt-2 text-sm text-ink/55">No actions available for a @Model.Status booking.</p>
+        }
+        else
+        {
+            <div class="mt-3 flex flex-wrap items-start gap-2">
+                @if (Can(BookingStatus.CheckedIn))
+                {
+                    <form method="post" action="/admin/bookings/@Model.Id/check-in">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="bg-river text-white rounded-md px-3 py-2 text-sm">Mark checked in</button>
+                    </form>
+                }
+                @if (Can(BookingStatus.Completed))
+                {
+                    <form method="post" action="/admin/bookings/@Model.Id/complete">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="bg-river text-white rounded-md px-3 py-2 text-sm">Mark completed</button>
+                    </form>
+                }
+                @if (Can(BookingStatus.Refunded))
+                {
+                    <form method="post" action="/admin/bookings/@Model.Id/refund">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="partial" value="false" />
+                        <button type="submit" class="border border-clay text-clay rounded-md px-3 py-2 text-sm">Mark refunded</button>
+                    </form>
+                }
+                @if (Can(BookingStatus.PartiallyRefunded))
+                {
+                    <form method="post" action="/admin/bookings/@Model.Id/refund">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="partial" value="true" />
+                        <button type="submit" class="border border-amber-600 text-amber-600 rounded-md px-3 py-2 text-sm">Mark partially refunded</button>
+                    </form>
+                }
+            </div>
+            @if (Can(BookingStatus.Cancelled))
+            {
+                <form method="post" action="/admin/bookings/@Model.Id/cancel" class="mt-3 flex flex-wrap items-end gap-2"
+                      data-confirm="Cancel this booking and release its dates?">
+                    @Html.AntiForgeryToken()
+                    <div>
+                        <label class="block text-xs font-semibold text-river" for="reason">Cancellation reason (optional)</label>
+                        <input id="reason" name="reason" class="mt-1 w-80 max-w-full rounded-md border border-fog px-3 py-2 text-sm" />
+                    </div>
+                    <button type="submit" class="border border-clay text-clay rounded-md px-3 py-2 text-sm">Cancel booking</button>
+                </form>
+                <p class="mt-1 text-xs text-ink/50">Cancelling releases the held nights. No Stripe refund is issued automatically.</p>
+            }
+        }
+    </section>
+
+    <div class="mt-5 grid gap-5 sm:grid-cols-2">
+        <!-- Stay -->
+        <section class="rounded-md border border-fog bg-white p-4">
+            <h2 class="text-sm font-semibold text-ink/80">Stay</h2>
+            <dl class="mt-2 space-y-1 text-sm">
+                <div class="flex justify-between"><dt class="text-ink/55">Check-in</dt><dd>@Model.CheckIn.ToString("yyyy-MM-dd")</dd></div>
+                <div class="flex justify-between"><dt class="text-ink/55">Check-out</dt><dd>@Model.CheckOut.ToString("yyyy-MM-dd")</dd></div>
+                <div class="flex justify-between"><dt class="text-ink/55">Nights</dt><dd>@Model.Nights</dd></div>
+                <div class="flex justify-between"><dt class="text-ink/55">Guests</dt><dd>@Model.Adults adults, @Model.Children children, @Model.Infants infants</dd></div>
+                @if (Model.ArrivalEstimateLocal is { } arrival)
+                {
+                    <div class="flex justify-between"><dt class="text-ink/55">Arrival estimate</dt><dd>@arrival.ToString("HH:mm")</dd></div>
+                }
+            </dl>
+        </section>
+
+        <!-- Guest -->
+        <section class="rounded-md border border-fog bg-white p-4">
+            <h2 class="text-sm font-semibold text-ink/80">Guest</h2>
+            <dl class="mt-2 space-y-1 text-sm">
+                <div class="flex justify-between"><dt class="text-ink/55">Name</dt><dd>@Model.GuestName</dd></div>
+                <div class="flex justify-between"><dt class="text-ink/55">Email</dt><dd>@Model.GuestEmail</dd></div>
+                <div class="flex justify-between"><dt class="text-ink/55">Phone</dt><dd>@Model.GuestPhone</dd></div>
+                <div class="flex justify-between"><dt class="text-ink/55">Country</dt><dd>@Model.GuestCountry</dd></div>
+                <div class="flex justify-between"><dt class="text-ink/55">Language</dt><dd>@Model.GuestLanguage</dd></div>
+                @if (Model.AccountCreationRequested)
+                {
+                    <div class="text-xs text-ink/55">Requested an account at booking.</div>
+                }
+            </dl>
+        </section>
+
+        <!-- Pricing -->
+        <section class="rounded-md border border-fog bg-white p-4">
+            <h2 class="text-sm font-semibold text-ink/80">Pricing</h2>
+            <dl class="mt-2 space-y-1 text-sm">
+                <div class="flex justify-between"><dt class="text-ink/55">Nightly rate</dt><dd>€@Model.NightlyRate.ToString("0.00")</dd></div>
+                <div class="flex justify-between"><dt class="text-ink/55">Subtotal</dt><dd>€@Model.Subtotal.ToString("0.00")</dd></div>
+                <div class="flex justify-between"><dt class="text-ink/55">Discount</dt><dd>−€@Model.DiscountAmount.ToString("0.00")</dd></div>
+                <div class="flex justify-between"><dt class="text-ink/55">Cleaning fee</dt><dd>€@Model.CleaningFee.ToString("0.00")</dd></div>
+                <div class="flex justify-between"><dt class="text-ink/55">Tourist tax</dt><dd>€@Model.TouristTax.ToString("0.00")</dd></div>
+                <div class="flex justify-between border-t border-fog pt-1 font-semibold"><dt>Total</dt><dd>€@Model.Total.ToString("0.00")</dd></div>
+            </dl>
+        </section>
+
+        <!-- Payment -->
+        <section class="rounded-md border border-fog bg-white p-4">
+            <h2 class="text-sm font-semibold text-ink/80">Payment</h2>
+            <dl class="mt-2 space-y-1 text-sm">
+                <div class="flex justify-between"><dt class="text-ink/55">Method</dt><dd>@(Model.PaymentMethodType ?? "—")</dd></div>
+                @if (!string.IsNullOrEmpty(Model.StripePaymentIntentId))
+                {
+                    <div class="flex justify-between gap-2"><dt class="text-ink/55">PaymentIntent</dt><dd class="font-mono text-xs break-all">@Model.StripePaymentIntentId</dd></div>
+                }
+                @if (!string.IsNullOrEmpty(Model.MultibancoReference))
+                {
+                    <div class="flex justify-between"><dt class="text-ink/55">Multibanco</dt><dd class="font-mono text-xs">@Model.MultibancoEntity / @Model.MultibancoReference</dd></div>
+                }
+                @if (Model.PaymentExpiresAtUtc is { } expires)
+                {
+                    <div class="flex justify-between"><dt class="text-ink/55">Payment expires</dt><dd>@expires.ToString("yyyy-MM-dd HH:mm") UTC</dd></div>
+                }
+            </dl>
+        </section>
+    </div>
+
+    <!-- Timeline -->
+    <section class="mt-5 rounded-md border border-fog bg-white p-4">
+        <h2 class="text-sm font-semibold text-ink/80">Timeline</h2>
+        <dl class="mt-2 space-y-1 text-sm">
+            <div class="flex justify-between"><dt class="text-ink/55">Created</dt><dd>@Model.CreatedAtUtc.ToString("yyyy-MM-dd HH:mm") UTC</dd></div>
+            @if (Model.ConfirmedAtUtc is { } confirmed)
+            {
+                <div class="flex justify-between"><dt class="text-ink/55">Confirmed</dt><dd>@confirmed.ToString("yyyy-MM-dd HH:mm") UTC</dd></div>
+            }
+            @if (Model.CancelledAtUtc is { } cancelled)
+            {
+                <div class="flex justify-between"><dt class="text-ink/55">Cancelled</dt><dd>@cancelled.ToString("yyyy-MM-dd HH:mm") UTC</dd></div>
+                @if (!string.IsNullOrEmpty(Model.CancellationReason))
+                {
+                    <div class="text-xs text-ink/55">Reason: @Model.CancellationReason</div>
+                }
+            }
+        </dl>
+        @if (!string.IsNullOrEmpty(Model.SpecialRequests))
+        {
+            <p class="mt-3 text-xs text-ink/55">Special requests</p>
+            <p class="text-sm">@Model.SpecialRequests</p>
+        }
+    </section>
+
+    <!-- Management-system sync -->
+    <section class="mt-5 rounded-md border border-fog bg-white p-4">
+        <h2 class="text-sm font-semibold text-ink/80">Management system (Hostify)</h2>
+        @if (Model.ExternalChannelSyncedAtUtc is { } synced)
+        {
+            <p class="mt-1 text-xs text-ink/55">Last marked synced @synced.ToString("yyyy-MM-dd HH:mm") UTC@(string.IsNullOrEmpty(Model.ExternalChannelSyncNote) ? "" : $" — {Model.ExternalChannelSyncNote}")</p>
+        }
+        else
+        {
+            <p class="mt-1 text-xs text-ink/55">Not yet acknowledged.</p>
+        }
+        <form method="post" action="/admin/bookings/@Model.Id/sync" class="mt-2 flex flex-wrap items-end gap-2">
+            @Html.AntiForgeryToken()
+            <input name="note" placeholder="Optional note" class="w-80 max-w-full rounded-md border border-fog px-3 py-2 text-sm" />
+            <button type="submit" class="border border-river text-river rounded-md px-3 py-2 text-sm">Mark synced</button>
+        </form>
+    </section>
+
+    <!-- Internal notes -->
+    <section class="mt-5 rounded-md border border-fog bg-white p-4">
+        <h2 class="text-sm font-semibold text-ink/80">Internal notes</h2>
+        <form method="post" action="/admin/bookings/@Model.Id/notes" class="mt-2">
+            @Html.AntiForgeryToken()
+            <textarea name="notes" rows="3" class="w-full rounded-md border border-fog px-3 py-2 text-sm" placeholder="Operations notes (not shown to the guest)">@Model.Notes</textarea>
+            <button type="submit" class="mt-2 bg-river text-white rounded-md px-4 py-2 text-sm">Save notes</button>
+        </form>
+    </section>
+</div>

@@ -82,6 +82,8 @@ public static class DependencyInjection
         services.AddScoped<IBookingLifecycleService, BookingLifecycleService>();
         services.AddScoped<ICheckoutService, GaiaSkyline.Infrastructure.Bookings.CheckoutService>();
         services.AddScoped<IBookingReadStore, BookingReadStore>();
+        services.AddScoped<IAdminBookingReadService, AdminBookingReadService>();
+        services.AddScoped<IAdminBookingService, AdminBookingService>();
         services.AddScoped<IGuestMagicLinkService, GuestMagicLinkService>();
         services.AddScoped<GaiaSkyline.Application.Partners.IPartnerRefreshTokenStore, GaiaSkyline.Infrastructure.Partners.PartnerRefreshTokenStore>();
         services.AddScoped<IInvoiceService, QuestPdfInvoiceService>();
