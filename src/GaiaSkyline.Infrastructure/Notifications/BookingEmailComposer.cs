@@ -1,6 +1,7 @@
 using System.Globalization;
 using GaiaSkyline.Application.Bookings;
 using GaiaSkyline.Application.Content;
+using GaiaSkyline.Application.Documents;
 using GaiaSkyline.Application.Notifications;
 using GaiaSkyline.Domain.Bookings;
 using Microsoft.Extensions.Options;
@@ -16,6 +17,7 @@ namespace GaiaSkyline.Infrastructure.Notifications;
 internal sealed class BookingEmailComposer(
     IContentService content,
     IBookingTokenService tokens,
+    IGuestDocumentService guestDocuments,
     IOptionsSnapshot<EmailOptions> options)
 {
     private readonly EmailOptions _options = options.Value;
@@ -56,13 +58,35 @@ internal sealed class BookingEmailComposer(
             _ => (booking.GuestEmail, booking.GuestName),
         };
 
-        // The property-manager copy carries the booking as an .ics (no payment data).
-        IReadOnlyList<EmailAttachment>? attachments = kind == BookingEmailKind.PropertyManager
-            ? [new EmailAttachment($"gaia-skyline-{booking.ReferenceCode}.ics", "text/calendar", BuildIcs(booking))]
-            : null;
+        // The property-manager copy carries the booking as an .ics (no payment data); the guest's
+        // confirmation/refund/cancellation emails carry the matching branded PDF (Stage 8).
+        IReadOnlyList<EmailAttachment>? attachments = null;
+        if (kind == BookingEmailKind.PropertyManager)
+        {
+            attachments = [new EmailAttachment($"gaia-skyline-{booking.ReferenceCode}.ics", "text/calendar", BuildIcs(booking))];
+        }
+        else if (GuestDocumentFor(kind) is { } docType)
+        {
+            var pdf = await guestDocuments.GenerateAsync(booking.ReferenceCode, docType, cancellationToken);
+            if (pdf is not null)
+            {
+                var name = docType == GuestDocumentType.CancellationRefund ? "cancellation" : "confirmation";
+                attachments = [new EmailAttachment($"gaia-skyline-{name}-{booking.ReferenceCode}.pdf", "application/pdf", pdf)];
+            }
+        }
 
         return new EmailMessage(toAddress, toName, subject, body, attachments);
     }
+
+    // The guest emails that warrant a PDF, and which document each attaches. A refund and a cancellation both
+    // send the cancellation/refund receipt; the Multibanco and payment-expired notices carry none.
+    private static GuestDocumentType? GuestDocumentFor(BookingEmailKind kind) => kind switch
+    {
+        BookingEmailKind.Confirmation => GuestDocumentType.Confirmation,
+        BookingEmailKind.Refund => GuestDocumentType.CancellationRefund,
+        BookingEmailKind.Cancellation => GuestDocumentType.CancellationRefund,
+        _ => null,
+    };
 
     private static bool IsCancelled(BookingStatus status) =>
         status is BookingStatus.Cancelled or BookingStatus.Refunded or BookingStatus.PartiallyRefunded;

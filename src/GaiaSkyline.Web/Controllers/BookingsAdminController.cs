@@ -1,6 +1,7 @@
 using System.Globalization;
 using GaiaSkyline.Application.Auditing;
 using GaiaSkyline.Application.Bookings;
+using GaiaSkyline.Application.Documents;
 using GaiaSkyline.Application.Notifications;
 using GaiaSkyline.Application.Pricing;
 using GaiaSkyline.Domain.Bookings;
@@ -12,7 +13,8 @@ namespace GaiaSkyline.Web.Controllers;
 /// <summary>
 /// The owner bookings manager at /admin/bookings (Stage 7 §6): a filterable list (status, dates, payment
 /// method, manual-sync state), manual phone/walk-in booking entry, a detail page with the Stripe dashboard
-/// link, invoice, audit trail and notes, resend actions, and the legal status actions — cancel takes a
+/// link, the guest document (confirmation/receipt), audit trail and notes, resend actions, and the legal
+/// status actions — cancel takes a
 /// policy-prefilled, editable refund. Every action honors the domain status machine, is audited and toasts.
 /// </summary>
 [Route("admin/bookings")]
@@ -22,7 +24,7 @@ public sealed class BookingsAdminController(
     IAuditLog audit,
     IAuditReadStore auditRead,
     IQuoteService quotes,
-    IInvoiceService invoices,
+    IGuestDocumentService guestDocuments,
     IEmailJobScheduler emailScheduler) : AdminControllerBase
 {
     [HttpGet("")]
@@ -166,8 +168,8 @@ public sealed class BookingsAdminController(
     public Task<IActionResult> ResendPropertyManager(Guid id, CancellationToken cancellationToken) =>
         ResendAsync(id, BookingEmailKind.PropertyManager, "booking.resend-pm", "Property-manager email resent.", cancellationToken);
 
-    [HttpGet("{id:guid}/invoice.pdf")]
-    public async Task<IActionResult> Invoice(Guid id, CancellationToken cancellationToken)
+    [HttpGet("{id:guid}/document.pdf")]
+    public async Task<IActionResult> Document(Guid id, CancellationToken cancellationToken)
     {
         var booking = await read.GetDetailAsync(id, cancellationToken);
         if (booking is null)
@@ -175,10 +177,14 @@ public sealed class BookingsAdminController(
             return NotFound();
         }
 
-        var pdf = await invoices.GenerateAsync(booking.ReferenceCode, cancellationToken);
+        var (type, name) = booking.Status is BookingStatus.Cancelled or BookingStatus.Refunded or BookingStatus.PartiallyRefunded
+            ? (GuestDocumentType.CancellationRefund, "cancellation")
+            : (GuestDocumentType.Confirmation, "confirmation");
+
+        var pdf = await guestDocuments.GenerateAsync(booking.ReferenceCode, type, cancellationToken);
         return pdf is null
             ? NotFound()
-            : File(pdf, "application/pdf", $"gaia-skyline-invoice-{booking.ReferenceCode}.pdf");
+            : File(pdf, "application/pdf", $"gaia-skyline-{name}-{booking.ReferenceCode}.pdf");
     }
 
     [HttpPost("{id:guid}/notes")]

@@ -110,7 +110,7 @@ public sealed class BookingEmailComposerTests(LocalDbFixture fixture) : IClassFi
             FromName = "Gaia Skyline",
             SiteBaseUrl = "https://book.test",
         });
-        return new BookingEmailComposer(content, new FakeTokenService(), options);
+        return new BookingEmailComposer(content, new FakeTokenService(), new FakeGuestDocumentService(), options);
     }
 
     private static Booking Build(string reference, string email, string name, string language) =>

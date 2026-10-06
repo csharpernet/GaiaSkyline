@@ -51,6 +51,7 @@ public sealed class BookingEmailDispatcherTests(LocalDbFixture fixture) : IClass
         var composer = new BookingEmailComposer(
             new ContentService(new ContentReadStore(_fixture.CreateContext()), _cache, new ContentRevision()),
             new StubTokenService(),
+            new FakeGuestDocumentService(),
             TestOptions.Snapshot(new EmailOptions { OwnerAddress = "owner@test", FromName = "Gaia Skyline" }));
         var pmOptions = TestOptions.Snapshot(new PropertyManagerOptions { NotificationEmails = propertyManagerEmails });
         return new BookingEmailDispatcher(_fixture.CreateContext(), composer, sender, pmOptions, NullLogger<BookingEmailDispatcher>.Instance);

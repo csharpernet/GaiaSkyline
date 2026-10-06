@@ -10,6 +10,16 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Brand fonts embedded so the guest PDF documents render identically everywhere, with no file-system
+         or CDN dependency (Stage 8). Fraunces + Inter, OFL-licensed, instanced to static Latin-subset weights
+         (~50 KB each); the OFL licence files ship beside them. -->
+    <EmbeddedResource Include="Documents\Fonts\Inter-Regular.ttf" />
+    <EmbeddedResource Include="Documents\Fonts\Inter-SemiBold.ttf" />
+    <EmbeddedResource Include="Documents\Fonts\Fraunces-Regular.ttf" />
+    <EmbeddedResource Include="Documents\Fonts\Fraunces-SemiBold.ttf" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\GaiaSkyline.Application\GaiaSkyline.Application.csproj" />
     <ProjectReference Include="..\GaiaSkyline.Domain\GaiaSkyline.Domain.csproj" />
   </ItemGroup>
@@ -30,6 +40,8 @@
     <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.12" />
     <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.12" />
     <PackageReference Include="QuestPDF" Version="2026.9.1" />
+    <!-- QR codes on the guest PDFs, linking to the manage-booking page (Stage 8). MIT. -->
+    <PackageReference Include="QRCoder" Version="1.6.0" />
     <PackageReference Include="SendGrid" Version="9.29.3" />
 
     <!--

@@ -3,6 +3,7 @@ using System.Text;
 using GaiaSkyline.Application.Auditing;
 using GaiaSkyline.Application.Bookings;
 using GaiaSkyline.Application.Content;
+using GaiaSkyline.Application.Documents;
 using GaiaSkyline.Application.Notifications;
 using GaiaSkyline.Application.Payments;
 using GaiaSkyline.Application.Pricing;
@@ -27,7 +28,7 @@ public sealed class MyController(
     IPricingReadStore pricingReadStore,
     IRefundService refundService,
     IBookingLifecycleService lifecycleService,
-    IInvoiceService invoiceService,
+    IGuestDocumentService guestDocuments,
     IContentService content,
     BookingAccessCookie bookingAccess,
     IEmailJobScheduler emailScheduler,
@@ -74,10 +75,10 @@ public sealed class MyController(
         return View(new MyBookingViewModel(dto, pct, amount, CanCancel(dto), showCheckin, checkin));
     }
 
-    [HttpGet("booking/{reference}/invoice.pdf")]
+    [HttpGet("booking/{reference}/document.pdf")]
     [AllowAnonymous]
     [OutputCache(NoStore = true)]
-    public async Task<IActionResult> Invoice(string reference, CancellationToken cancellationToken)
+    public async Task<IActionResult> Document(string reference, CancellationToken cancellationToken)
     {
         var dto = await readStore.GetByReferenceAsync(reference, cancellationToken);
         if (dto is null || !CanAccess(dto))
@@ -85,10 +86,15 @@ public sealed class MyController(
             return NotFound();
         }
 
-        var pdf = await invoiceService.GenerateAsync(reference, cancellationToken);
+        // A cancelled/refunded booking gets the cancellation receipt; otherwise the confirmation.
+        var (type, name) = dto.Status is BookingStatus.Cancelled or BookingStatus.Refunded or BookingStatus.PartiallyRefunded
+            ? (GuestDocumentType.CancellationRefund, "cancellation")
+            : (GuestDocumentType.Confirmation, "confirmation");
+
+        var pdf = await guestDocuments.GenerateAsync(reference, type, cancellationToken);
         return pdf is null
             ? NotFound()
-            : File(pdf, "application/pdf", $"gaia-skyline-invoice-{reference}.pdf");
+            : File(pdf, "application/pdf", $"gaia-skyline-{name}-{reference}.pdf");
     }
 
     [HttpGet("booking/{reference}/calendar.ics")]

@@ -13,7 +13,7 @@
     var awaiting = b.Status == BookingStatus.AwaitingPayment;
     string Eur(decimal amount) => "€" + amount.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
     var icsHref = $"/{slug}/book/confirmation/{b.ReferenceCode}/calendar.ics?token={Uri.EscapeDataString(Model.Token)}";
-    var invoiceHref = $"/{slug}/book/confirmation/{b.ReferenceCode}/invoice.pdf?token={Uri.EscapeDataString(Model.Token)}";
+    var documentHref = $"/{slug}/book/confirmation/{b.ReferenceCode}/confirmation.pdf?token={Uri.EscapeDataString(Model.Token)}";
 }
 
 <div id="confirmation" class="max-w-3xl mx-auto px-6 py-12"
@@ -67,7 +67,7 @@
     {
         <div class="mt-8 flex flex-wrap gap-3">
             <a href="@icsHref" class="inline-block border border-clay text-clay px-5 py-2 rounded-md hover:bg-clay hover:text-white transition-colors">@copy.TextOr("confirmation.add_to_calendar", "Add to calendar")</a>
-            <a href="@invoiceHref" class="inline-block border border-river text-river px-5 py-2 rounded-md hover:bg-river hover:text-white transition-colors">@copy.TextOr("confirmation.invoice_link", "Download invoice")</a>
+            <a href="@documentHref" class="inline-block border border-river text-river px-5 py-2 rounded-md hover:bg-river hover:text-white transition-colors">@copy.TextOr("confirmation.document_link", "Download confirmation (PDF)")</a>
         </div>
 
         <section class="mt-10">

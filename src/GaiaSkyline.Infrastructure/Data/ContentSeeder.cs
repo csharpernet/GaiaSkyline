@@ -23,7 +23,7 @@ namespace GaiaSkyline.Infrastructure.Data;
 /// (English prefixed with [PT]/[ES]/[FR]/[DE]) for text blocks, while non-text blocks are seeded
 /// in English only so requests for those languages exercise the English fallback (ADR 0007).
 /// </summary>
-public sealed class ContentSeeder(AppDbContext dbContext, IContentRevision revision)
+public sealed partial class ContentSeeder(AppDbContext dbContext, IContentRevision revision)
 {
     private const string Actor = "seed";
     private const int GalleryImageCount = 10;
@@ -81,6 +81,7 @@ public sealed class ContentSeeder(AppDbContext dbContext, IContentRevision revis
 
         await EnsureGalleryAsync(cancellationToken);
         await EnsureContentBlocksAsync(cancellationToken);
+        await EnsureDocumentBlocksAsync(cancellationToken);
         await EnsureReviewsAsync(cancellationToken);
         await EnsureStoriesAsync(cancellationToken);
         await _dbContext.SaveChangesAsync(cancellationToken);
@@ -910,7 +911,7 @@ public sealed class ContentSeeder(AppDbContext dbContext, IContentRevision revis
         new("confirmation", "confirmation.multibanco_note", ContentKind.PlainText, "Confirmation: Multibanco note",
             Text: "Pay at any ATM or through your bank app using the reference below. We'll confirm automatically."),
         new("confirmation", "confirmation.add_to_calendar", ContentKind.ShortText, "Confirmation: add to calendar", Text: "Add to calendar"),
-        new("confirmation", "confirmation.invoice_link", ContentKind.ShortText, "Confirmation: invoice link", Text: "Download invoice"),
+        new("confirmation", "confirmation.document_link", ContentKind.ShortText, "Confirmation: document link", Text: "Download confirmation (PDF)"),
         new("confirmation", "confirmation.checkin_heading", ContentKind.PlainText, "Confirmation: check-in heading", Text: "Before you arrive"),
 
         // ----- check-in instructions (shown on the confirmation page) -----

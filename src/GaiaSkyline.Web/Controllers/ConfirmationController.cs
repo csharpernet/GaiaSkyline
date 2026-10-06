@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text;
 using GaiaSkyline.Application.Bookings;
 using GaiaSkyline.Application.Content;
+using GaiaSkyline.Application.Documents;
 using GaiaSkyline.Web.Models;
 using GaiaSkyline.Web.Seo;
 using Microsoft.AspNetCore.Mvc;
@@ -16,7 +17,7 @@ namespace GaiaSkyline.Web.Controllers;
 public sealed class ConfirmationController(
     IBookingReadStore bookingReadStore,
     IBookingTokenService tokenService,
-    IInvoiceService invoiceService,
+    IGuestDocumentService guestDocuments,
     IContentService content) : PublicController
 {
     [HttpGet("{lang:culture}/book/confirmation/{reference}")]
@@ -66,19 +67,19 @@ public sealed class ConfirmationController(
         return File(Encoding.UTF8.GetBytes(ics), "text/calendar; charset=utf-8", $"gaia-skyline-{reference}.ics");
     }
 
-    [HttpGet("{lang:culture}/book/confirmation/{reference}/invoice.pdf")]
+    [HttpGet("{lang:culture}/book/confirmation/{reference}/confirmation.pdf")]
     [OutputCache(NoStore = true)]
-    public async Task<IActionResult> Invoice(string reference, [FromQuery] string? token, CancellationToken cancellationToken)
+    public async Task<IActionResult> ConfirmationDocument(string reference, [FromQuery] string? token, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(token) || !tokenService.IsValidConfirmationToken(reference, token))
         {
             return NotFound();
         }
 
-        var pdf = await invoiceService.GenerateAsync(reference, cancellationToken);
+        var pdf = await guestDocuments.GenerateAsync(reference, GuestDocumentType.Confirmation, cancellationToken);
         return pdf is null
             ? NotFound()
-            : File(pdf, "application/pdf", $"gaia-skyline-invoice-{reference}.pdf");
+            : File(pdf, "application/pdf", $"gaia-skyline-confirmation-{reference}.pdf");
     }
 
     private static string BuildSingleEventIcs(BookingSummaryDto booking)

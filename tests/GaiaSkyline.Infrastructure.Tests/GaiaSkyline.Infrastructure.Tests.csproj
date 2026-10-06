@@ -15,6 +15,10 @@
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
     <!-- Runtime-skippable facts for integration tests gated on an external tool (FFmpeg). -->
     <PackageReference Include="Xunit.SkippableFact" Version="1.5.23" />
+    <!-- Guest-PDF tests: extract text to verify content + no forbidden "invoice" wording (PdfPig),
+         and decode the embedded QR to confirm the manage-booking URL (ZXing.Net). -->
+    <PackageReference Include="PdfPig" Version="0.1.10" />
+    <PackageReference Include="ZXing.Net" Version="0.16.9" />
   </ItemGroup>
 
   <ItemGroup>

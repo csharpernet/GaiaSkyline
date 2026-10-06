@@ -23,6 +23,6 @@ public sealed class EmailOptions
     // SendGrid (prod). The key lives in User Secrets / environment, never in source.
     public string SendGridApiKey { get; set; } = string.Empty;
 
-    /// <summary>Base URL used to build absolute links (confirmation, invoice) in emails.</summary>
+    /// <summary>Base URL used to build absolute links (confirmation, receipt) in emails.</summary>
     public string SiteBaseUrl { get; set; } = "https://localhost:7443";
 }

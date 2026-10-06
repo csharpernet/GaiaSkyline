@@ -101,7 +101,8 @@ public static class DependencyInjection
         services.AddScoped<GaiaSkyline.Application.Partners.IPartnerRefreshTokenStore, GaiaSkyline.Infrastructure.Partners.PartnerRefreshTokenStore>();
         // Partner-application review (Stage 7 §11).
         services.AddScoped<GaiaSkyline.Application.Partners.IPartnerApplicationsAdminService, GaiaSkyline.Infrastructure.Partners.PartnerApplicationsAdminService>();
-        services.AddScoped<IInvoiceService, QuestPdfInvoiceService>();
+        // Branded guest PDF documents — confirmation, receipt, cancellation/refund (Stage 8).
+        services.AddScoped<GaiaSkyline.Application.Documents.IGuestDocumentService, GaiaSkyline.Infrastructure.Documents.GuestDocumentService>();
 
         // Influencer program (Stage 8 Part A, ADRs 0019–0021).
         services.AddScoped<GaiaSkyline.Application.Partners.IPartnerApplyService, GaiaSkyline.Infrastructure.Partners.PartnerApplyService>();
