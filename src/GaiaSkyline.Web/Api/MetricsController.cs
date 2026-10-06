@@ -9,7 +9,10 @@ namespace GaiaSkyline.Web.Api;
 /// </summary>
 [ApiController]
 [Route("api/vitals")]
-public sealed partial class MetricsController(ILogger<MetricsController> logger, IWebVitalsStore vitals) : ControllerBase
+public sealed partial class MetricsController(
+    ILogger<MetricsController> logger,
+    IWebVitalsStore vitals,
+    IWebVitalsForwarder forwarder) : ControllerBase
 {
     [HttpPost]
     [IgnoreAntiforgeryToken]
@@ -27,6 +30,8 @@ public sealed partial class MetricsController(ILogger<MetricsController> logger,
                     : null
                 : metric.Path;
             vitals.Record(metric.Name, metric.Value, path);
+            // Durable sink: App Insights in production (p75/alerts, Stage 8 Part B); no-op in dev/CI.
+            forwarder.Report(metric.Name, metric.Value, metric.Rating, path);
         }
 
         return NoContent();

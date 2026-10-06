@@ -11,6 +11,7 @@ namespace GaiaSkyline.Infrastructure.Media;
 internal sealed class AdminMediaService(
     AppDbContext dbContext,
     IImageRenditionService renditions,
+    GaiaSkyline.Application.Storage.IMediaFileStore fileStore,
     IContentRevision revision,
     TimeProvider clock) : IAdminMediaService
 {
@@ -26,6 +27,8 @@ internal sealed class AdminMediaService(
 
         var stem = await EnsureUniqueStemAsync(baseSlug, excluding: null, cancellationToken);
         var result = await renditions.GenerateAsync(content, destinationDirectory, stem, cancellationToken);
+        // Make the rendition files durable (no-op on local disk; uploads to Blob in production, ADR 0024).
+        await fileStore.PublishStemAsync(destinationDirectory, stem, cancellationToken);
 
         var asset = new MediaAsset(
             assetId,
@@ -109,8 +112,9 @@ internal sealed class AdminMediaService(
             return false; // not a pipeline raster with a known stem
         }
 
-        // Regenerate every rendition at the same stem (overwrites the files in place).
+        // Regenerate every rendition at the same stem (overwrites the files in place), then publish.
         var result = await renditions.GenerateAsync(content, destinationDirectory, stem, cancellationToken);
+        await fileStore.PublishStemAsync(destinationDirectory, stem, cancellationToken);
         asset.ReplaceRenditions(result.Width, result.Height, result.MasterBytes, result.Lqip,
             clock.GetUtcNow().UtcDateTime, actor);
 
@@ -149,40 +153,12 @@ internal sealed class AdminMediaService(
             return MediaRenameResult.Unchanged;
         }
 
-        MoveRenditions(destinationDirectory, oldStem, newStem);
+        await fileStore.MoveStemAsync(destinationDirectory, oldStem, newStem, cancellationToken);
         asset.Rename($"/media/{newStem}{MediaStem.MasterSuffix}", oldStem, newStem);
 
         await dbContext.SaveChangesAsync(cancellationToken);
         revision.Bump();
         return MediaRenameResult.Renamed;
-    }
-
-    private static readonly int[] RenditionWidths = [400, 800, 1600];
-    private static readonly string[] RenditionExtensions = ["jpg", "webp", AvifRaster.Extension];
-
-    // Move the full raster set ({stem}-{w}.{ext}) to the new stem; skip any that are missing so a partially
-    // generated or hand-seeded asset still renames cleanly.
-    private static void MoveRenditions(string directory, string oldStem, string newStem)
-    {
-        foreach (var width in RenditionWidths)
-        {
-            foreach (var ext in RenditionExtensions)
-            {
-                var from = Path.Combine(directory, $"{oldStem}-{width}.{ext}");
-                if (!File.Exists(from))
-                {
-                    continue;
-                }
-
-                var to = Path.Combine(directory, $"{newStem}-{width}.{ext}");
-                if (File.Exists(to))
-                {
-                    File.Delete(to);
-                }
-
-                File.Move(from, to);
-            }
-        }
     }
 
     // A stem is free when no asset currently uses it and no alias reserves it (for a 301). Suffixes -2, -3, …

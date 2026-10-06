@@ -18,6 +18,7 @@ internal sealed class HeroVideoTranscodeJob(
     IVideoTranscoder transcoder,
     IImageRenditionService images,
     IMediaDirectoryProvider mediaDirectory,
+    GaiaSkyline.Application.Storage.IMediaFileStore fileStore,
     IContentRevision revision,
     TimeProvider clock,
     ILogger<HeroVideoTranscodeJob> logger) : IHeroVideoTranscodeJob
@@ -60,6 +61,10 @@ internal sealed class HeroVideoTranscodeJob(
             var desktopPoster = await GeneratePosterAsync(set.DesktopPosterFramePath, mediaDir, HeroVideoPaths.DesktopPosterStem(heroVideoId), cancellationToken);
             var mobilePoster = await GeneratePosterAsync(set.MobilePosterFramePath, mediaDir, HeroVideoPaths.MobilePosterStem(heroVideoId), cancellationToken);
             hero.SetPosters(desktopPoster.BlobUri, desktopPoster.Lqip, mobilePoster.BlobUri, mobilePoster.Lqip);
+
+            // Make every generated hero file durable before the swap commits (video renditions + both posters
+            // share the hero-{id} prefix). No-op on local disk; uploads to Blob in production (ADR 0024).
+            await fileStore.PublishStemAsync(mediaDir, HeroVideoPaths.Stem(heroVideoId), cancellationToken);
 
             // Atomic swap: retire every other live version and promote this one in a single SaveChanges (one
             // transaction), so the public hero flips over all at once and the previous one plays until now.

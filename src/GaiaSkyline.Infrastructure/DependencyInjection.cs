@@ -134,6 +134,9 @@ public static class DependencyInjection
         services.AddScoped<GaiaSkyline.Application.Seo.IPageMetaAdminService, GaiaSkyline.Infrastructure.Seo.PageMetaAdminService>();
         services.AddScoped<GaiaSkyline.Application.Seo.ISeoWarningsService, GaiaSkyline.Application.Seo.SeoWarningsService>();
         services.AddScoped<GaiaSkyline.Infrastructure.Media.IImageRenditionService, GaiaSkyline.Infrastructure.Media.ImageRenditionService>();
+        // Default media file store is local disk (dev/CI/local-only); the Web host swaps in Blob when the
+        // Azure bindings are present (Stage 8 Part B, ADR 0024). TryAdd so the host override wins.
+        services.TryAddScoped<GaiaSkyline.Application.Storage.IMediaFileStore, GaiaSkyline.Infrastructure.Media.LocalDiskMediaFileStore>();
         services.AddScoped<GaiaSkyline.Application.Media.IAdminMediaService, GaiaSkyline.Infrastructure.Media.AdminMediaService>();
         services.AddScoped<GaiaSkyline.Application.Media.IAdminMediaReadService, GaiaSkyline.Infrastructure.Media.AdminMediaReadService>();
         services.AddScoped<GaiaSkyline.Application.Media.IMediaAliasResolver, GaiaSkyline.Infrastructure.Media.MediaAliasResolver>();

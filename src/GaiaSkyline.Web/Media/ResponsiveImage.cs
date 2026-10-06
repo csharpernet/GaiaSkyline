@@ -84,6 +84,9 @@ public sealed record ResponsiveImage
     {
         ArgumentNullException.ThrowIfNull(asset);
 
+        // Replacing an asset keeps its SEO filename but bumps Version; the ?v= token makes browsers and
+        // the CDN fetch the new bytes while unchanged files stay cacheable forever (Stage 8 Part B).
+        var v = asset.VersionSuffix;
         var stem = Stem(asset.BlobUri);
         string? avif = null;
         string? webp = null;
@@ -91,15 +94,15 @@ public sealed record ResponsiveImage
         if (stem is not null)
         {
             avif = string.Join(", ", Widths.Select(w => string.Create(
-                CultureInfo.InvariantCulture, $"{stem}-{w}.avif {w}w")));
+                CultureInfo.InvariantCulture, $"{stem}-{w}.avif{v} {w}w")));
             webp = string.Join(", ", Widths.Select(w => string.Create(
-                CultureInfo.InvariantCulture, $"{stem}-{w}.webp {w}w")));
+                CultureInfo.InvariantCulture, $"{stem}-{w}.webp{v} {w}w")));
             jpeg = string.Join(", ", Widths.Select(w => string.Create(
-                CultureInfo.InvariantCulture, $"{stem}-{w}.jpg {w}w")));
+                CultureInfo.InvariantCulture, $"{stem}-{w}.jpg{v} {w}w")));
         }
 
         return new ResponsiveImage(
-            asset.BlobUri,
+            asset.VersionedBlobUri,
             avif,
             webp,
             jpeg,

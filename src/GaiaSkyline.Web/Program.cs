@@ -8,6 +8,7 @@ using GaiaSkyline.Infrastructure;
 using GaiaSkyline.Infrastructure.Data;
 using GaiaSkyline.Infrastructure.Identity;
 using GaiaSkyline.Infrastructure.Persistence;
+using GaiaSkyline.Web.Azure;
 using GaiaSkyline.Web.Identity;
 using GaiaSkyline.Web.Localization;
 using GaiaSkyline.Web.Middleware;
@@ -25,6 +26,13 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// One-off media migration (DEPLOYMENT PHASE): `dotnet run -- --migrate-media [localDir]` uploads existing
+// local media to Blob and exits. No-op without the Azure bindings. Must run before the host is built.
+if (await GaiaSkyline.Web.Azure.MediaStorageSetup.TryRunMediaMigrationAsync(args, builder.Configuration))
+{
+    return 0;
+}
 
 // --- Logging: Serilog to console (App Insights sink is a placeholder wired in a later stage;
 //     set ApplicationInsights:ConnectionString and add Serilog.Sinks.ApplicationInsights). ---
@@ -46,8 +54,16 @@ builder.Services
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddBackgroundJobs(builder.Configuration);
+
+// Data Protection: shared, Key-Vault-wrapped key ring on Azure; in-process in dev/CI; fail-fast in
+// Production if the Azure bindings are missing (Stage 8 Part B, ADR 0022).
+builder.Services.AddGaiaSkylineDataProtection(builder.Configuration, builder.Environment);
 builder.Services.AddScoped<GaiaSkyline.Application.Storage.IMediaStorage, GaiaSkyline.Web.Storage.LocalDiskMediaStorage>();
 builder.Services.AddSingleton<GaiaSkyline.Application.Media.IMediaDirectoryProvider, GaiaSkyline.Web.Storage.LocalMediaDirectoryProvider>();
+
+// In a deployed environment, swap the local-disk media defaults for Blob (file store, single-file storage,
+// temp working dir). No-op in dev/CI/local-only mode, where local disk stays (Stage 8 Part B, ADR 0024).
+builder.Services.AddGaiaSkylineMediaStorage(builder.Configuration);
 
 // Shared sitemap model for /sitemap.xml and the owner's sitemap preview on /admin/seo (Stage 7 §5).
 builder.Services.AddScoped<GaiaSkyline.Web.Seo.SitemapBuilder>();
@@ -55,6 +71,29 @@ builder.Services.AddSingleton<GaiaSkyline.Web.Localization.IEnabledLanguages, Ga
 
 // In-memory Core Web Vitals field-sample store, read by the SEO dashboard (Stage 7 §5; prod sink is Stage 8).
 builder.Services.AddSingleton<GaiaSkyline.Web.Seo.IWebVitalsStore, GaiaSkyline.Web.Seo.WebVitalsStore>();
+
+// Application Insights + Core Web Vitals forwarding (Stage 8 Part B). AI is wired only when a connection
+// string is configured (deployed environments); dev/CI forward to a no-op and keep the in-memory panel.
+if (!string.IsNullOrWhiteSpace(builder.Configuration["ApplicationInsights:ConnectionString"]))
+{
+    builder.Services.AddApplicationInsightsTelemetry();
+    builder.Services.AddSingleton<GaiaSkyline.Web.Seo.IWebVitalsForwarder, GaiaSkyline.Web.Seo.AppInsightsWebVitalsForwarder>();
+}
+else
+{
+    builder.Services.AddSingleton<GaiaSkyline.Web.Seo.IWebVitalsForwarder, GaiaSkyline.Web.Seo.NoOpWebVitalsForwarder>();
+}
+
+// Front Door terminates TLS and forwards over HTTPS; trust its X-Forwarded-* so Request.Scheme/Host (and
+// therefore canonical URLs, Secure cookies and HTTPS redirects) reflect the public origin. In prod only
+// Front Door can reach the app (the Bicep IP restriction), so the headers are trustworthy; dev has none.
+builder.Services.Configure<Microsoft.AspNetCore.Builder.ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedFor
+        | Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedProto;
+    options.KnownIPNetworks.Clear();
+    options.KnownProxies.Clear();
+});
 
 // Server-side proxy for the location map's OSM raster tiles so the CSP needs no external tile host
 // (Stage 7 §5 / ADR 0018). A descriptive User-Agent is required by the OSM tile usage policy.
@@ -402,6 +441,9 @@ if (app.Environment.IsDevelopment() && seedOnStartup)
     }
 }
 
+// Must run before anything that reads the scheme/host (HTTPS redirect, canonical URLs, Secure cookies).
+app.UseForwardedHeaders();
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/error");
@@ -453,6 +495,30 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions
 // All controllers are attribute-routed: the public site (/{lang}/...), the APIs (/api/...),
 // the root redirect, sitemap/robots and the error page.
 app.MapControllers();
+
+// Blob media serving (deployed production only): static files serve /media locally, but when media lives in
+// Blob the app streams it here (Front Door caches the response). Reached only on a static-file miss, so it
+// is harmless in dev/CI where the local store returns null (Stage 8 Part B, ADR 0024).
+app.MapGet("/media/{**path}", async (
+    string path,
+    GaiaSkyline.Application.Storage.IMediaFileStore store,
+    HttpContext context,
+    CancellationToken cancellationToken) =>
+{
+    if (!store.ServesMedia)
+    {
+        return Results.NotFound();
+    }
+
+    var file = await store.OpenAsync(Path.GetFileName(path), cancellationToken);
+    if (file is null)
+    {
+        return Results.NotFound();
+    }
+
+    context.Response.Headers.CacheControl = "public, max-age=31536000, immutable";
+    return Results.Stream(file.Content, file.ContentType);
+});
 
 // Hangfire (when enabled): the dashboard is Owner-only (Stage 5 item 5), and the unpaid-hold expiry
 // runs every 5 minutes as a safety net. Use the DI-based IRecurringJobManager (not the static

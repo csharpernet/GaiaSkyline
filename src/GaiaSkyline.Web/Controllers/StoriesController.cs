@@ -48,14 +48,14 @@ public sealed class StoriesController(IContentService content, IStorySlugRedirec
         var all = await content.GetPublishedStoriesAsync(CurrentCulture, take: null, cancellationToken);
         var related = all.Where(s => s.Slug != story.Slug).Take(2).ToList();
         var pageUrl = $"{BaseUrl}/{CurrentSlug}/stories/{story.Slug}";
-        var coverAbsolute = story.Cover is not null ? BaseUrl + story.Cover.BlobUri : null;
+        var coverAbsolute = story.Cover is not null ? BaseUrl + story.Cover.VersionedBlobUri : null;
 
         SetMeta(Meta(
             relativePath: $"stories/{story.Slug}",
             title: story.MetaTitle ?? $"{story.Title} — {BrandName}",
             description: string.IsNullOrWhiteSpace(story.MetaDescription) ? story.Excerpt : story.MetaDescription,
             ogType: "article",
-            ogImagePath: story.Cover?.BlobUri,
+            ogImagePath: story.Cover?.VersionedBlobUri,
             breadcrumbs:
             [
                 new Breadcrumb("Home", string.Empty),

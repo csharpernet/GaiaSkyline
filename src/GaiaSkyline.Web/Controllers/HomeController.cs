@@ -26,7 +26,7 @@ public sealed class HomeController(IContentService content, IHeroVideoReadServic
             "home.hero.subheadline",
             "A two-bedroom apartment above the Douro in Vila Nova de Gaia, with the only true hot tub in the building.");
         var poster = home.Media("home.hero.poster");
-        var posterAbsolute = poster is not null ? BaseUrl + poster.BlobUri : null;
+        var posterAbsolute = poster is not null ? BaseUrl + poster.VersionedBlobUri : null;
 
         var jsonLd = new List<string>();
         if (property is not null)
@@ -73,7 +73,7 @@ public sealed class HomeController(IContentService content, IHeroVideoReadServic
             title: $"{BrandName} — {headline}",
             description: subheadline,
             ogType: "website",
-            ogImagePath: poster?.BlobUri,
+            ogImagePath: poster?.VersionedBlobUri,
             jsonLdBlocks: jsonLd), cancellationToken);
 
         return View(new HomeViewModel(home, amenities, rules, faq, reviews, stories, gallery, property, liveHero));

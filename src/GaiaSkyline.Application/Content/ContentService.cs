@@ -272,7 +272,8 @@ public sealed class ContentService : IContentService
         asset.ByteSize,
         asset.ContentType,
         asset.AltText,
-        asset.Lqip)
+        asset.Lqip,
+        asset.Version)
     {
         AltByLang = asset.AltTexts.Count == 0
             ? EmptyAltByLang

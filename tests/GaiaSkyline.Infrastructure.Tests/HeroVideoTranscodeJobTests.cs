@@ -31,6 +31,7 @@ public sealed class HeroVideoTranscodeJobTests(LocalDbFixture fixture) : IClassF
             new FakeVideoTranscoder(throwOnProduce: failing),
             new ImageRenditionService(),
             new FixedMediaDirectoryProvider(mediaDir),
+            new LocalDiskMediaFileStore(),
             new ContentRevision(),
             TimeProvider.System,
             NullLogger<HeroVideoTranscodeJob>.Instance);

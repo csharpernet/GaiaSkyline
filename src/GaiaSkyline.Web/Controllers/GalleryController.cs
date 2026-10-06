@@ -17,7 +17,7 @@ public sealed class GalleryController(IContentService content) : PublicControlle
             relativePath: "gallery",
             title: $"Photo gallery — {BrandName}",
             description: "Browse the apartment, the balcony view over the Douro and the Dom Luís I Bridge, and the private hot tub.",
-            ogImagePath: first?.BlobUri,
+            ogImagePath: first?.VersionedBlobUri,
             breadcrumbs: [new Breadcrumb("Home", string.Empty), new Breadcrumb("Gallery", null)]), cancellationToken);
 
         return View(new GalleryViewModel(images));

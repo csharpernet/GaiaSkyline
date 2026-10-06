@@ -75,6 +75,13 @@ public sealed class MediaAsset : Entity<MediaAssetId>
     public string UploadedBy { get; private set; } = null!;
 
     /// <summary>
+    /// Cache-busting version (Stage 8 Part B): starts at 1 and bumps whenever the binary is replaced.
+    /// Public URLs carry it as <c>?v=</c>, so browsers and the CDN refetch replaced files while unchanged
+    /// ones keep long-lived immutable caching. The SEO filename never changes for a replace.
+    /// </summary>
+    public int Version { get; private set; } = 1;
+
+    /// <summary>
     /// Legacy single alt text, kept as the English/default fallback. Per-language alt lives in
     /// <see cref="AltTexts"/>; the public site resolves the request language → en → this value.
     /// </summary>
@@ -130,6 +137,7 @@ public sealed class MediaAsset : Entity<MediaAssetId>
         Lqip = string.IsNullOrWhiteSpace(lqip) ? null : lqip.Trim();
         UploadedAtUtc = uploadedAtUtc;
         UploadedBy = uploadedBy;
+        Version++; // same URL stem, new bytes → bust browser + CDN caches (Stage 8 Part B)
     }
 
     /// <summary>

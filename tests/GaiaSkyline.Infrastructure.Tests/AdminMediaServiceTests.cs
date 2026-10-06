@@ -33,7 +33,7 @@ public sealed class AdminMediaServiceTests(LocalDbFixture fixture) : IClassFixtu
         var revision = new ContentRevision();
         var before = revision.Current;
         await using var context = _fixture.CreateContext();
-        var service = new AdminMediaService(context, new ImageRenditionService(), revision, TimeProvider.System);
+        var service = new AdminMediaService(context, new ImageRenditionService(), new LocalDiskMediaFileStore(), revision, TimeProvider.System);
 
         var ok = await service.SetAltTextsAsync(
             asset.Id.Value,
@@ -104,6 +104,8 @@ public sealed class AdminMediaServiceTests(LocalDbFixture fixture) : IClassFixtu
             }
 
             await renditions.GenerateAsync(new MemoryStream(original), dir, stem, CancellationToken.None);
+            var masterPath = Path.Combine(dir, $"{stem}-1600.jpg");
+            var bytesBeforeReplace = await File.ReadAllBytesAsync(masterPath);
 
             var asset = new MediaAsset(
                 MediaAssetId.New(), MediaKind.Image, $"/media/{stem}-1600.jpg", null,
@@ -115,7 +117,7 @@ public sealed class AdminMediaServiceTests(LocalDbFixture fixture) : IClassFixtu
             }
 
             await using var context = _fixture.CreateContext();
-            var service = new AdminMediaService(context, renditions, new ContentRevision(), TimeProvider.System);
+            var service = new AdminMediaService(context, renditions, new LocalDiskMediaFileStore(), new ContentRevision(), TimeProvider.System);
 
             // Replace with a portrait image → the stored height changes but id and URL do not.
             byte[] replacement;
@@ -133,6 +135,12 @@ public sealed class AdminMediaServiceTests(LocalDbFixture fixture) : IClassFixtu
             saved.BlobUri.Should().Be($"/media/{stem}-1600.jpg", "the URL (and id) must survive so references keep resolving");
             saved.Height.Should().BeGreaterThan(saved.Width, "the portrait replacement changed the dimensions");
             File.Exists(Path.Combine(dir, $"{stem}-1600.avif")).Should().BeTrue();
+
+            // Stage 8 Part B cache-busting: the SEO filename is unchanged but Version bumps, so the public
+            // URL gains ?v=2 while the same stem now serves the replacement bytes.
+            saved.Version.Should().Be(2, "a replace bumps the cache-busting version");
+            var bytesAfterReplace = await File.ReadAllBytesAsync(masterPath);
+            bytesAfterReplace.Should().NotEqual(bytesBeforeReplace, "the same URL now serves the new bytes");
         }
         finally
         {
@@ -160,7 +168,7 @@ public sealed class AdminMediaServiceTests(LocalDbFixture fixture) : IClassFixtu
         }
 
         await using var context = _fixture.CreateContext();
-        var service = new AdminMediaService(context, new ImageRenditionService(), new ContentRevision(), TimeProvider.System);
+        var service = new AdminMediaService(context, new ImageRenditionService(), new LocalDiskMediaFileStore(), new ContentRevision(), TimeProvider.System);
         var read = new AdminMediaReadService(context);
 
         (await service.SoftDeleteAsync(asset.Id.Value, "owner", CancellationToken.None))
@@ -206,7 +214,7 @@ public sealed class AdminMediaServiceTests(LocalDbFixture fixture) : IClassFixtu
 
         await using var context = _fixture.CreateContext();
         var read = new AdminMediaReadService(context);
-        var service = new AdminMediaService(context, new ImageRenditionService(), new ContentRevision(), TimeProvider.System);
+        var service = new AdminMediaService(context, new ImageRenditionService(), new LocalDiskMediaFileStore(), new ContentRevision(), TimeProvider.System);
 
         var model = await read.GetCollectionAsync(key, CancellationToken.None);
         model.Should().NotBeNull();
@@ -250,7 +258,7 @@ public sealed class AdminMediaServiceTests(LocalDbFixture fixture) : IClassFixtu
             var png = Png();
 
             await using var context = _fixture.CreateContext();
-            var service = new AdminMediaService(context, new ImageRenditionService(), new ContentRevision(), TimeProvider.System);
+            var service = new AdminMediaService(context, new ImageRenditionService(), new LocalDiskMediaFileStore(), new ContentRevision(), TimeProvider.System);
 
             var id1 = await service.UploadImageAsync(new MemoryStream(png), dir, "alt", title + ".png", "owner", CancellationToken.None);
             var id2 = await service.UploadImageAsync(new MemoryStream(png), dir, "alt", title + ".png", "owner", CancellationToken.None);
@@ -288,7 +296,7 @@ public sealed class AdminMediaServiceTests(LocalDbFixture fixture) : IClassFixtu
             Guid id;
             await using (var upload = _fixture.CreateContext())
             {
-                var service = new AdminMediaService(upload, new ImageRenditionService(), new ContentRevision(), TimeProvider.System);
+                var service = new AdminMediaService(upload, new ImageRenditionService(), new LocalDiskMediaFileStore(), new ContentRevision(), TimeProvider.System);
                 id = await service.UploadImageAsync(new MemoryStream(png), dir, "alt", "Original Name " + suffix + ".png", "owner", CancellationToken.None);
             }
 
@@ -296,7 +304,7 @@ public sealed class AdminMediaServiceTests(LocalDbFixture fixture) : IClassFixtu
 
             await using (var rename = _fixture.CreateContext())
             {
-                var service = new AdminMediaService(rename, new ImageRenditionService(), new ContentRevision(), TimeProvider.System);
+                var service = new AdminMediaService(rename, new ImageRenditionService(), new LocalDiskMediaFileStore(), new ContentRevision(), TimeProvider.System);
                 (await service.RenameImageAsync(id, "Renamed Image " + suffix, dir, "owner", CancellationToken.None))
                     .Should().Be(MediaRenameResult.Renamed);
             }

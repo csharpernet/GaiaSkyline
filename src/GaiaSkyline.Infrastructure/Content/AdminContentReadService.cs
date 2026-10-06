@@ -96,7 +96,7 @@ internal sealed class AdminContentReadService(AppDbContext dbContext) : IAdminCo
         return assets
             .Select(a => new MediaAssetDto(
                 a.Id.Value, a.Kind, a.BlobUri, a.PosterBlobUri, a.Width, a.Height,
-                a.DurationSec, a.ByteSize, a.ContentType, a.AltText, a.Lqip))
+                a.DurationSec, a.ByteSize, a.ContentType, a.AltText, a.Lqip, a.Version))
             .ToList();
     }
 
