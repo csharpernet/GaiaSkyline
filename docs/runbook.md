@@ -44,13 +44,17 @@ Multibanco only appears when check-in is ≥ 10 days away. To test end to end in
 
 ## Running the Playwright booking E2E
 
-The `/book` page checks run in CI's browser-quality job. The Stripe payment flows are gated:
+The `/book` page checks run in CI's browser-quality job. The Stripe payment flows (card, 3DS, Multibanco)
+are gated behind `STRIPE_E2E` so CI stays green until the keys are configured:
 ```bash
 cd tests/e2e
 BASE_URL=https://localhost:7443 STRIPE_E2E=1 npx playwright test booking.spec.js
 ```
-To run them in CI, add `Stripe:PublishableKey`/`SecretKey`/`WebhookSecret` as repository secrets and set
-`STRIPE_E2E=1` for the browser-quality job.
+To run them in CI (Stage 8 Part E), use the opt-in **`stripe-e2e`** job: add the repository **secrets**
+`STRIPE_TEST_PUBLISHABLE_KEY` + `STRIPE_TEST_SECRET_KEY` (test keys only), set the repository **variable**
+`RUN_STRIPE_E2E=true`, and the job runs the flows with the Stripe CLI forwarding webhooks to
+`/webhooks/stripe` (deriving the signing secret at run time). Unset the variable to turn it back off. Live
+keys are never stored in GitHub.
 
 ## Calendar sync (Stage 5)
 
@@ -217,3 +221,109 @@ debugging the app:
 `MultipleActiveResultSets` was removed from every connection string in Stage 7 (2026-10-05): the app
 never needs MARS (EF buffers result sets), and it is one more moving part in the named-pipe stack.
 Don't reintroduce it.
+
+## Guest documents — PDFs (Stage 8)
+
+The booking confirmation/receipt, payment receipt and cancellation/refund receipt are branded QuestPDF
+documents (ADR 0025). They are generated on demand, cached in the `BookingDocuments` table, and regenerated
+automatically when the booking changes. They download from the confirmation page, `/{lang}/my/booking/{ref}`
+and `/admin/bookings/{id}`, and are attached to the guest's confirmation/refund/cancellation emails. The
+partner payout statement shares the same brand. **None is a tax invoice (*fatura*)** — the footer says so in
+the guest's language. Fonts (Fraunces + Inter) are embedded, so output is identical everywhere. If a document
+ever looks wrong, edit the `document.*` content blocks in the admin; the next download regenerates.
+
+## Deploy & rollback (Stage 8)
+
+All deploy workflows are **manual-dispatch only** — a push to `main` never deploys. Until the Deployment
+phase wires OIDC + a subscription (below), they are validated offline (actionlint) and do not run.
+
+- **App** — run **Deploy app** (`deploy.yml`) with `environment` + `confirm=deploy`. It builds and publishes
+  the web app, generates the **idempotent** EF migration script, applies it to Azure SQL with a short-lived
+  Entra token, deploys to the **staging** slot (prod) or the app (dev), smoke-tests `/health/ready` + `/en/`,
+  then **swaps** staging into production and smoke-tests again. The deploy job runs under a GitHub Environment
+  so prod can require a reviewer.
+- **Infrastructure** — run **Deploy infrastructure** (`infra-deploy.yml`): `az deployment sub what-if` then
+  `create` from `infra/main.bicep` + the per-environment `.bicepparam`.
+- **Database backup** — **Database backup** (`db-backup.yml`) exports a `.bacpac` to blob storage. Run it
+  manually; enable the weekly schedule (commented in the workflow) in the Deployment phase.
+- **Rollback** — swap the slots back:
+  `az webapp deployment slot swap -g rg-gaiaskyline-prod -n app-gaiaskyline-prod --slot production --target-slot staging`.
+  This restores the previous build instantly. Migrations are additive/idempotent; a data-shape rollback uses
+  a point-in-time restore (below).
+
+## Incident response — alerts → actions (Stage 8)
+
+The Part D alert rules (`infra/monitoring.bicep`) notify the operator action group. Each maps to an action:
+
+| Alert | First response |
+| --- | --- |
+| **5xx > 1%** | App Insights failures + the latest deploy; roll back the slot if a release regressed. |
+| **Stripe webhook failures > 1%** | `/admin/payments` (StripeEventLog) — re-process failed events; verify the webhook secret + endpoint health. |
+| **p75 LCP > 2.5s** | Web Vitals in App Insights; a recent asset/markup change; confirm Front Door caching. |
+| **iCal import failing (repeated)** | The external calendar source URL/credentials at `/admin/calendar`; re-run the import. |
+| **Any booking conflict** | Resolve per the manual calendar procedure — contact the guest, block/adjust in Hostify. Nothing auto-cancels. |
+| **Rate sync stale > 24h** | The nightly rate-sync job + `/admin/prices` rejections; accept/adjust and re-run. |
+| **Availability (/health/ready) failing** | Dependencies (SQL, Blob, Key Vault) — the readiness probe fails if any is unreachable. |
+| **Manual sync overdue** | The "Manual sync overdue" dashboard tile — mirror the outstanding bookings in Hostify from `/admin`. |
+
+## Database — backup & point-in-time restore (Stage 8)
+
+- **Backup** — the `db-backup.yml` `.bacpac` export (above).
+- **PITR** — Azure SQL keeps automatic backups. Restore to a **new** database, verify, then repoint or rename:
+  ```bash
+  az sql db restore -g rg-gaiaskyline-prod -s sql-gaiaskyline-prod -n gaiaskyline \
+    --dest-name gaiaskyline-restore --time 2026-10-06T12:00:00Z
+  ```
+  Never restore in place over the live database.
+
+## Operations (Stage 8)
+
+- **Secret rotation** — dev: `dotnet user-secrets set`. Prod: rotate in Key Vault / App Service config (the
+  app reads via its managed identity); restart or slot-swap to apply.
+- **Data Protection key rollover** — keys live in the `dataprotection` Blob container wrapped by a Key Vault
+  key (ADR 0022). Provision a new key version and let the ring roll forward; **do not delete old keys** until
+  every issued auth cookie, magic-link and partner-invite token has expired, or users are signed out.
+- **Refunds** — `/admin/bookings/{id}`: **Cancel** issues the policy-prefilled (editable) refund and releases
+  the dates; **Refund** records a full/partial refund. Both are audited and send the guest the refund/
+  cancellation email with the branded PDF.
+- **Partner code reissue** — `/admin/partners`: the old code stops attributing; the new one keeps the same
+  discount/commission.
+- **Partner payout** — monthly at `/admin/partners`: review payable commissions, generate the payout
+  (period `yyyy-MM`), download the branded statement, transfer to the IBAN on file (ADR 0021).
+- **Hero / media replace** — `/admin/hero` and `/admin/media`; the `?v=` token busts caches and the SEO
+  filename is preserved.
+
+## Deployment phase (go-live)
+
+The one-time steps to go live on Azure. Each needs a real subscription + domain and is intentionally **not**
+done in local-only mode.
+
+1. **Fill the placeholders** in `infra/main.dev.bicepparam` / `main.prod.bicepparam` (subscription + tenant
+   id, operator object id, SQL Entra admin, custom domain, operator alert email).
+2. **GitHub OIDC + environments** — Entra app registration + federated credential (no secrets in the repo);
+   `dev`/`prod` GitHub Environments with a prod reviewer; set `AZURE_CLIENT_ID` / `AZURE_TENANT_ID` /
+   `AZURE_SUBSCRIPTION_ID`. Flip `deploy.yml` from manual-dispatch-only to the real trigger if desired.
+3. **First dev deployment** — `infra-deploy.yml` then `deploy.yml` for `dev`.
+4. **Deploy-verify Blob media** — upload/replace/rename an image on dev; confirm it serves from Blob via
+   Front Door, `?v=` busts cache, SEO filenames preserved; run the one-off media migration.
+5. **Deploy-verify the Data Protection ring** — keys persist to the `dataprotection` container wrapped by the
+   Key Vault key; restart + slot-swap keep cookies / magic-links / invite tokens valid.
+6. **Deploy-verify hero transcoding** — Linux App Service has no FFmpeg preinstalled; resolve via startup
+   install, a bundled static binary, or a transcode service (ADR 0017).
+7. **First prod deployment** — `main.prod.bicepparam` + `deploy.yml` with the staging-slot swap + approval.
+8. **Front Door custom domain** — `www` canonical, bare → `www` redirect; managed certificate; validation
+   TXT + CNAME/ALIAS at the registrar.
+9. **DNS** — the Front Door + SendGrid records.
+10. **SendGrid domain authentication** — SPF/DKIM CNAMEs for the sending domain (prod). Local dev keeps
+    smtp4dev; a single-sender "Mail Send"-only key in User Secrets is the only local option.
+11. **Stripe live cutover** — swap test keys for live keys in prod config; register the live `/webhooks/stripe`
+    endpoint + signing secret; run one real low-value booking + refund.
+12. **Go-live manual-sync** — ensure every existing channel booking is reflected; set the calendar/pricing
+    panels to the right mode.
+13. **Content & SEO launch** — translate the placeholder content blocks, submit the sitemap, verify canonical
+    + hreflang on the live domain.
+14. **Lighthouse on the deployed site** — the Part E budgets measured on Azure, not localhost.
+15. **Alerts go live** — enable the Part D rules against the real App Insights + action group; confirm the
+    availability web test and a test alert reach the operator.
+16. **Cost estimate + scale-down** — document monthly cost (P0v3 + SQL S1 + storage + Front Door) and how to
+    scale dev down / pause SQL when idle.

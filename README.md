@@ -1,10 +1,17 @@
 # GaiaSkyline
 
-Direct-booking website for a single short-term rental in **Vila Nova de Gaia, Portugal**.
+Direct-booking website for a single short-term rental in **Vila Nova de Gaia, Portugal** — guests
+browse, book and pay with no platform fees; the owner runs everything from an admin area.
 
-This repository is **Stage 1 of 8** — the foundations. It boots to a placeholder landing page
-and establishes the architecture, persistence, tests, security posture and CI that later stages
-build on. There are no booking features yet.
+Built across eight stages (foundations → booking & payments → calendar & pricing → content & media →
+accounts → SEO → partner program → infrastructure). **Stage 8** adds the Azure infrastructure (Bicep),
+the manual-dispatch deploy pipeline, monitoring & alerts, the branded guest PDFs, and the final quality
+gates. The app is built, tested and runs **fully locally** — SQL Server LocalDB, local-disk media,
+smtp4dev, Stripe test mode — while the Azure pieces are authored and validated offline and go live in the
+runbook's Deployment phase.
+
+See **[docs/architecture.md](docs/architecture.md)** for the system design and
+**[docs/runbook.md](docs/runbook.md)** for operations and go-live.
 
 ---
 
@@ -15,9 +22,9 @@ build on. There are no booking features yet.
 | Framework          | ASP.NET Core MVC on **.NET 10**, C# 13                            |
 | Architecture       | Clean Architecture (Web → Application → Domain; Infrastructure implements) |
 | Persistence        | EF Core 10 (code-first, checked-in migrations), **SQL Server**    |
-| Background jobs     | Hangfire (wired up, dormant by default)                          |
+| Background jobs     | Hangfire — iCal import, rate sync, unpaid-hold expiry, payouts, reminders |
 | Styling            | Tailwind CSS v3, compiled at build time (see [ADR 0001](docs/decisions/0001-tailwind-build-strategy.md)) |
-| Logging            | Serilog → console (App Insights placeholder)                      |
+| Logging            | Serilog → console; Application Insights in production             |
 | Tests              | xUnit · FluentAssertions · Moq · Bogus · SQL Server LocalDB (integration) |
 | CI                 | GitHub Actions (`windows-latest`)                                 |
 
@@ -79,9 +86,9 @@ dotnet test
 dotnet run --project src/GaiaSkyline.Web
 ```
 
-Browse the URL printed in the console (e.g. **http://localhost:5xxx**) → the placeholder page
-renders **“Gaia Skyline”** in Fraunces on the stone background. `/health/live` is up immediately;
-`/health/ready` turns healthy once SQL Server (LocalDB) is reachable.
+Browse the URL printed in the console (e.g. **http://localhost:5xxx**) → the localized home page at
+`/en`. The owner admin is at `/admin`. `/health/live` is up immediately; `/health/ready` turns healthy
+once SQL Server (LocalDB) is reachable.
 
 Front-end iteration (live Tailwind rebuilds):
 
@@ -166,7 +173,7 @@ visible `‹key›` marker. On Development startup the app migrates and seeds ca
 
 ---
 
-## Security posture (Stage 1)
+## Security posture
 
 - HSTS (non-dev), HTTPS redirection
 - Content-Security-Policy with a **per-request nonce** (`SecurityHeadersMiddleware`)
