@@ -210,12 +210,17 @@ public sealed class AdminBookingServiceTests(LocalDbFixture fixture) : IClassFix
         await using var ctx = _fixture.CreateContext();
         var lifecycle = new FakeLifecycle();
         var refunds = new FakeRefunds();
-        var svc = Service(ctx, lifecycle: lifecycle, refunds: refunds);
+        var emails = new FakeEmails();
+        var svc = Service(ctx, lifecycle: lifecycle, refunds: refunds, emails: emails);
 
         (await svc.CancelAsync(booking.Id.Value, "owner", 150m, CancellationToken.None)).Ok.Should().BeTrue();
 
+        // The full Stage 7 Tests-list sentence: Stripe refund issued (mocked), dates released via the
+        // lifecycle service, and the guest + property-manager alerts scheduled.
         refunds.Calls.Should().ContainSingle().Which.Should().Be((booking.Id.Value, (decimal?)150m, "owner_cancellation"));
         lifecycle.Cancelled.Should().ContainSingle();
+        emails.Sent.Should().Contain((booking.Id.Value, BookingEmailKind.Cancellation))
+            .And.Contain((booking.Id.Value, BookingEmailKind.PropertyManager));
 
         // Above the total, or positive without a Stripe payment → rejected before anything happens.
         (await svc.CancelAsync(booking.Id.Value, null, 9999m, CancellationToken.None)).Ok.Should().BeFalse();

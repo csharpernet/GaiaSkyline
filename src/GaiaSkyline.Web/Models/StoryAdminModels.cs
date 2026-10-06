@@ -8,6 +8,9 @@ public sealed class StoryTranslationForm
 {
     public string LanguageCode { get; set; } = string.Empty;
 
+    /// <summary>This language's slug (non-default languages; blank regenerates from the language's title).</summary>
+    public string? Slug { get; set; }
+
     public string? Title { get; set; }
 
     public string? Excerpt { get; set; }

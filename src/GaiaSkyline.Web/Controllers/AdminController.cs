@@ -182,6 +182,11 @@ public sealed class AdminController(
         var recoveryCodes = await userManager.GenerateNewTwoFactorRecoveryCodesAsync(user, 10);
         await audit.WriteAsync("2fa.enabled", user.Id, Ip);
 
+        // The authenticator code was just verified, so this session has completed both factors — re-issue
+        // the cookie with amr=mfa (what a two-factor sign-in stamps), which the Owner policy requires.
+        await signInManager.SignInWithClaimsAsync(
+            user, isPersistent: false, [new System.Security.Claims.Claim("amr", "mfa")]);
+
         return View("RecoveryCodes", recoveryCodes?.ToArray() ?? []);
     }
 

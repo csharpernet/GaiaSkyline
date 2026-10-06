@@ -68,8 +68,10 @@ internal sealed class FakeContentReadStore : IContentReadStore
         return Task.FromResult(result);
     }
 
-    public Task<Story?> GetPublishedStoryBySlugAsync(string slug, CancellationToken cancellationToken) =>
-        Task.FromResult(Stories.FirstOrDefault(s => s.IsPublished && s.Slug == slug));
+    public Task<Story?> GetPublishedStoryBySlugAsync(string slug, string language, CancellationToken cancellationToken) =>
+        Task.FromResult(Stories.FirstOrDefault(s => s.IsPublished
+            && (s.Slug == slug || s.Translations.Any(t =>
+                string.Equals(t.LanguageCode, language, StringComparison.OrdinalIgnoreCase) && t.Slug == slug))));
 
     public Property? Property { get; set; }
 

@@ -84,11 +84,12 @@ internal sealed class ContentReadStore(AppDbContext dbContext) : IContentReadSto
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<Story?> GetPublishedStoryBySlugAsync(string slug, CancellationToken cancellationToken)
+    public async Task<Story?> GetPublishedStoryBySlugAsync(string slug, string language, CancellationToken cancellationToken)
     {
         return await _dbContext.Stories
             .AsNoTracking()
-            .Where(s => s.IsPublished && s.Slug == slug)
+            .Where(s => s.IsPublished
+                && (s.Slug == slug || s.Translations.Any(t => t.LanguageCode == language && t.Slug == slug)))
             .Include(s => s.Translations)
             .FirstOrDefaultAsync(cancellationToken);
     }

@@ -1,6 +1,6 @@
 // SEO page-meta editor glue (admin-only, served from 'self'): live character counters (coloured by the
-// recommended range) and a Google-style snippet preview for the focused page+language. Classes/attributes
-// only, so it needs no CSP nonce.
+// recommended range) plus Google-snippet and Open Graph card previews for the focused page+language.
+// Classes/attributes only, so it needs no CSP nonce.
 (function () {
   'use strict';
 
@@ -11,6 +11,10 @@
   var prevUrl = document.getElementById('seo-prev-url');
   var prevTitle = document.getElementById('seo-prev-title');
   var prevDesc = document.getElementById('seo-prev-desc');
+  var ogSite = document.getElementById('seo-og-site');
+  var ogTitle = document.getElementById('seo-og-title');
+  var ogDesc = document.getElementById('seo-og-desc');
+  var ogImage = document.getElementById('seo-og-image');
 
   function counterClass(len, min, max) {
     if (len === 0) return 'text-xs w-12 text-right text-ink/40';
@@ -39,6 +43,24 @@
     prevUrl.textContent = window.location.origin + path;
     prevTitle.textContent = (title && title.value) || '(built-in title)';
     prevDesc.textContent = (desc && desc.value) || '(built-in description)';
+
+    // The Open Graph card mirrors what _Layout emits: og:title/og:description follow the page title and
+    // description; og:image is the page's share image (the home hero rendition serves as the stand-in).
+    if (ogTitle) {
+      ogSite.textContent = window.location.host;
+      ogTitle.textContent = prevTitle.textContent;
+      ogDesc.textContent = prevDesc.textContent;
+      if (ogImage && !ogImage.getAttribute('src')) {
+        ogImage.src = '/media/home-hero-poster-800.jpg';
+      }
+    }
+  }
+
+  if (ogImage) {
+    // No stand-in image on this install (e.g. a bare test database) — keep the grey placeholder box.
+    ogImage.addEventListener('error', function () {
+      ogImage.removeAttribute('src');
+    });
   }
 
   form.querySelectorAll('[data-seo-field]').forEach(function (input) {

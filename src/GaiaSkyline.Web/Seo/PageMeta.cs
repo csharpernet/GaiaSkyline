@@ -38,4 +38,11 @@ public sealed class PageMeta
 
     /// <summary>Raw JSON-LD documents, each injected in its own &lt;script type="application/ld+json"&gt; block.</summary>
     public IReadOnlyList<string> JsonLdBlocks { get; init; } = [];
+
+    /// <summary>
+    /// Per-culture relative paths for hreflang alternates when they differ by language (story slugs are
+    /// per-language, Stage 7 §4). Key = culture (e.g. "pt-PT"); missing cultures fall back to
+    /// <see cref="RelativePath"/>. Null for pages whose path is the same in every language.
+    /// </summary>
+    public IReadOnlyDictionary<string, string>? AlternatePaths { get; init; }
 }

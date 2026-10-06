@@ -30,8 +30,9 @@ public sealed class StoriesController(IContentService content, IStorySlugRedirec
         var story = await content.GetStoryAsync(slug, CurrentCulture, cancellationToken);
         if (story is null)
         {
-            // The slug may be a previous one kept after a rename — 301 to the current URL so old links survive.
-            var current = await slugRedirects.ResolveCurrentSlugAsync(slug, cancellationToken);
+            // The slug may be a previous one kept after a rename, or another language's slug for the same
+            // story (slugs are per language) — 301 to this language's current URL so old links survive.
+            var current = await slugRedirects.ResolveCurrentSlugAsync(slug, CurrentCulture, cancellationToken);
             if (current is not null && !string.Equals(current, slug, StringComparison.OrdinalIgnoreCase))
             {
                 return RedirectPermanent($"/{CurrentSlug}/stories/{current}");
@@ -39,6 +40,10 @@ public sealed class StoriesController(IContentService content, IStorySlugRedirec
 
             return NotFound();
         }
+
+        // Each hreflang alternate uses that language's own slug (Stage 7 §4).
+        var alternatePaths = story.SlugByLanguage.ToDictionary(
+            kv => kv.Key, kv => $"stories/{kv.Value}", StringComparer.OrdinalIgnoreCase);
 
         var all = await content.GetPublishedStoriesAsync(CurrentCulture, take: null, cancellationToken);
         var related = all.Where(s => s.Slug != story.Slug).Take(2).ToList();
@@ -57,7 +62,8 @@ public sealed class StoriesController(IContentService content, IStorySlugRedirec
                 new Breadcrumb("Stories", "stories"),
                 new Breadcrumb(story.Title, null),
             ],
-            jsonLdBlocks: [JsonLd.Article(pageUrl, story, coverAbsolute, CurrentCulture)]));
+            jsonLdBlocks: [JsonLd.Article(pageUrl, story, coverAbsolute, CurrentCulture)],
+            alternatePaths: alternatePaths));
 
         return View(new StoryDetailViewModel(story, related));
     }

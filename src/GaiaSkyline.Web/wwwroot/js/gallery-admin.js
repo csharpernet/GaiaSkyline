@@ -32,18 +32,33 @@
       '</div>' +
       '<div class="flex items-center justify-between px-2 py-1.5 text-xs">' +
       '<label class="flex items-center gap-1"><input type="radio" name="hero" value="' + assetId + '" data-hero /> hero</label>' +
+      '<span class="flex items-center gap-1.5">' +
+      '<button type="button" data-move="prev" aria-label="Move earlier" class="text-ink/50 hover:text-ink">◀</button>' +
+      '<button type="button" data-move="next" aria-label="Move later" class="text-ink/50 hover:text-ink">▶</button>' +
       '<button type="button" data-remove class="text-clay hover:underline">Remove</button>' +
+      '</span>' +
       '</div>';
     wireItem(li);
     return li;
   }
 
-  // ----- Drag and drop reorder -----
+  // ----- Reorder: drag-and-drop plus keyboard-accessible move buttons -----
   var dragging = null;
   function wireItem(li) {
     li.addEventListener('dragstart', function () { dragging = li; li.classList.add('opacity-50'); });
     li.addEventListener('dragend', function () { li.classList.remove('opacity-50'); dragging = null; });
     li.querySelector('[data-remove]').addEventListener('click', function () { li.remove(); });
+    Array.prototype.forEach.call(li.querySelectorAll('[data-move]'), function (btn) {
+      btn.addEventListener('click', function () {
+        if (btn.getAttribute('data-move') === 'prev') {
+          var prev = li.previousElementSibling;
+          if (prev) itemsEl.insertBefore(li, prev);
+        } else {
+          var next = li.nextElementSibling;
+          if (next) itemsEl.insertBefore(next, li);
+        }
+      });
+    });
   }
 
   itemsEl.addEventListener('dragover', function (e) {

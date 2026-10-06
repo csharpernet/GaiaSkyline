@@ -174,6 +174,10 @@ builder.Services.AddAuthorization(options =>
     {
         policy.RequireAuthenticatedUser();
         policy.RequireRole(UserRoles.Owner);
+        // Identity stamps amr=mfa only on a two-factor sign-in (authenticator or recovery code), and 2FA
+        // enrolment re-issues the session with it after the TOTP is verified. Requiring it here closes the
+        // password-only window: a pre-enrolment cookie carries the role but must not reach /admin.
+        policy.RequireClaim("amr", "mfa");
         policy.Requirements.Add(new OwnerIpAllowlistRequirement());
     });
     options.AddPolicy(AuthorizationPolicies.Partner, policy =>

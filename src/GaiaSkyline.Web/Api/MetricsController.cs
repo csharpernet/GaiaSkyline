@@ -20,7 +20,13 @@ public sealed partial class MetricsController(ILogger<MetricsController> logger,
         LogVital(logger, metric.Name, metric.Value, metric.Rating, metric.Path);
         if (!string.IsNullOrWhiteSpace(metric.Name))
         {
-            vitals.Record(metric.Name, metric.Value);
+            // Group field data per URL (Stage 7 §5); fall back to the Referer when the client omits the path.
+            var path = string.IsNullOrWhiteSpace(metric.Path)
+                ? Uri.TryCreate(Request.Headers.Referer.ToString(), UriKind.Absolute, out var referer)
+                    ? referer.AbsolutePath
+                    : null
+                : metric.Path;
+            vitals.Record(metric.Name, metric.Value, path);
         }
 
         return NoContent();

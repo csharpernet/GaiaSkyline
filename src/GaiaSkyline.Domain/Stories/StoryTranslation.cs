@@ -20,7 +20,8 @@ public sealed class StoryTranslation : Entity<StoryTranslationId>
         string bodyRichText,
         string? metaTitle,
         string? metaDescription,
-        int readingTimeMinutes)
+        int readingTimeMinutes,
+        string slug)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(languageCode);
         ArgumentException.ThrowIfNullOrWhiteSpace(title);
@@ -36,11 +37,18 @@ public sealed class StoryTranslation : Entity<StoryTranslationId>
         MetaTitle = string.IsNullOrWhiteSpace(metaTitle) ? null : metaTitle.Trim();
         MetaDescription = string.IsNullOrWhiteSpace(metaDescription) ? null : metaDescription.Trim();
         ReadingTimeMinutes = readingTimeMinutes;
+        SetSlug(slug);
     }
 
     public StoryId StoryId { get; private set; }
 
     public string LanguageCode { get; private set; } = null!;
+
+    /// <summary>
+    /// This language's URL slug, unique per language (Stage 7 §4). New translations start on the story's
+    /// canonical slug and follow it until the owner gives the language its own slug.
+    /// </summary>
+    public string Slug { get; private set; } = null!;
 
     public string Title { get; private set; } = null!;
 
@@ -71,5 +79,18 @@ public sealed class StoryTranslation : Entity<StoryTranslationId>
         MetaTitle = string.IsNullOrWhiteSpace(metaTitle) ? null : metaTitle.Trim();
         MetaDescription = string.IsNullOrWhiteSpace(metaDescription) ? null : metaDescription.Trim();
         ReadingTimeMinutes = readingTimeMinutes;
+    }
+
+    internal void SetSlug(string slug)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(slug);
+        var normalized = slug.Trim().ToLowerInvariant();
+        if (!Story.IsValidSlug(normalized))
+        {
+            throw new ArgumentException(
+                $"'{slug}' is not a valid URL slug (lowercase letters, digits and single hyphens).", nameof(slug));
+        }
+
+        Slug = normalized;
     }
 }

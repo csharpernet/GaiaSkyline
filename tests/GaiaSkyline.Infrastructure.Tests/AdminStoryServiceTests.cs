@@ -114,8 +114,80 @@ public sealed class AdminStoryServiceTests(LocalDbFixture fixture) : IClassFixtu
         story.Aliases.Select(a => a.OldSlug).Should().Contain(oldSlug);
 
         var resolver = new StorySlugRedirectResolver(verify);
-        (await resolver.ResolveCurrentSlugAsync(oldSlug, CancellationToken.None)).Should().Be(newSlug);
-        (await resolver.ResolveCurrentSlugAsync("never-a-slug", CancellationToken.None)).Should().BeNull();
+        (await resolver.ResolveCurrentSlugAsync(oldSlug, "en", CancellationToken.None)).Should().Be(newSlug);
+        (await resolver.ResolveCurrentSlugAsync("never-a-slug", "en", CancellationToken.None)).Should().BeNull();
+    }
+
+    [Fact]
+    public async Task A_language_gets_its_own_slug_and_renaming_it_301s_within_that_language()
+    {
+        var cover = await SeedCoverAsync();
+        var title = "Lang " + Guid.NewGuid().ToString("N")[..8];
+        var frTitle = "Pont de Dona Maria " + Guid.NewGuid().ToString("N")[..8];
+
+        // Authoring FR for the first time auto-suggests the slug from the FRENCH title (Stage 7 §4).
+        Guid id;
+        await using (var ctx = _fixture.CreateContext())
+        {
+            var model = Model(cover, title, published: true) with
+            {
+                Translations =
+                [
+                    new StoryTranslationInput("en", title, "Excerpt", "<p>Body</p>", null, null),
+                    new StoryTranslationInput("fr", frTitle, "Extrait", "<p>Corps</p>", null, null),
+                ],
+            };
+            var created = await Service(ctx).CreateAsync(model, "owner", CancellationToken.None);
+            created.Ok.Should().BeTrue(created.Error);
+            id = created.StoryId!.Value;
+        }
+
+        string frSlug, enSlug;
+        await using (var read = _fixture.CreateContext())
+        {
+            var story = await read.Stories.Include(s => s.Translations).FirstAsync(s => s.Id == StoryId.From(id));
+            enSlug = story.Slug;
+            frSlug = story.SlugFor("fr");
+        }
+
+        frSlug.Should().StartWith("pont-de-dona-maria").And.NotBe(enSlug);
+
+        // /fr resolves the FR slug; /en does not (slugs are unique per language)...
+        await using (var verify = _fixture.CreateContext())
+        {
+            var store = new ContentReadStore(verify);
+            (await store.GetPublishedStoryBySlugAsync(frSlug, "fr", CancellationToken.None)).Should().NotBeNull();
+            (await store.GetPublishedStoryBySlugAsync(frSlug, "en", CancellationToken.None)).Should().BeNull();
+
+            // ...and the EN slug asked in FR 301s to the FR slug (cross-language resolve).
+            var resolver = new StorySlugRedirectResolver(verify);
+            (await resolver.ResolveCurrentSlugAsync(enSlug, "fr", CancellationToken.None)).Should().Be(frSlug);
+        }
+
+        // Renaming the published FR slug records a FR-scoped alias the resolver honours only for FR.
+        var newFrSlug = "nouveau-pont-" + Guid.NewGuid().ToString("N")[..8];
+        await using (var ctx = _fixture.CreateContext())
+        {
+            var model = Model(cover, title, published: true) with
+            {
+                Translations =
+                [
+                    new StoryTranslationInput("en", title, "Excerpt", "<p>Body</p>", null, null),
+                    new StoryTranslationInput("fr", frTitle, "Extrait", "<p>Corps</p>", null, null, newFrSlug),
+                ],
+            };
+            (await Service(ctx).UpdateAsync(id, model, "owner", CancellationToken.None)).Ok.Should().BeTrue();
+        }
+
+        await using var after = _fixture.CreateContext();
+        var renamed = await after.Stories.Include(s => s.Translations).Include(s => s.Aliases)
+            .FirstAsync(s => s.Id == StoryId.From(id));
+        renamed.SlugFor("fr").Should().Be(newFrSlug);
+        renamed.Aliases.Should().ContainSingle(a => a.OldSlug == frSlug && a.LanguageCode == "fr");
+
+        var afterResolver = new StorySlugRedirectResolver(after);
+        (await afterResolver.ResolveCurrentSlugAsync(frSlug, "fr", CancellationToken.None)).Should().Be(newFrSlug);
+        (await afterResolver.ResolveCurrentSlugAsync(frSlug, "en", CancellationToken.None)).Should().BeNull();
     }
 
     [Fact]

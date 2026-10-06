@@ -47,7 +47,10 @@ public sealed class Story : Entity<StoryId>
         AuthorName = authorName.Trim();
     }
 
-    /// <summary>URL slug, unique across stories (shared across languages).</summary>
+    /// <summary>
+    /// The canonical URL slug, unique across stories. Languages without their own
+    /// <see cref="StoryTranslation.Slug"/> publish under this one (Stage 7 §4).
+    /// </summary>
     public string Slug { get; private set; } = null!;
 
     public MediaAssetId CoverMediaAssetId { get; private set; }
@@ -89,18 +92,69 @@ public sealed class Story : Entity<StoryId>
         var previous = Slug;
         Slug = normalized;
 
-        if (preservePreviousSlug
-            && !_aliases.Any(a => string.Equals(a.OldSlug, previous, StringComparison.OrdinalIgnoreCase)))
+        // Translations that never got their own slug follow the canonical one.
+        foreach (var t in _translations.Where(t => string.Equals(t.Slug, previous, StringComparison.OrdinalIgnoreCase)))
         {
-            _aliases.Add(new StorySlugAlias(StorySlugAliasId.New(), Id, previous));
+            t.SetSlug(normalized);
         }
 
-        var reclaimed = _aliases.FirstOrDefault(
-            a => string.Equals(a.OldSlug, normalized, StringComparison.OrdinalIgnoreCase));
-        if (reclaimed is not null)
+        if (preservePreviousSlug
+            && !_aliases.Any(a => a.LanguageCode is null && string.Equals(a.OldSlug, previous, StringComparison.OrdinalIgnoreCase)))
         {
-            _aliases.Remove(reclaimed);
+            // A null language: the canonical slug served every language without its own slug.
+            _aliases.Add(new StorySlugAlias(StorySlugAliasId.New(), Id, previous, languageCode: null));
         }
+
+        _aliases.RemoveAll(a => string.Equals(a.OldSlug, normalized, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>This language's public slug: its translation's own slug, or the canonical one.</summary>
+    public string SlugFor(string languageCode)
+    {
+        var translation = _translations.FirstOrDefault(
+            t => string.Equals(t.LanguageCode, languageCode, StringComparison.OrdinalIgnoreCase));
+        return string.IsNullOrEmpty(translation?.Slug) ? Slug : translation.Slug;
+    }
+
+    /// <summary>
+    /// Give one language its own slug (Stage 7 §4: slugs are unique per language). When
+    /// <paramref name="preservePreviousSlug"/> is true and the vacated slug was not the canonical one (which
+    /// keeps resolving by itself), it is remembered per-language so the old URL can 301. No-op when unchanged.
+    /// </summary>
+    public void SetTranslationSlug(string languageCode, string newSlug, bool preservePreviousSlug)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(languageCode);
+        ArgumentException.ThrowIfNullOrWhiteSpace(newSlug);
+
+        var translation = _translations.FirstOrDefault(
+            t => string.Equals(t.LanguageCode, languageCode.Trim(), StringComparison.OrdinalIgnoreCase))
+            ?? throw new InvalidOperationException($"The story has no '{languageCode}' translation to slug.");
+
+        var normalized = newSlug.Trim().ToLowerInvariant();
+        if (!IsValidSlug(normalized))
+        {
+            throw new ArgumentException(
+                $"'{newSlug}' is not a valid URL slug (lowercase letters, digits and single hyphens).", nameof(newSlug));
+        }
+
+        if (string.Equals(normalized, translation.Slug, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        var previous = translation.Slug;
+        translation.SetSlug(normalized);
+
+        if (preservePreviousSlug
+            && !string.Equals(previous, Slug, StringComparison.OrdinalIgnoreCase)
+            && !_aliases.Any(a => string.Equals(a.OldSlug, previous, StringComparison.OrdinalIgnoreCase)))
+        {
+            _aliases.Add(new StorySlugAlias(StorySlugAliasId.New(), Id, previous, translation.LanguageCode));
+        }
+
+        _aliases.RemoveAll(a =>
+            string.Equals(a.OldSlug, normalized, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(a.LanguageCode, translation.LanguageCode, StringComparison.OrdinalIgnoreCase));
     }
 
     public void Publish() => IsPublished = true;
@@ -140,14 +194,15 @@ public sealed class Story : Entity<StoryId>
             return existing;
         }
 
+        // A new translation publishes under the canonical slug until it is given its own (Stage 7 §4).
         var translation = new StoryTranslation(
             StoryTranslationId.New(), Id, normalized, title, excerpt, bodyRichText,
-            metaTitle, metaDescription, readingTimeMinutes);
+            metaTitle, metaDescription, readingTimeMinutes, Slug);
         _translations.Add(translation);
         return translation;
     }
 
-    private static bool IsValidSlug(string slug)
+    internal static bool IsValidSlug(string slug)
     {
         if (slug.Length == 0 || slug[0] == '-' || slug[^1] == '-')
         {

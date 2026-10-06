@@ -16,21 +16,28 @@
     <!-- ========== Core Web Vitals (field) ========== -->
     <section class="mt-6">
         <h2 class="font-display text-sm font-semibold text-ink/80">Core Web Vitals (field)</h2>
-        <p class="mt-1 text-xs text-ink/55">p75 of real visitors since the app last started (in-memory; resets on restart).</p>
+        <p class="mt-1 text-xs text-ink/55">p75 of real visitors per URL over the last 7 days (in-memory; resets on restart). Worst pages first.</p>
         @if (Model.Vitals.Count == 0)
         {
             <p class="mt-2 text-sm text-ink/55">No field data yet — visit the public site to collect samples.</p>
         }
         else
         {
-            <div class="mt-3 grid gap-3 grid-cols-2 sm:grid-cols-5">
-                @foreach (var v in Model.Vitals)
+            <div class="mt-3 space-y-2">
+                @foreach (var vp in Model.Vitals)
                 {
-                    var color = v.Rating == "good" ? "text-green-700" : v.Rating == "poor" ? "text-clay" : "text-amber-600";
                     <div class="rounded-md border border-fog bg-white p-3">
-                        <div class="text-xs uppercase tracking-wide text-ink/40">@v.Name</div>
-                        <div class="mt-1 text-lg font-semibold @color">@(v.Name == "CLS" ? v.P75.ToString("0.00") : Math.Round(v.P75).ToString("0"))@v.Unit</div>
-                        <div class="text-xs text-ink/40">@v.SampleCount samples · @v.Rating</div>
+                        <div class="font-mono text-xs text-ink/70">@vp.Path</div>
+                        <div class="mt-2 flex flex-wrap gap-x-5 gap-y-1">
+                            @foreach (var v in vp.Metrics)
+                            {
+                                var color = v.Rating == "good" ? "text-green-700" : v.Rating == "poor" ? "text-clay" : "text-amber-600";
+                                <span class="text-sm" title="@v.SampleCount samples · @v.Rating">
+                                    <span class="text-xs uppercase tracking-wide text-ink/40">@v.Name</span>
+                                    <span class="font-semibold @color">@(v.Name == "CLS" ? v.P75.ToString("0.00") : Math.Round(v.P75).ToString("0"))@v.Unit</span>
+                                </span>
+                            }
+                        </div>
                     </div>
                 }
             </div>
@@ -70,11 +77,24 @@
         <h2 class="font-display text-sm font-semibold text-ink/80">Page meta</h2>
         <p class="mt-1 text-xs text-ink/55">Override the &lt;title&gt; and meta description per page and language. Leave blank to keep the built-in default. Target: title 50–60, description 150–160 characters. (Each story's meta is edited with the story.)</p>
 
-        <div id="seo-preview" class="mt-3 rounded-md border border-fog bg-white p-4" hidden>
-            <p class="text-xs uppercase tracking-wide text-ink/40">Google preview</p>
-            <p id="seo-prev-url" class="mt-1 text-xs text-[#006621]"></p>
-            <p id="seo-prev-title" class="text-lg text-[#1a0dab] leading-tight"></p>
-            <p id="seo-prev-desc" class="text-sm text-ink/70"></p>
+        <div id="seo-preview" class="mt-3 grid gap-3 sm:grid-cols-2" hidden>
+            <div class="rounded-md border border-fog bg-white p-4">
+                <p class="text-xs uppercase tracking-wide text-ink/40">Google preview</p>
+                <p id="seo-prev-url" class="mt-1 text-xs text-[#006621]"></p>
+                <p id="seo-prev-title" class="text-lg text-[#1a0dab] leading-tight"></p>
+                <p id="seo-prev-desc" class="text-sm text-ink/70"></p>
+            </div>
+            <div class="rounded-md border border-fog bg-white p-4">
+                <p class="text-xs uppercase tracking-wide text-ink/40">Open Graph card</p>
+                <div class="mt-2 overflow-hidden rounded-md border border-fog">
+                    <img id="seo-og-image" src="" alt="" class="aspect-[1.91/1] w-full bg-fog object-cover" />
+                    <div class="border-t border-fog bg-stone/40 px-3 py-2">
+                        <p id="seo-og-site" class="text-[11px] uppercase tracking-wide text-ink/40"></p>
+                        <p id="seo-og-title" class="text-sm font-semibold leading-snug text-ink"></p>
+                        <p id="seo-og-desc" class="text-xs text-ink/60"></p>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <form method="post" action="/admin/seo/page-meta" class="mt-3 space-y-5" data-seo-meta>

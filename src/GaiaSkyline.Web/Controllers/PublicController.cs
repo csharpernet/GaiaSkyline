@@ -59,6 +59,7 @@ public abstract class PublicController : Controller
                 OgImagePath = meta.OgImagePath,
                 Breadcrumbs = meta.Breadcrumbs,
                 JsonLdBlocks = meta.JsonLdBlocks,
+                AlternatePaths = meta.AlternatePaths,
             };
         }
 
@@ -73,7 +74,8 @@ public abstract class PublicController : Controller
         string? ogImagePath = null,
         IReadOnlyList<Breadcrumb>? breadcrumbs = null,
         IReadOnlyList<string>? jsonLdBlocks = null,
-        bool noIndex = false) => new()
+        bool noIndex = false,
+        IReadOnlyDictionary<string, string>? alternatePaths = null) => new()
         {
             Culture = CurrentCulture,
             Slug = CurrentSlug,
@@ -85,6 +87,7 @@ public abstract class PublicController : Controller
             Breadcrumbs = breadcrumbs ?? [],
             JsonLdBlocks = jsonLdBlocks ?? [],
             NoIndex = noIndex,
+            AlternatePaths = alternatePaths,
         };
 
     /// <summary>Absolute base URL for the current request (used to build JSON-LD and OG URLs).</summary>

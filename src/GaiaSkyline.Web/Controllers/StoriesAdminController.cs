@@ -32,7 +32,7 @@ public sealed class StoriesAdminController(
     {
         ViewData["Title"] = "New story";
         var empty = ContentLanguages.All
-            .Select(l => new StoryTranslationEditDto(l, string.Empty, string.Empty, string.Empty, null, null, 0))
+            .Select(l => new StoryTranslationEditDto(l, string.Empty, string.Empty, string.Empty, null, null, 0, string.Empty))
             .ToList();
         var model = new StoryEditViewModel(
             null, null, string.Empty, Guid.Empty, DateTime.UtcNow.Date, false,
@@ -109,7 +109,7 @@ public sealed class StoriesAdminController(
         DateTime.SpecifyKind(form.PublishedDate, DateTimeKind.Utc),
         form.IsPublished,
         form.Translations.Select(t => new StoryTranslationInput(
-            t.LanguageCode, t.Title, t.Excerpt, t.Body, t.MetaTitle, t.MetaDescription)).ToList());
+            t.LanguageCode, t.Title, t.Excerpt, t.Body, t.MetaTitle, t.MetaDescription, t.Slug)).ToList());
 
     // Re-render the editor preserving what the owner typed when a save is rejected.
     private async Task<IActionResult> RedisplayAsync(Guid? id, StoryForm form, CancellationToken cancellationToken)
@@ -118,7 +118,7 @@ public sealed class StoriesAdminController(
         {
             var t = form.Translations.FirstOrDefault(x => string.Equals(x.LanguageCode, l, StringComparison.OrdinalIgnoreCase));
             return new StoryTranslationEditDto(l, t?.Title ?? string.Empty, t?.Excerpt ?? string.Empty,
-                t?.Body ?? string.Empty, t?.MetaTitle, t?.MetaDescription, 0);
+                t?.Body ?? string.Empty, t?.MetaTitle, t?.MetaDescription, 0, t?.Slug ?? string.Empty);
         }).ToList();
         var model = new StoryEditViewModel(
             id, form.Slug, form.AuthorName, form.CoverMediaAssetId, form.PublishedDate, form.IsPublished,

@@ -142,4 +142,15 @@
             </ul>
         </section>
     }
+
+    @if (Model.OpenRateSyncRejections > 0)
+    {
+        <section class="mt-6 bg-white border border-fog rounded-md p-4">
+            <h2 class="font-display text-lg font-semibold">Rate-sync rejections awaiting review (@Model.OpenRateSyncRejections)</h2>
+            <p class="mt-1 text-sm text-ink/60">
+                The pricing provider proposed rates that were rejected (locked nights or out-of-bounds values).
+                <a class="text-river hover:underline" href="/admin/prices#rejections">Review them on Prices</a>.
+            </p>
+        </section>
+    }
 </div>

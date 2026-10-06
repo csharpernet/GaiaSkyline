@@ -56,7 +56,12 @@ internal sealed class AdminStoryReadService(AppDbContext dbContext) : IAdminStor
                 t?.BodyRichText ?? string.Empty,
                 t?.MetaTitle,
                 t?.MetaDescription,
-                t?.ReadingTimeMinutes ?? 0);
+                t?.ReadingTimeMinutes ?? 0,
+                // Only an explicit per-language slug is shown; a language on the canonical slug follows it
+                // (so the round-tripped form never pins a follower to a stale value). Stage 7 §4.
+                Slug: t is null || string.Equals(t.Slug, story.Slug, StringComparison.OrdinalIgnoreCase)
+                    ? string.Empty
+                    : t.Slug);
         }).ToList();
 
         return new StoryEditDto(
@@ -68,7 +73,10 @@ internal sealed class AdminStoryReadService(AppDbContext dbContext) : IAdminStor
             covers.GetValueOrDefault(story.CoverMediaAssetId.Value),
             story.AuthorName,
             translations,
-            story.Aliases.Select(a => a.OldSlug).OrderBy(s => s, StringComparer.Ordinal).ToList());
+            story.Aliases
+                .Select(a => a.LanguageCode is null ? a.OldSlug : $"{a.OldSlug} ({a.LanguageCode})")
+                .OrderBy(s => s, StringComparer.Ordinal)
+                .ToList());
     }
 
     // All media blob URIs by guid (small table); the admin shows a small cover thumbnail (-400.jpg).

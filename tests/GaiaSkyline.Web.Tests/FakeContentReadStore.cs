@@ -77,7 +77,7 @@ internal sealed class FakeContentReadStore : IContentReadStore
     public Task<IReadOnlyList<Story>> GetPublishedStoriesAsync(CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<Story>>([]);
 
-    public Task<Story?> GetPublishedStoryBySlugAsync(string slug, CancellationToken cancellationToken) =>
+    public Task<Story?> GetPublishedStoryBySlugAsync(string slug, string language, CancellationToken cancellationToken) =>
         Task.FromResult<Story?>(null);
 
     public Task<GaiaSkyline.Domain.Entities.Property?> GetPropertyAsync(CancellationToken cancellationToken) =>

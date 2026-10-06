@@ -106,6 +106,53 @@ public class StoryTests
     }
 
     [Fact]
+    public void A_new_translation_follows_the_canonical_slug_and_SlugFor_falls_back_to_it()
+    {
+        var story = CreateStory("canonical");
+
+        story.SetTranslation("fr", "Titre", "Extrait", "<p>Corps</p>", null, null, 2);
+
+        story.Translations.Single().Slug.Should().Be("canonical");
+        story.SlugFor("fr").Should().Be("canonical");
+        story.SlugFor("de").Should().Be("canonical", "a language without a translation uses the canonical slug");
+    }
+
+    [Fact]
+    public void Canonical_rename_moves_followers_but_keeps_per_language_overrides()
+    {
+        var story = CreateStory("old");
+        story.SetTranslation("en", "Title", "E", "<p>B</p>", null, null, 1);
+        story.SetTranslation("fr", "Titre", "E", "<p>B</p>", null, null, 1);
+        story.SetTranslationSlug("fr", "mon-histoire", preservePreviousSlug: false);
+
+        story.Rename("new", preservePreviousSlug: true);
+
+        story.SlugFor("en").Should().Be("new", "a follower moves with the canonical slug");
+        story.SlugFor("fr").Should().Be("mon-histoire", "an explicit per-language slug is untouched");
+        story.Aliases.Should().ContainSingle(a => a.OldSlug == "old" && a.LanguageCode == null);
+    }
+
+    [Fact]
+    public void SetTranslationSlug_records_a_language_scoped_alias_only_when_leaving_a_non_canonical_slug()
+    {
+        var story = CreateStory("canonical");
+        story.SetTranslation("fr", "Titre", "E", "<p>B</p>", null, null, 1);
+
+        // Leaving the canonical slug records nothing — the canonical URL keeps resolving by itself.
+        story.SetTranslationSlug("fr", "premier", preservePreviousSlug: true);
+        story.Aliases.Should().BeEmpty();
+
+        // Leaving an explicit per-language slug records an alias scoped to that language.
+        story.SetTranslationSlug("fr", "deuxieme", preservePreviousSlug: true);
+        story.Aliases.Should().ContainSingle(a => a.OldSlug == "premier" && a.LanguageCode == "fr");
+
+        // Reclaiming the aliased slug drops the alias again.
+        story.SetTranslationSlug("fr", "premier", preservePreviousSlug: true);
+        story.Aliases.Should().ContainSingle(a => a.OldSlug == "deuxieme" && a.LanguageCode == "fr");
+        story.SlugFor("fr").Should().Be("premier");
+    }
+
+    [Fact]
     public void SetTranslation_allows_a_title_only_draft_with_empty_excerpt_and_body()
     {
         var story = CreateStory();

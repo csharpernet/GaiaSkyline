@@ -37,7 +37,9 @@ public sealed record MultibancoPendingItem(string Reference, decimal Total, stri
 
 public sealed record NextCheckIn(string Reference, string GuestName, DateOnly CheckIn);
 
-/// <summary>Everything the admin dashboard renders for the given (navigable) calendar month.</summary>
+/// <summary>Everything the admin dashboard renders for the given (navigable) calendar month.
+/// <paramref name="OpenRateSyncRejections"/> counts the provider rate rejections awaiting the owner's
+/// review on /admin/prices (Stage 7 §1).</summary>
 public sealed record DashboardSummary(
     int BookingsThisMonth,
     int OccupancyPercent,
@@ -51,7 +53,8 @@ public sealed record DashboardSummary(
     string PricingStatus,
     IReadOnlyList<ManualSyncItem> ManualSyncItems,
     IReadOnlyList<ConflictItem> Conflicts,
-    IReadOnlyList<MultibancoPendingItem> MultibancoPending);
+    IReadOnlyList<MultibancoPendingItem> MultibancoPending,
+    int OpenRateSyncRejections = 0);
 
 /// <summary>Reads the owner dashboard and drives the manual Hostify-sync to-do (manual mode only).</summary>
 public interface IDashboardService

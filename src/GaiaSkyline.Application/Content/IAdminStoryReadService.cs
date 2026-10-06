@@ -11,7 +11,8 @@ public sealed record StoryListItemDto(
     int MissingLanguageCount,
     string? CoverThumbBlobUri);
 
-/// <summary>One language's editable fields for a story.</summary>
+/// <summary>One language's editable fields for a story. <paramref name="Slug"/> is the language's own slug
+/// (empty when the language has no translation yet and follows the canonical slug).</summary>
 public sealed record StoryTranslationEditDto(
     string LanguageCode,
     string Title,
@@ -19,7 +20,8 @@ public sealed record StoryTranslationEditDto(
     string BodyRichText,
     string? MetaTitle,
     string? MetaDescription,
-    int ReadingTimeMinutes);
+    int ReadingTimeMinutes,
+    string Slug = "");
 
 /// <summary>Full detail for editing a story: shared fields plus one entry per content language.</summary>
 public sealed record StoryEditDto(

@@ -22,12 +22,12 @@ public sealed class PageMetaForm
 }
 
 /// <summary>
-/// The /admin/seo page: redirect rules, per-page meta/robots overrides, a sitemap preview and the recent
-/// Core Web Vitals field data.
+/// The /admin/seo page: redirect rules, per-page meta/robots overrides, a sitemap preview and the
+/// Core Web Vitals field data per URL over the last 7 days.
 /// </summary>
 public sealed record SeoAdminViewModel(
     IReadOnlyList<RedirectDto> Redirects,
     IReadOnlyList<PageMetaOverrideDto> PageMeta,
     IReadOnlyList<SitemapEntry> Sitemap,
-    IReadOnlyList<WebVitalSummary> Vitals,
+    IReadOnlyList<WebVitalPageSummary> Vitals,
     IReadOnlyList<SeoWarning> Warnings);

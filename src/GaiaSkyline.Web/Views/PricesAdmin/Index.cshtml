@@ -88,7 +88,7 @@
     <!-- Rate-sync rejections -->
     @if (Model.Rejections.Count > 0)
     {
-        <section class="mt-5 rounded-md border border-amber-600/60 bg-white p-4" data-rejections>
+        <section id="rejections" class="mt-5 rounded-md border border-amber-600/60 bg-white p-4" data-rejections>
             <h2 class="text-sm font-semibold text-amber-600">Rate-sync rejections awaiting review (@Model.Rejections.Count)</h2>
             <p class="mt-1 text-xs text-ink/55">The provider offered these values outside your floor/ceiling bounds; the previous rates were kept.</p>
             <ul class="mt-2 divide-y divide-fog/60">

@@ -11,6 +11,14 @@
     string PathFor(string s) => $"/{s}{relSuffix}";
     string AbsFor(string s) => baseUrl + PathFor(s);
 
+    // Story slugs are per language (Stage 7 §4): when AlternatePaths is set, each culture's alternate
+    // points at that culture's own path; other pages share one path across languages.
+    string AbsForCulture(string cultureCode, string s)
+    {
+        var p = meta?.AlternatePaths is { } alt && alt.TryGetValue(cultureCode, out var langPath) ? langPath : relPath;
+        return string.IsNullOrEmpty(p) ? $"{baseUrl}/{s}" : $"{baseUrl}/{s}/{p}";
+    }
+
     var canonical = AbsFor(slug);
     var title = meta?.Title ?? "Gaia Skyline";
     var description = meta?.Description ?? "A two-bedroom apartment above the Douro in Vila Nova de Gaia.";
@@ -39,9 +47,9 @@
         <link rel="canonical" href="@canonical" />
         foreach (var c in EnabledLanguages.All)
         {
-            <link rel="alternate" hreflang="@c.Culture" href="@AbsFor(c.Slug)" />
+            <link rel="alternate" hreflang="@c.Culture" href="@AbsForCulture(c.Culture, c.Slug)" />
         }
-        <link rel="alternate" hreflang="x-default" href="@AbsFor(SupportedCultures.DefaultSlug)" />
+        <link rel="alternate" hreflang="x-default" href="@AbsForCulture(SupportedCultures.DefaultCulture, SupportedCultures.DefaultSlug)" />
     }
 
     <meta property="og:site_name" content="Gaia Skyline" />

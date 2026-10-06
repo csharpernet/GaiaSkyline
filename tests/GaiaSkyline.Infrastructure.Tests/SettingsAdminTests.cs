@@ -109,6 +109,14 @@ public sealed class SettingsAdminTests : IClassFixture<LocalDbFixture>
         (await context.ExternalCalendarSources.SingleAsync()).IcsUrlProtected
             .Should().NotContain("example.com", "the URL is stored encrypted");
 
+        // The read DTO is the ONLY shape the service returns — no property anywhere carries the full URL,
+        // so the admin can never render it unmasked (Stage 7 Tests list).
+        foreach (var property in source.GetType().GetProperties())
+        {
+            property.GetValue(source)?.ToString().Should().NotContain(
+                "feeds.example.com/cal-7731", $"{property.Name} must never expose the stored URL");
+        }
+
         (await service.SetCalendarEnabledAsync(source.Id, true, CancellationToken.None)).Ok.Should().BeTrue();
         (await service.GetCalendarSourcesAsync(CancellationToken.None)).Single().IsEnabled.Should().BeTrue();
     }

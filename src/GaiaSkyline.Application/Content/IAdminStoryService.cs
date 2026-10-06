@@ -1,13 +1,18 @@
 namespace GaiaSkyline.Application.Content;
 
-/// <summary>One language's content when creating/updating a story (body is sanitised server-side on save).</summary>
+/// <summary>
+/// One language's content when creating/updating a story (body is sanitised server-side on save).
+/// <paramref name="Slug"/> is the language's own URL slug (ignored for the default language, which uses the
+/// story slug); blank re-derives it from the language's title. Stage 7 §4.
+/// </summary>
 public sealed record StoryTranslationInput(
     string LanguageCode,
     string? Title,
     string? Excerpt,
     string? BodyRichText,
     string? MetaTitle,
-    string? MetaDescription);
+    string? MetaDescription,
+    string? Slug = null);
 
 /// <summary>Everything the owner submits when creating or updating a story.</summary>
 public sealed record StoryWriteModel(

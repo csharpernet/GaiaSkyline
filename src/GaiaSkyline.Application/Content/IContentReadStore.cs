@@ -34,7 +34,11 @@ public interface IContentReadStore
     /// <summary>Published stories, newest first, each with its translations loaded.</summary>
     Task<IReadOnlyList<Story>> GetPublishedStoriesAsync(CancellationToken cancellationToken);
 
-    Task<Story?> GetPublishedStoryBySlugAsync(string slug, CancellationToken cancellationToken);
+    /// <summary>
+    /// The published story whose canonical slug — or whose <paramref name="language"/> translation's slug —
+    /// is <paramref name="slug"/> (slugs are unique per language, Stage 7 §4).
+    /// </summary>
+    Task<Story?> GetPublishedStoryBySlugAsync(string slug, string language, CancellationToken cancellationToken);
 
     Task<Property?> GetPropertyAsync(CancellationToken cancellationToken);
 

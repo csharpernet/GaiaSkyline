@@ -21,7 +21,11 @@ internal sealed class StoryTranslationConfiguration : IEntityTypeConfiguration<S
         builder.Property(t => t.MetaTitle).HasMaxLength(200);
         builder.Property(t => t.MetaDescription).HasMaxLength(400);
         builder.Property(t => t.ReadingTimeMinutes).IsRequired();
+        builder.Property(t => t.Slug).HasMaxLength(200).IsRequired();
 
         builder.HasIndex(t => new { t.StoryId, t.LanguageCode }).IsUnique();
+        // Stage 7 §4: slugs are unique per language (translations without their own slug carry the
+        // canonical one, which is globally unique, so the pair stays unique).
+        builder.HasIndex(t => new { t.LanguageCode, t.Slug }).IsUnique();
     }
 }

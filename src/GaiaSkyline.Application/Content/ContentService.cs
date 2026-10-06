@@ -102,14 +102,15 @@ public sealed class ContentService : IContentService
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(slug);
 
-        var story = await _readStore.GetPublishedStoryBySlugAsync(slug.Trim().ToLowerInvariant(), cancellationToken);
+        var lang = Normalize(language);
+        var story = await _readStore.GetPublishedStoryBySlugAsync(slug.Trim().ToLowerInvariant(), lang, cancellationToken);
         if (story is null)
         {
             return null;
         }
 
         var media = await _readStore.GetMediaAssetsAsync([story.CoverMediaAssetId], cancellationToken);
-        return ToStoryDto(story, Normalize(language), media);
+        return ToStoryDto(story, lang, media);
     }
 
     public async Task<PropertyDto?> GetPropertyAsync(CancellationToken cancellationToken)
@@ -305,8 +306,13 @@ public sealed class ContentService : IContentService
 
         var cover = media.TryGetValue(story.CoverMediaAssetId, out var asset) ? ToDto(asset) : null;
 
+        // Slugs are per language (Stage 7 §4): links and meta use the requested language's slug, and the
+        // full map feeds hreflang alternates + the sitemap.
+        var slugByLanguage = ContentLanguages.All.ToDictionary(
+            l => l, l => story.SlugFor(l), StringComparer.OrdinalIgnoreCase);
+
         return new StoryDto(
-            story.Slug,
+            story.SlugFor(language),
             translation?.Title ?? MissingValue(story.Slug),
             translation?.Excerpt ?? string.Empty,
             translation?.BodyRichText ?? string.Empty,
@@ -316,7 +322,8 @@ public sealed class ContentService : IContentService
             story.PublishedAtUtc,
             translation?.ReadingTimeMinutes ?? 0,
             story.AuthorName,
-            translation?.LanguageCode ?? "none");
+            translation?.LanguageCode ?? "none",
+            slugByLanguage);
     }
 
     private static StoryTranslation? FindStoryTranslation(Story story, string language) =>

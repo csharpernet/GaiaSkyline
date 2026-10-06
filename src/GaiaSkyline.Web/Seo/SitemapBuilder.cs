@@ -42,10 +42,18 @@ public sealed class SitemapBuilder(IContentService content, IPageMetaResolver pa
             entries.Add(BuildEntry(baseUrl, path, noIndex));
         }
 
-        // Story detail pages have no per-page meta overrides, so every language is always included.
+        // Story detail pages have no per-page meta overrides, so every language is always included —
+        // each under its own per-language slug (Stage 7 §4).
         foreach (var story in stories)
         {
-            entries.Add(BuildEntry(baseUrl, $"stories/{story.Slug}", noIndex));
+            var languages = enabledLanguages.All
+                .Select(c => new SitemapEntryLanguage(
+                    c.Culture,
+                    c.Slug,
+                    AbsoluteUrl(baseUrl, c.Slug, $"stories/{story.SlugByLanguage.GetValueOrDefault(c.Culture, story.Slug)}"),
+                    Included: true))
+                .ToList();
+            entries.Add(new SitemapEntry($"stories/{story.Slug}", languages));
         }
 
         return entries;

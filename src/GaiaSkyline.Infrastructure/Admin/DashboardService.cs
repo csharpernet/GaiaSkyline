@@ -46,12 +46,14 @@ internal sealed class DashboardService(
         var manualSync = await GetOutstandingManualSyncAsync(cancellationToken);
         var conflicts = await ConflictsAsync(cancellationToken);
         var multibanco = await MultibancoPendingAsync(cancellationToken);
+        var openRejections = await dbContext.RateSyncRejections.AsNoTracking()
+            .CountAsync(r => r.Status == Domain.Pricing.RateSyncRejectionStatus.Open, cancellationToken);
 
         return new DashboardSummary(
             bookingsThisMonth, occupancyPercent, revenueMtd, nextCheckIn,
             displayMonth, BuildGrid(displayMonth, displayOccupancy),
             calManual, calStatus, priceManual, priceStatus,
-            manualSync, conflicts, multibanco);
+            manualSync, conflicts, multibanco, openRejections);
     }
 
     public async Task<IReadOnlyList<ManualSyncItem>> GetOutstandingManualSyncAsync(CancellationToken cancellationToken)

@@ -95,7 +95,7 @@ test.describe('Admin media manager', () => {
     expect((await page.request.get(`/media/${newSlug}-1600.jpg`)).ok()).toBeTruthy();
   });
 
-  test('gallery manager: set a new hero and save → it persists', async ({ page }) => {
+  test('gallery manager: reorder and set a new hero, save → both persist', async ({ page }) => {
     await loginAsOwner(page);
     await page.goto('/admin/media/gallery');
     await expect(page.getByRole('heading', { name: 'Home gallery' })).toBeVisible();
@@ -104,13 +104,17 @@ test.describe('Admin media manager', () => {
     const count = await items.count();
     expect(count).toBeGreaterThan(1);
 
-    // Make the second image the hero, save, and confirm it sticks after the reload.
+    // Move the second image to the front (the ◀ button is the keyboard-accessible reorder), make it the
+    // hero, save, and confirm both stick after the reload.
     const second = items.nth(1);
     const secondId = await second.getAttribute('data-asset-id');
-    await second.locator('input[data-hero]').check();
+    await second.getByRole('button', { name: 'Move earlier' }).click();
+    await expect(items.first()).toHaveAttribute('data-asset-id', secondId);
+    await items.first().locator('input[data-hero]').check();
     await page.locator('#gallery-save').click();
 
-    const heroRadio = page.locator('#gallery-items li[data-asset-id="' + secondId + '"] input[data-hero]');
-    await expect(heroRadio).toBeChecked({ timeout: 15000 });
+    await expect(page.locator('#gallery-items li[data-asset-id]').first())
+      .toHaveAttribute('data-asset-id', secondId, { timeout: 15000 });
+    await expect(page.locator('#gallery-items li[data-asset-id="' + secondId + '"] input[data-hero]')).toBeChecked();
   });
 });
