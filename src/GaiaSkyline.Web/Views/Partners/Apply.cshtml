@@ -1,0 +1,84 @@
+@model PartnerApplyViewModel
+@{
+    var c = Model.Content;
+    var slug = ViewContext.RouteData.Values["lang"];
+}
+<div class="max-w-2xl mx-auto px-6 py-12">
+    <nav class="text-sm text-ink/60">
+        <a href="/@slug/partners" class="text-river hover:underline">Partners</a>
+        <span class="mx-1">/</span>
+        <span>Apply</span>
+    </nav>
+    <h1 class="mt-2 font-display text-4xl font-semibold">@c.Text("partners.apply.title")</h1>
+
+    @if (Model.Submitted)
+    {
+        <div class="mt-8 rounded-md border border-river/40 bg-river/5 p-5 text-lg" role="status">
+            @c.Text("partners.apply.thanks")
+        </div>
+    }
+    else
+    {
+        <div class="prose mt-4 max-w-none text-ink/80">@Html.Raw(c.Text("partners.apply.intro"))</div>
+
+        @if (Model.Error is not null)
+        {
+            <p class="mt-4 rounded-md border border-clay/50 bg-clay/5 px-4 py-3 text-clay" role="alert">@Model.Error</p>
+        }
+
+        <form method="post" action="/@slug/partners/apply" class="mt-8 space-y-5">
+            @Html.AntiForgeryToken()
+
+            <div>
+                <label for="pa-name" class="block text-sm font-semibold">Name</label>
+                <input id="pa-name" name="Name" value="@Model.Form.Name" required maxlength="200" autocomplete="name"
+                       class="mt-1 w-full rounded-md border border-fog px-3 py-2" />
+            </div>
+            <div>
+                <label for="pa-email" class="block text-sm font-semibold">Email</label>
+                <input id="pa-email" name="Email" type="email" value="@Model.Form.Email" required maxlength="320" autocomplete="email"
+                       class="mt-1 w-full rounded-md border border-fog px-3 py-2" />
+            </div>
+            <div>
+                <label for="pa-social" class="block text-sm font-semibold">Social links</label>
+                <input id="pa-social" name="SocialLinks" value="@Model.Form.SocialLinks" maxlength="1000"
+                       placeholder="Instagram, YouTube, blog…"
+                       class="mt-1 w-full rounded-md border border-fog px-3 py-2" />
+            </div>
+            <div class="grid gap-5 sm:grid-cols-2">
+                <div>
+                    <label for="pa-audience" class="block text-sm font-semibold">Audience size</label>
+                    <input id="pa-audience" name="AudienceSize" type="number" min="0" value="@Model.Form.AudienceSize"
+                           class="mt-1 w-full rounded-md border border-fog px-3 py-2" />
+                </div>
+                <div>
+                    <label for="pa-niche" class="block text-sm font-semibold">Niche</label>
+                    <input id="pa-niche" name="Niche" value="@Model.Form.Niche" maxlength="200"
+                           placeholder="Travel, food, photography…"
+                           class="mt-1 w-full rounded-md border border-fog px-3 py-2" />
+                </div>
+            </div>
+            <div>
+                <label for="pa-message" class="block text-sm font-semibold">Message</label>
+                <textarea id="pa-message" name="Message" rows="4" maxlength="4000"
+                          class="mt-1 w-full rounded-md border border-fog px-3 py-2">@Model.Form.Message</textarea>
+            </div>
+
+            @* Honeypot: visually hidden and skipped by screen readers; bots fill it, humans never do. *@
+            <div class="hidden" aria-hidden="true">
+                <label for="pa-website">Website</label>
+                <input id="pa-website" name="Website" tabindex="-1" autocomplete="off" />
+            </div>
+
+            <label class="flex items-start gap-2 text-sm">
+                <input name="Consent" type="checkbox" value="true" class="mt-1" required />
+                <span>@c.Text("partners.apply.consent")</span>
+            </label>
+
+            <button type="submit"
+                    class="rounded-md bg-clay px-6 py-3 text-white font-semibold hover:bg-clay/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-clay">
+                Send application
+            </button>
+        </form>
+    }
+</div>

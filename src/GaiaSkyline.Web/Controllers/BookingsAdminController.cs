@@ -99,7 +99,7 @@ public sealed class BookingsAdminController(
                 checkIn, checkOut, form.Adults, form.Children, form.Infants,
                 form.GuestName, form.GuestEmail, form.GuestPhone, form.GuestCountry.ToUpperInvariant(),
                 form.GuestLanguage, form.PaymentMethod, amountReceived, form.SpecialRequests, form.Notes,
-                form.SendGuestConfirmation),
+                form.SendGuestConfirmation, form.PromoCode),
             cancellationToken);
 
         if (!result.Ok || result.BookingId is not { } bookingId)

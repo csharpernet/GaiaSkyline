@@ -1,24 +1,80 @@
-@model IReadOnlyList<GaiaSkyline.Application.Partners.PartnerApplicationDto>
+@using System.Globalization
+@model GaiaSkyline.Web.Controllers.PartnersAdminIndexViewModel
 @{
     Layout = "_AdminShell";
     ViewData["Title"] = "Partners";
-    var pending = Model.Count(a => a.Status == "Pending");
+    var pending = Model.Applications.Count(a => a.Status == "Pending");
+    static string Eur(decimal v) => "€" + v.ToString("0.00", CultureInfo.InvariantCulture);
 }
 
-<div class="max-w-4xl">
-    <h1 class="font-display text-2xl font-semibold">Partner applications</h1>
+<div class="max-w-5xl">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+        <h1 class="font-display text-2xl font-semibold">Partners</h1>
+        <nav class="flex gap-3 text-sm">
+            <a href="/admin/partners/ledger" class="text-river hover:underline">Commissions ledger</a>
+            <a href="/admin/partners/payouts" class="text-river hover:underline">Payouts</a>
+            <a href="/admin/partners/clicks" class="text-river hover:underline">Clicks report</a>
+        </nav>
+    </div>
+
+    <!-- ========== Onboarded partners (Stage 8 Part A) ========== -->
+    <section class="mt-5">
+        <h2 class="font-display text-sm font-semibold text-ink/80">Program partners (@Model.Partners.Count)</h2>
+        @if (Model.Partners.Count == 0)
+        {
+            <p class="mt-2 text-sm text-ink/55" data-no-partners>No partners yet — approve an application below to invite the first one.</p>
+        }
+        else
+        {
+            <div class="mt-2 overflow-x-auto rounded-md border border-fog bg-white">
+                <table class="w-full text-sm">
+                    <thead class="border-b border-fog text-left text-xs uppercase tracking-wide text-ink/50">
+                        <tr>
+                            <th class="px-3 py-2">Partner</th>
+                            <th class="px-3 py-2">Code</th>
+                            <th class="px-3 py-2">Status</th>
+                            <th class="px-3 py-2 text-right">%</th>
+                            <th class="px-3 py-2 text-right">Pending</th>
+                            <th class="px-3 py-2 text-right">Payable</th>
+                            <th class="px-3 py-2 text-right">Paid</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var partner in Model.Partners)
+                        {
+                            <tr class="border-b border-fog/60 last:border-0" data-partner-row="@partner.Email">
+                                <td class="px-3 py-2">
+                                    <a href="/admin/partners/@partner.Id" class="font-semibold text-river hover:underline">@partner.Name</a>
+                                    <span class="block text-xs text-ink/50">@partner.Email</span>
+                                </td>
+                                <td class="px-3 py-2 font-mono">@partner.PromoCode</td>
+                                <td class="px-3 py-2">@partner.Status</td>
+                                <td class="px-3 py-2 text-right">@partner.GuestDiscountPct% / @partner.CommissionPct%</td>
+                                <td class="px-3 py-2 text-right">@Eur(partner.PendingEur)</td>
+                                <td class="px-3 py-2 text-right">@Eur(partner.PayableEur)</td>
+                                <td class="px-3 py-2 text-right">@Eur(partner.PaidEur)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+
+    <!-- ========== Applications (Stage 7 §11) ========== -->
+    <h2 class="mt-8 font-display text-sm font-semibold text-ink/80">Applications</h2>
     <p class="mt-1 text-sm text-ink/70">
-        @pending pending of @Model.Count. The partner program itself (portal, promo attribution) ships in
-        Stage 8 — this queue just records your decision per application.
+        @pending pending of @Model.Applications.Count. Approving creates the partner, generates their promo
+        code and emails the 7-day onboarding invite.
     </p>
 
-    @if (Model.Count == 0)
+    @if (Model.Applications.Count == 0)
     {
         <p class="mt-8 text-sm text-ink/55" data-no-applications>No applications yet.</p>
     }
 
     <section class="mt-5 space-y-3">
-        @foreach (var application in Model)
+        @foreach (var application in Model.Applications)
         {
             <div class="rounded-md border @(application.Status == "Pending" ? "border-amber-600/50" : "border-fog") bg-white p-4"
                  data-application-row="@application.Email">

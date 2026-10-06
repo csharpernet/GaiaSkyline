@@ -19,4 +19,5 @@ public sealed record CreateBookingCommand(
     TimeOnly? ArrivalEstimateLocal = null,
     string? SpecialRequests = null,
     bool AccountCreationRequested = false,
-    decimal? TotalOverrideEur = null);
+    decimal? TotalOverrideEur = null,
+    string? ReferralCode = null);

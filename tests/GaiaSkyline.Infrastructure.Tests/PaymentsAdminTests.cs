@@ -48,7 +48,11 @@ public sealed class PaymentsAdminTests : IClassFixture<LocalDbFixture>, IDisposa
         var lifecycle = new BookingLifecycleService(context, availability, ics, TimeProvider.System);
         return new StripeWebhookHandler(
             context, Options.Create(new StripeOptions { WebhookSecret = "whsec_reprocess" }),
-            lifecycle, availability, ics, new NoNotifications(), TimeProvider.System);
+            lifecycle, availability, ics, new NoNotifications(),
+            new GaiaSkyline.Infrastructure.Partners.PartnerAttributionService(
+                context, TimeProvider.System,
+                Microsoft.Extensions.Logging.Abstractions.NullLogger<GaiaSkyline.Infrastructure.Partners.PartnerAttributionService>.Instance),
+            TimeProvider.System);
     }
 
     [Fact]

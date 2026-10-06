@@ -140,7 +140,11 @@ public sealed class BookingConcurrencyTests(LocalDbFixture fixture) : IClassFixt
         var availability = new AvailabilityService(context, _cache, _cacheState);
         var ics = new IcsCacheInvalidator();
         var creation = new BookingCreationService(
-            context, quotes, readStore, new BookingReferenceGenerator(), availability, ics, TimeProvider.System);
+            context, quotes, readStore, new BookingReferenceGenerator(), availability, ics,
+            new GaiaSkyline.Infrastructure.Partners.PartnerAttributionService(
+                context, TimeProvider.System,
+                Microsoft.Extensions.Logging.Abstractions.NullLogger<GaiaSkyline.Infrastructure.Partners.PartnerAttributionService>.Instance),
+            TimeProvider.System);
         var lifecycle = new BookingLifecycleService(context, availability, ics, TimeProvider.System);
         return (creation, availability, lifecycle);
     }

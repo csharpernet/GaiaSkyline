@@ -1,0 +1,26 @@
+@model PartnersLandingViewModel
+@{
+    var c = Model.Content;
+    var slug = ViewContext.RouteData.Values["lang"];
+}
+<div class="max-w-4xl mx-auto px-6 py-12">
+    <h1 class="font-display text-4xl sm:text-5xl font-semibold">@c.Text("partners.landing.headline")</h1>
+
+    <div class="prose mt-6 max-w-none text-lg text-ink/80">@Html.Raw(c.Text("partners.landing.intro"))</div>
+
+    <ol class="mt-10 grid gap-6 sm:grid-cols-3" role="list">
+        @foreach (var step in new[] { "partners.landing.how_1", "partners.landing.how_2", "partners.landing.how_3" })
+        {
+            <li class="rounded-lg border border-fog bg-white p-5">
+                <p class="text-ink/80">@c.Text(step)</p>
+            </li>
+        }
+    </ol>
+
+    <div class="mt-10">
+        <a href="/@slug/partners/apply"
+           class="inline-block rounded-md bg-clay px-6 py-3 text-white font-semibold hover:bg-clay/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-clay">
+            @c.Text("partners.landing.cta")
+        </a>
+    </div>
+</div>

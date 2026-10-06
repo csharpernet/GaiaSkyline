@@ -4,6 +4,7 @@ using GaiaSkyline.Application.Payments;
 using GaiaSkyline.Application.Pricing;
 using GaiaSkyline.Domain.Bookings;
 using GaiaSkyline.Domain.Identifiers;
+using GaiaSkyline.Domain.ValueObjects;
 using GaiaSkyline.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -23,6 +24,7 @@ internal sealed class AdminBookingService(
     IQuoteService quotes,
     IRefundService refunds,
     IEmailJobScheduler emails,
+    GaiaSkyline.Application.Partners.IPartnerAttributionService partnerAttribution,
     TimeProvider clock) : IAdminBookingService
 {
     public Task<BookingActionResult> CheckInAsync(Guid id, CancellationToken cancellationToken) =>
@@ -56,6 +58,15 @@ internal sealed class AdminBookingService(
         if (!string.IsNullOrEmpty(booking.StripePaymentIntentId))
         {
             await refunds.RefundAsync(booking.Id, partial ? amountEur : null, "owner_refund", cancellationToken);
+        }
+
+        // Keep the refunded total on the booking — it shrinks the partner-commission basis (ADR 0020).
+        var refunded = partial
+            ? new Money(amountEur ?? 0m, booking.Total.Currency)
+            : booking.Total - booking.RefundedAmount;
+        if (refunded.Amount > 0)
+        {
+            booking.RecordRefund(refunded);
         }
 
         if (partial)
@@ -104,6 +115,14 @@ internal sealed class AdminBookingService(
         catch (InvalidBookingStatusTransitionException)
         {
             return BookingActionResult.Fail("This booking can no longer be cancelled.");
+        }
+
+        if (refundAmountEur > 0)
+        {
+            // Bookkeeping on the now-cancelled booking (the commission is voided either way, ADR 0020).
+            var cancelled = await dbContext.Bookings.FirstAsync(b => b.Id == booking.Id, cancellationToken);
+            cancelled.RecordRefund(new Money(refundAmountEur, cancelled.Total.Currency));
+            await dbContext.SaveChangesAsync(cancellationToken);
         }
 
         // The guest learns their booking was cancelled; the property manager mirrors the freed dates.
@@ -180,6 +199,7 @@ internal sealed class AdminBookingService(
                     command.GuestPhone,
                     command.GuestCountry,
                     command.GuestLanguage,
+                    PromoCode: command.PromoCode,
                     SpecialRequests: command.SpecialRequests,
                     TotalOverrideEur: command.AmountReceivedEur),
                 cancellationToken);
@@ -210,6 +230,9 @@ internal sealed class AdminBookingService(
 
         await emails.EnqueueAsync(booking.Id.Value, BookingEmailKind.OwnerNotification, cancellationToken);
         await emails.EnqueueAsync(booking.Id.Value, BookingEmailKind.PropertyManager, cancellationToken);
+
+        // Stage 8 Part A: a phone guest citing a partner's code earns that partner the commission too.
+        await partnerAttribution.OnBookingConfirmedAsync(booking.Id.Value, cancellationToken);
         return new ManualBookingResult(true, null, booking.Id.Value);
     }
 

@@ -37,6 +37,7 @@ internal sealed class BookingConfiguration : IEntityTypeConfiguration<Booking>
         builder.Property(b => b.CleaningFee).IsRequired();
         builder.Property(b => b.TouristTax).IsRequired();
         builder.Property(b => b.Total).IsRequired();
+        builder.Property(b => b.RefundedAmount).IsRequired();
 
         builder.Property(b => b.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
 

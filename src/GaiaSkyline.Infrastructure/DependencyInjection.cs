@@ -103,6 +103,15 @@ public static class DependencyInjection
         services.AddScoped<GaiaSkyline.Application.Partners.IPartnerApplicationsAdminService, GaiaSkyline.Infrastructure.Partners.PartnerApplicationsAdminService>();
         services.AddScoped<IInvoiceService, QuestPdfInvoiceService>();
 
+        // Influencer program (Stage 8 Part A, ADRs 0019–0021).
+        services.AddScoped<GaiaSkyline.Application.Partners.IPartnerApplyService, GaiaSkyline.Infrastructure.Partners.PartnerApplyService>();
+        services.AddScoped<GaiaSkyline.Application.Partners.IPartnerOnboardingService, GaiaSkyline.Infrastructure.Partners.PartnerOnboardingService>();
+        services.AddScoped<GaiaSkyline.Application.Partners.IPartnerAttributionService, GaiaSkyline.Infrastructure.Partners.PartnerAttributionService>();
+        services.AddScoped<GaiaSkyline.Application.Partners.IPartnerCommissionService, GaiaSkyline.Infrastructure.Partners.PartnerCommissionService>();
+        services.AddScoped<GaiaSkyline.Application.Partners.IPartnerStatementPdfService, GaiaSkyline.Infrastructure.Partners.PartnerStatementPdfService>();
+        services.AddScoped<GaiaSkyline.Application.Partners.IPartnerDashboardService, GaiaSkyline.Infrastructure.Partners.PartnerDashboardService>();
+        services.AddScoped<GaiaSkyline.Application.Partners.IPartnersAdminService, GaiaSkyline.Infrastructure.Partners.PartnersAdminService>();
+
         // Admin dashboard + manual Hostify-sync to-do (Stage 7C) + calendar (Stage 7 §7).
         services.AddScoped<GaiaSkyline.Application.Admin.IDashboardService, GaiaSkyline.Infrastructure.Admin.DashboardService>();
         services.AddScoped<GaiaSkyline.Application.Admin.IManualSyncReminderService, GaiaSkyline.Infrastructure.Admin.ManualSyncReminderService>();

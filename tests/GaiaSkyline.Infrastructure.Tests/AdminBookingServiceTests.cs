@@ -320,12 +320,15 @@ public sealed class AdminBookingServiceTests(LocalDbFixture fixture) : IClassFix
         FakeEmails? emails = null)
     {
         var quotes = new FakeQuotes();
+        var attribution = new GaiaSkyline.Infrastructure.Partners.PartnerAttributionService(
+            ctx, TimeProvider.System,
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<GaiaSkyline.Infrastructure.Partners.PartnerAttributionService>.Instance);
         var creation = new BookingCreationService(
             ctx, quotes, new FakePricingReadStore(), new SequentialReferences(), new NoAvailability(),
-            new NoIcsCache(), TimeProvider.System);
+            new NoIcsCache(), attribution, TimeProvider.System);
         return new AdminBookingService(
             ctx, lifecycle ?? new FakeLifecycle(), creation, quotes, refunds ?? new FakeRefunds(),
-            emails ?? new FakeEmails(), TimeProvider.System);
+            emails ?? new FakeEmails(), attribution, TimeProvider.System);
     }
 
     private static AdminBookingReadService Read(AppDbContext ctx) => new(

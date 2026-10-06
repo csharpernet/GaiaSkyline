@@ -35,7 +35,8 @@ public sealed record ManualBookingCommand(
     decimal? AmountReceivedEur,
     string? SpecialRequests,
     string? Notes,
-    bool SendGuestConfirmation);
+    bool SendGuestConfirmation,
+    string? PromoCode = null);
 
 /// <summary>The payment methods a manual booking may record (lowercase, mirrors Stripe's "card"/"multibanco" style).</summary>
 public static class ManualPaymentMethods

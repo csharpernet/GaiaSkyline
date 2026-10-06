@@ -166,7 +166,11 @@ public sealed class StripeLifecycleTests(LocalDbFixture fixture) : IClassFixture
         var notifications = new RecordingNotifications();
         var options = Options.Create(new StripeOptions { WebhookSecret = WebhookSecret, UnpaidHoldMinutes = 30, MultibancoMinLeadDays = 10 });
         var handler = new StripeWebhookHandler(
-            context, options, lifecycle, availability, ics, notifications, TimeProvider.System);
+            context, options, lifecycle, availability, ics, notifications,
+            new GaiaSkyline.Infrastructure.Partners.PartnerAttributionService(
+                context, TimeProvider.System,
+                Microsoft.Extensions.Logging.Abstractions.NullLogger<GaiaSkyline.Infrastructure.Partners.PartnerAttributionService>.Instance),
+            TimeProvider.System);
         return (handler, notifications);
     }
 

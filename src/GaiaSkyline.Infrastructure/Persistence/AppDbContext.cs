@@ -91,6 +91,19 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
 
     public DbSet<Domain.Settings.SiteSetting> SiteSettings => Set<Domain.Settings.SiteSetting>();
 
+    // Stage 8 — influencer program.
+    public DbSet<Domain.Partners.Partner> Partners => Set<Domain.Partners.Partner>();
+
+    public DbSet<Domain.Partners.PartnerInvite> PartnerInvites => Set<Domain.Partners.PartnerInvite>();
+
+    public DbSet<Domain.Partners.PartnerClick> PartnerClicks => Set<Domain.Partners.PartnerClick>();
+
+    public DbSet<Domain.Partners.PartnerAttribution> PartnerAttributions => Set<Domain.Partners.PartnerAttribution>();
+
+    public DbSet<Domain.Partners.Commission> Commissions => Set<Domain.Partners.Commission>();
+
+    public DbSet<Domain.Partners.Payout> Payouts => Set<Domain.Partners.Payout>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -141,6 +154,13 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
 
         // Stage 7 §11.
         configurationBuilder.Properties<PartnerApplicationId>().HaveConversion<PartnerApplicationIdConverter>();
+
+        // Stage 8 — influencer program.
+        configurationBuilder.Properties<PartnerInviteId>().HaveConversion<PartnerInviteIdConverter>();
+        configurationBuilder.Properties<PartnerClickId>().HaveConversion<PartnerClickIdConverter>();
+        configurationBuilder.Properties<PartnerAttributionId>().HaveConversion<PartnerAttributionIdConverter>();
+        configurationBuilder.Properties<CommissionId>().HaveConversion<CommissionIdConverter>();
+        configurationBuilder.Properties<PayoutId>().HaveConversion<PayoutIdConverter>();
 
         // Money persists as integer minor units (cents); EUR is re-attached on read.
         configurationBuilder.Properties<Money>().HaveConversion<MoneyToCentsConverter>();

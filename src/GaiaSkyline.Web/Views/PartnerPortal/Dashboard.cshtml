@@ -1,0 +1,184 @@
+@using System.Globalization
+@model PartnerPortalViewModel
+@{
+    var p = Model.Partner;
+    var slug = ViewContext.RouteData.Values["lang"];
+    static string Eur(decimal v) => "€" + v.ToString("0.00", CultureInfo.InvariantCulture);
+}
+<div class="max-w-5xl mx-auto px-6 py-12">
+    <div class="flex flex-wrap items-end justify-between gap-4">
+        <div>
+            <h1 class="font-display text-4xl font-semibold">Partner dashboard</h1>
+            <p class="mt-2 text-ink/70">
+                Olá @p.Name — your code is <strong class="font-mono" data-partner-code>@p.PromoCode</strong>
+                (@p.GuestDiscountPct% off for guests, @p.CommissionPct% commission for you).
+                @if (p.Status != "Active")
+                {
+                    <span class="ml-2 rounded bg-clay/10 px-2 py-0.5 text-sm text-clay">@p.Status</span>
+                }
+            </p>
+        </div>
+        <a href="/@slug/partners/dashboard/media-kit.zip"
+           class="rounded-md border border-river px-4 py-2 text-sm font-semibold text-river hover:bg-stone">
+            Download media kit (ZIP)
+        </a>
+    </div>
+
+    @if (Model.Saved)
+    {
+        <p class="mt-4 rounded-md border border-river/40 bg-river/5 px-4 py-3" role="status">Payout details saved.</p>
+    }
+    @if (Model.Error is not null)
+    {
+        <p class="mt-4 rounded-md border border-clay/50 bg-clay/5 px-4 py-3 text-clay" role="alert">@Model.Error</p>
+    }
+
+    <!-- This month vs last -->
+    <section class="mt-8 grid gap-4 sm:grid-cols-2">
+        @foreach (var (label, stats) in new[] { ("This month", p.ThisMonth), ("Last month", p.LastMonth) })
+        {
+            <div class="rounded-lg border border-fog bg-white p-5">
+                <h2 class="text-sm font-semibold uppercase tracking-wide text-ink/50">@label</h2>
+                <dl class="mt-3 grid grid-cols-2 gap-3 text-sm">
+                    <div><dt class="text-ink/50">Clicks</dt><dd class="text-xl font-semibold">@stats.Clicks</dd></div>
+                    <div><dt class="text-ink/50">Bookings</dt><dd class="text-xl font-semibold">@stats.Bookings</dd></div>
+                    <div><dt class="text-ink/50">Booking value</dt><dd class="text-xl font-semibold">@Eur(stats.BookingValueEur)</dd></div>
+                    <div><dt class="text-ink/50">Commission</dt><dd class="text-xl font-semibold">@Eur(stats.CommissionEur)</dd></div>
+                </dl>
+            </div>
+        }
+    </section>
+
+    <!-- Link builder -->
+    <section class="mt-8 rounded-lg border border-fog bg-white p-5" data-link-builder data-code="@p.PromoCode">
+        <h2 class="font-display text-lg font-semibold">Link builder</h2>
+        <p class="mt-1 text-sm text-ink/60">Pick a page and language; share the link — your code rides along.</p>
+        <div class="mt-3 flex flex-wrap items-center gap-3">
+            <label class="text-sm">Page
+                <select data-link-page class="ml-1 rounded-md border border-fog px-2 py-1.5 text-sm">
+                    <option value="">Home</option>
+                    <option value="/gallery">Gallery</option>
+                    <option value="/book">Book</option>
+                    <option value="/stories">Stories</option>
+                    <option value="/partners">Partners</option>
+                </select>
+            </label>
+            <label class="text-sm">Language
+                <select data-link-lang class="ml-1 rounded-md border border-fog px-2 py-1.5 text-sm">
+                    <option value="en">EN</option>
+                    <option value="pt-pt">PT</option>
+                    <option value="es">ES</option>
+                    <option value="fr">FR</option>
+                    <option value="de">DE</option>
+                </select>
+            </label>
+            <input data-link-output readonly aria-label="Your referral link"
+                   class="min-w-64 flex-1 rounded-md border border-fog bg-stone/40 px-3 py-1.5 font-mono text-sm" />
+            <button type="button" data-link-copy
+                    class="rounded-md bg-river px-4 py-1.5 text-sm font-semibold text-white hover:bg-river/90">
+                Copy
+            </button>
+            <span data-link-copied class="hidden text-sm text-river" role="status">Copied!</span>
+        </div>
+    </section>
+
+    <!-- Bookings -->
+    <section class="mt-8">
+        <h2 class="font-display text-lg font-semibold">Your bookings (@p.Bookings.Count)</h2>
+        @if (p.Bookings.Count == 0)
+        {
+            <p class="mt-2 text-ink/60">No attributed bookings yet — share your link!</p>
+        }
+        else
+        {
+            <div class="mt-3 overflow-x-auto rounded-lg border border-fog bg-white">
+                <table class="w-full text-sm">
+                    <thead class="border-b border-fog text-left text-xs uppercase tracking-wide text-ink/50">
+                        <tr>
+                            <th class="px-4 py-2">Check-in</th>
+                            <th class="px-4 py-2">Guest</th>
+                            <th class="px-4 py-2">Nights</th>
+                            <th class="px-4 py-2 text-right">Value</th>
+                            <th class="px-4 py-2 text-right">Commission</th>
+                            <th class="px-4 py-2">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var b in p.Bookings)
+                        {
+                            <tr class="border-b border-fog/60 last:border-0">
+                                <td class="px-4 py-2">@b.CheckIn.ToString("d MMM yyyy", CultureInfo.InvariantCulture)</td>
+                                <td class="px-4 py-2">@b.GuestFirstName</td>
+                                <td class="px-4 py-2">@b.Nights</td>
+                                <td class="px-4 py-2 text-right">@Eur(b.ValueEur)</td>
+                                <td class="px-4 py-2 text-right">@Eur(b.CommissionEur)</td>
+                                <td class="px-4 py-2">@b.CommissionStatus</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+
+    <!-- Payouts -->
+    <section class="mt-8">
+        <h2 class="font-display text-lg font-semibold">Payouts</h2>
+        @if (p.Payouts.Count == 0)
+        {
+            <p class="mt-2 text-ink/60">Nothing paid out yet. Commissions become payable 30 days after check-out and are paid monthly (minimum €50; smaller balances carry over).</p>
+        }
+        else
+        {
+            <ul class="mt-3 space-y-2">
+                @foreach (var payout in p.Payouts)
+                {
+                    <li class="flex flex-wrap items-center justify-between gap-2 rounded-md border border-fog bg-white px-4 py-3 text-sm">
+                        <span><strong>@payout.PeriodLabel</strong> · @Eur(payout.AmountEur) · @payout.Status</span>
+                        <a class="font-semibold text-river hover:underline"
+                           href="/@slug/partners/dashboard/statement/@payout.PayoutId">PDF statement</a>
+                    </li>
+                }
+            </ul>
+        }
+    </section>
+
+    <!-- Profile -->
+    <section class="mt-8 rounded-lg border border-fog bg-white p-5">
+        <h2 class="font-display text-lg font-semibold">Payout details</h2>
+        <p class="mt-1 text-sm text-ink/60">Code and percentages are managed by the owner; your banking details are yours to edit.</p>
+        <form method="post" action="/@slug/partners/dashboard/payout-details" class="mt-4 grid gap-4 sm:grid-cols-2">
+            @Html.AntiForgeryToken()
+            <div>
+                <label for="pp-iban" class="block text-sm font-semibold">IBAN <span class="font-normal text-ink/50">(now @(p.PayoutIbanMasked ?? "—"))</span></label>
+                <input id="pp-iban" name="Iban" required maxlength="42" autocomplete="off"
+                       class="mt-1 w-full rounded-md border border-fog px-3 py-2 font-mono text-sm" />
+            </div>
+            <div>
+                <label for="pp-holder" class="block text-sm font-semibold">Account holder</label>
+                <input id="pp-holder" name="AccountHolder" value="@p.PayoutAccountHolder" required maxlength="200"
+                       class="mt-1 w-full rounded-md border border-fog px-3 py-2 text-sm" />
+            </div>
+            <div>
+                <label for="pp-tax" class="block text-sm font-semibold">NIF / tax ID</label>
+                <input id="pp-tax" name="TaxId" value="@p.PayoutTaxId" required maxlength="50"
+                       class="mt-1 w-full rounded-md border border-fog px-3 py-2 text-sm" />
+            </div>
+            <div>
+                <label for="pp-country" class="block text-sm font-semibold">Country (2 letters)</label>
+                <input id="pp-country" name="Country" value="@p.PayoutCountry" required maxlength="2" minlength="2"
+                       class="mt-1 w-full rounded-md border border-fog px-3 py-2 text-sm uppercase" />
+            </div>
+            <div class="sm:col-span-2">
+                <button type="submit"
+                        class="rounded-md bg-river px-5 py-2 text-sm font-semibold text-white hover:bg-river/90">
+                    Save payout details
+                </button>
+            </div>
+        </form>
+    </section>
+</div>
+
+@section Scripts {
+    <script src="~/js/partner-portal.js" defer></script>
+}

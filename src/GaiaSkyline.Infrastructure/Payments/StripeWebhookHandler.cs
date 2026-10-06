@@ -24,6 +24,7 @@ internal sealed class StripeWebhookHandler(
     IAvailabilityService availability,
     IIcsCacheInvalidator icsCache,
     IBookingNotificationService notifications,
+    GaiaSkyline.Application.Partners.IPartnerAttributionService partnerAttribution,
     TimeProvider clock) : IStripeWebhookHandler
 {
     // Stripe event-type strings (API contract; stable across SDK versions).
@@ -171,6 +172,10 @@ internal sealed class StripeWebhookHandler(
         await notifications.SendGuestConfirmationAsync(booking, cancellationToken);
         await notifications.SendOwnerNotificationAsync(booking, cancellationToken);
         await notifications.SendPropertyManagerNotificationAsync(booking, cancellationToken);
+
+        // Stage 8 Part A: an attributed booking earns its partner commission on confirmation (ADR 0020;
+        // the daily job self-heals if this ever misses).
+        await partnerAttribution.OnBookingConfirmedAsync(booking.Id.Value, cancellationToken);
     }
 
     private async Task OnPaymentProcessingAsync(PaymentIntent intent, CancellationToken cancellationToken)
@@ -232,6 +237,14 @@ internal sealed class StripeWebhookHandler(
         if (!BookingStatusTransitions.CanTransition(booking.Status, target))
         {
             return;
+        }
+
+        // Stripe reports the cumulative refunded amount; record only the delta (Stage 8 Part A — it
+        // shrinks the partner-commission basis, ADR 0020).
+        var refundedSoFar = new GaiaSkyline.Domain.ValueObjects.Money(charge.AmountRefunded / 100m, "EUR");
+        if (refundedSoFar.Amount > booking.RefundedAmount.Amount)
+        {
+            booking.RecordRefund(refundedSoFar - booking.RefundedAmount);
         }
 
         if (fullyRefunded)

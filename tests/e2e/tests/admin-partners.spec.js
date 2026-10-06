@@ -9,7 +9,9 @@ test.describe('Admin partner applications', () => {
   test('approve one application and reject the other with a note', async ({ page }) => {
     await loginAsOwner(page);
     await page.goto('/admin/partners');
-    await expect(page.getByRole('heading', { name: 'Partner applications' })).toBeVisible();
+    // Stage 8 renamed the page: "Partners" with the roster on top and "Applications" below.
+    await expect(page.getByRole('heading', { name: 'Partners', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Applications' })).toBeVisible();
 
     const approveRow = page.locator('[data-application-row="approve@partner.e2e"]');
     await expect(approveRow).toContainText('Pending');

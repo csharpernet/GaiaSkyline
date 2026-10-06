@@ -46,7 +46,10 @@ public sealed class BookingCheckoutController(
             request.PromoCode,
             arrival,
             request.SpecialRequests,
-            request.CreateAccount);
+            request.CreateAccount,
+            // Stage 8 Part A: the 30-day referral cookie attributes the booking when no partner code is
+            // typed (ADR 0019).
+            ReferralCode: Request.Cookies[GaiaSkyline.Web.Middleware.PartnerRefMiddleware.RefCookieName]);
 
         try
         {

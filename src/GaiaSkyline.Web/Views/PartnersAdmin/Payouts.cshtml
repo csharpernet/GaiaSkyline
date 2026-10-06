@@ -1,0 +1,70 @@
+@using System.Globalization
+@model IReadOnlyList<GaiaSkyline.Application.Partners.PayoutAdminRowDto>
+@{
+    Layout = "_AdminShell";
+    ViewData["Title"] = "Payouts";
+    static string Eur(decimal v) => "€" + v.ToString("0.00", CultureInfo.InvariantCulture);
+}
+
+<div class="max-w-4xl">
+    <nav class="text-sm text-ink/60 mb-2">
+        <a href="/admin/partners" class="text-river hover:underline">Partners</a>
+        <span class="mx-1">/</span>
+        <span>Payouts</span>
+    </nav>
+    <div class="flex flex-wrap items-center justify-between gap-3">
+        <h1 class="font-display text-2xl font-semibold">Payouts</h1>
+        <form method="post" action="/admin/partners/payouts/run"
+              data-confirm="Run the payout round now? Payable commissions above the minimum are grouped, statements emailed.">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="bg-river text-white rounded-md px-4 py-2 text-sm">Generate payouts now</button>
+        </form>
+    </div>
+    <p class="mt-1 text-sm text-ink/70">
+        The monthly job runs on the 5th. Transfer each amount to the partner's IBAN, then mark it settled (ADR 0021).
+    </p>
+
+    @if (Model.Count == 0)
+    {
+        <p class="mt-8 text-sm text-ink/55" data-no-payouts>No payouts yet.</p>
+    }
+    else
+    {
+        <div class="mt-5 overflow-x-auto rounded-md border border-fog bg-white">
+            <table class="w-full text-sm">
+                <thead class="border-b border-fog text-left text-xs uppercase tracking-wide text-ink/50">
+                    <tr>
+                        <th class="px-3 py-2">Period</th><th class="px-3 py-2">Partner</th>
+                        <th class="px-3 py-2 text-right">Amount</th><th class="px-3 py-2">Status</th>
+                        <th class="px-3 py-2">Created</th><th class="px-3 py-2"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var p in Model)
+                    {
+                        <tr class="border-b border-fog/60 last:border-0" data-payout-row="@p.Id">
+                            <td class="px-3 py-2 font-mono">@p.PeriodLabel</td>
+                            <td class="px-3 py-2"><a class="text-river hover:underline" href="/admin/partners/@p.PartnerId">@p.PartnerName</a></td>
+                            <td class="px-3 py-2 text-right">@Eur(p.AmountEur)</td>
+                            <td class="px-3 py-2">@p.Status@(p.SettledAtUtc is { } s ? $" {s:yyyy-MM-dd}" : "")</td>
+                            <td class="px-3 py-2">@p.CreatedAtUtc.ToString("yyyy-MM-dd")</td>
+                            <td class="px-3 py-2">
+                                <div class="flex items-center gap-2">
+                                    <a class="text-river hover:underline" href="/admin/partners/payouts/@p.Id/statement.pdf">Statement</a>
+                                    @if (p.Status == "Created")
+                                    {
+                                        <form method="post" action="/admin/partners/payouts/@p.Id/settle"
+                                              data-confirm="Mark this payout settled? Confirm the bank transfer went out.">
+                                            @Html.AntiForgeryToken()
+                                            <button type="submit" class="text-sm text-river hover:underline">Mark settled</button>
+                                        </form>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

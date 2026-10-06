@@ -924,5 +924,36 @@ public sealed class ContentSeeder(AppDbContext dbContext, IContentRevision revis
             Text: "The private hot tub is ready year-round — set the temperature between 27 °C and 33 °C."),
         new("checkin", "checkin.contact", ContentKind.RichText, "Check-in: contact",
             Text: "Questions during your stay? Message the host any time; we usually reply within the hour."),
+
+        // ----- partners (Stage 8 Part A — the influencer program's public pages) -----
+        new("partners", "partners.landing.headline", ContentKind.PlainText, "Partners: landing headline",
+            Text: "Bring guests to Gaia Skyline and earn a share of every booking you drive"),
+        new("partners", "partners.landing.intro", ContentKind.RichText, "Partners: landing intro",
+            Text: "<p>Do your followers dream of waking up above the Douro? Share your personal code or link and "
+                + "earn a commission on every confirmed stay you send our way — while your audience gets a discount "
+                + "for booking direct.</p>"),
+        new("partners", "partners.landing.how_1", ContentKind.PlainText, "Partners: how it works 1",
+            Text: "Apply in two minutes — tell us about your audience."),
+        new("partners", "partners.landing.how_2", ContentKind.PlainText, "Partners: how it works 2",
+            Text: "Get your personal code and link; your audience books direct with a discount."),
+        new("partners", "partners.landing.how_3", ContentKind.PlainText, "Partners: how it works 3",
+            Text: "Earn a commission on every confirmed stay, paid out monthly with a statement."),
+        new("partners", "partners.landing.cta", ContentKind.PlainText, "Partners: landing CTA",
+            Text: "Apply to the program"),
+        new("partners", "partners.apply.title", ContentKind.PlainText, "Partners: apply title",
+            Text: "Apply to the partner program"),
+        new("partners", "partners.apply.intro", ContentKind.RichText, "Partners: apply intro",
+            Text: "<p>Tell us who you are and who follows you. We read every application and reply by email "
+                + "within a few days.</p>"),
+        new("partners", "partners.apply.consent", ContentKind.PlainText, "Partners: apply consent",
+            Text: "I agree that Gaia Skyline stores this application and contacts me about the partner program."),
+        new("partners", "partners.apply.thanks", ContentKind.PlainText, "Partners: apply thank-you",
+            Text: "Thank you — your application is in. We will be in touch by email."),
+        new("partners", "partners.terms", ContentKind.RichText, "Partners: program terms",
+            Text: "<p>Partners promote Gaia Skyline honestly, label advertising where the law requires it and "
+                + "never bid on the Gaia Skyline brand in paid search. Commissions accrue on confirmed stays they "
+                + "referred, become payable 30 days after check-out, and are paid monthly to the IBAN on file once "
+                + "they reach the minimum payout. Self-bookings earn no commission. Either side can end the "
+                + "partnership at any time; earned commissions are honoured.</p>"),
     ];
 }

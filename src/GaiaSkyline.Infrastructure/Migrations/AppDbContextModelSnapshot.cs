@@ -335,6 +335,9 @@ namespace GaiaSkyline.Infrastructure.Migrations
                         .HasMaxLength(16)
                         .HasColumnType("nvarchar(16)");
 
+                    b.Property<long>("RefundedAmount")
+                        .HasColumnType("bigint");
+
                     b.Property<string>("SpecialRequests")
                         .HasMaxLength(2000)
                         .HasColumnType("nvarchar(2000)");
@@ -902,6 +905,128 @@ namespace GaiaSkyline.Infrastructure.Migrations
                     b.ToTable("MediaCollectionItems", (string)null);
                 });
 
+            modelBuilder.Entity("GaiaSkyline.Domain.Partners.Commission", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<long>("Amount")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("BasisAmount")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("BookingId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("PartnerId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("PayoutId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Pct")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BookingId")
+                        .IsUnique();
+
+                    b.HasIndex("PayoutId");
+
+                    b.HasIndex("PartnerId", "Status");
+
+                    b.ToTable("Commissions", (string)null);
+                });
+
+            modelBuilder.Entity("GaiaSkyline.Domain.Partners.Partner", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("ActivatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("ApplicationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("CommissionPct")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(320)
+                        .HasColumnType("nvarchar(320)");
+
+                    b.Property<int>("GuestDiscountPct")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("PayoutAccountHolder")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("PayoutCountry")
+                        .HasMaxLength(2)
+                        .HasColumnType("nvarchar(2)");
+
+                    b.Property<string>("PayoutIban")
+                        .HasMaxLength(34)
+                        .HasColumnType("nvarchar(34)");
+
+                    b.Property<string>("PayoutTaxId")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<Guid?>("PromoCodeId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime?>("TermsAcceptedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("TermsVersion")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ApplicationId")
+                        .IsUnique();
+
+                    b.HasIndex("Email")
+                        .IsUnique();
+
+                    b.HasIndex("UserId")
+                        .IsUnique()
+                        .HasFilter("[UserId] IS NOT NULL");
+
+                    b.ToTable("Partners", (string)null);
+                });
+
             modelBuilder.Entity("GaiaSkyline.Domain.Partners.PartnerApplication", b =>
                 {
                     b.Property<Guid>("Id")
@@ -952,6 +1077,123 @@ namespace GaiaSkyline.Infrastructure.Migrations
                     b.HasIndex("Status", "SubmittedAtUtc");
 
                     b.ToTable("PartnerApplications", (string)null);
+                });
+
+            modelBuilder.Entity("GaiaSkyline.Domain.Partners.PartnerAttribution", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("BookingId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("PartnerId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("PromoCodeId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BookingId")
+                        .IsUnique();
+
+                    b.HasIndex("PartnerId");
+
+                    b.ToTable("PartnerAttributions", (string)null);
+                });
+
+            modelBuilder.Entity("GaiaSkyline.Domain.Partners.PartnerClick", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("AnonymousId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("LandingPath")
+                        .IsRequired()
+                        .HasMaxLength(400)
+                        .HasColumnType("nvarchar(400)");
+
+                    b.Property<Guid>("PartnerId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("UtcAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PartnerId", "UtcAt");
+
+                    b.ToTable("PartnerClicks", (string)null);
+                });
+
+            modelBuilder.Entity("GaiaSkyline.Domain.Partners.PartnerInvite", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("ConsumedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("ExpiresAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("PartnerId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PartnerId");
+
+                    b.ToTable("PartnerInvites", (string)null);
+                });
+
+            modelBuilder.Entity("GaiaSkyline.Domain.Partners.Payout", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<long>("Amount")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("PartnerId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("PeriodLabel")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<DateTime?>("SettledAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PartnerId", "PeriodLabel")
+                        .IsUnique();
+
+                    b.ToTable("Payouts", (string)null);
                 });
 
             modelBuilder.Entity("GaiaSkyline.Domain.Payments.StripeEventLog", b =>

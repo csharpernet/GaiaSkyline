@@ -270,6 +270,14 @@ builder.Services.AddRateLimiter(options =>
             PermitLimit = authPermitLimit,
             Window = TimeSpan.FromMinutes(15),
         }));
+    // The public partner application form (Stage 8 Part A): a handful per IP is plenty.
+    options.AddPolicy("apply", httpContext => System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
+        partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        factory: _ => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
+        {
+            PermitLimit = authPermitLimit,
+            Window = TimeSpan.FromMinutes(15),
+        }));
 });
 builder.Services.AddValidatorsFromAssemblyContaining<GaiaSkyline.Web.Api.CheckoutRequest>();
 // Antiforgery token sent as a header by the checkout fetch() (JSON POST, not a form post).
@@ -424,6 +432,10 @@ app.Use(async (context, next) =>
 // Owner-configured redirect rules (Stage 7 §5), matched on the canonical (no trailing slash) path before routing.
 app.UseMiddleware<RedirectMiddleware>();
 
+// Referral links (Stage 8 Part A, ADR 0019): ?ref=CODE sets the gs_ref cookie, records the click and
+// 301s to the same URL without the parameter — it never reaches routing or the output cache.
+app.UseMiddleware<GaiaSkyline.Web.Middleware.PartnerRefMiddleware>();
+
 app.UseRouting();
 app.UseRequestLocalization();
 app.UseOutputCache();
@@ -483,6 +495,21 @@ if (GaiaSkyline.BackgroundJobs.DependencyInjection.IsEnabled(builder.Configurati
         "manual-sync-reminder",
         service => service.SendDueRemindersAsync(CancellationToken.None),
         "0 9 * * *",
+        new Hangfire.RecurringJobOptions { TimeZone = TimeZoneInfo.FindSystemTimeZoneById("Europe/Lisbon") });
+
+    // Partner commissions: the daily lifecycle pass (self-heal, 30-day payable window, void/recalculate on
+    // refunds) and the monthly payout run on the 5th (Stage 8 Part A, ADRs 0020/0021).
+    Hangfire.RecurringJobManagerExtensions.AddOrUpdate<GaiaSkyline.Application.Partners.IPartnerCommissionService>(
+        recurringJobs,
+        "partner-commissions",
+        service => service.RunDailyAsync(CancellationToken.None),
+        "30 2 * * *",
+        new Hangfire.RecurringJobOptions { TimeZone = TimeZoneInfo.FindSystemTimeZoneById("Europe/Lisbon") });
+    Hangfire.RecurringJobManagerExtensions.AddOrUpdate<GaiaSkyline.Application.Partners.IPartnerCommissionService>(
+        recurringJobs,
+        "partner-payouts",
+        service => service.RunPayoutsAsync(CancellationToken.None),
+        "0 6 5 * *",
         new Hangfire.RecurringJobOptions { TimeZone = TimeZoneInfo.FindSystemTimeZoneById("Europe/Lisbon") });
 }
 

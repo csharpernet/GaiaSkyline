@@ -56,6 +56,16 @@ public sealed class PromoCode : Entity<PromoCodeId>
         ValidUntil = validUntil;
     }
 
+    /// <summary>
+    /// Changes the code itself — Stage 8 Part A: a partner's code is owner-editable. Uniqueness across
+    /// codes is the caller's responsibility.
+    /// </summary>
+    public void Rename(string code)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(code);
+        Code = code.Trim().ToUpperInvariant();
+    }
+
     /// <summary>The code as entered by guests, stored upper-cased for case-insensitive matching.</summary>
     public string Code { get; private set; } = null!;
 

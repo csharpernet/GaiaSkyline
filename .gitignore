@@ -69,3 +69,7 @@ src/GaiaSkyline.Web/wwwroot/media/
 appsettings.*.local.json
 .DS_Store
 Thumbs.db
+
+# Local Lighthouse artifacts (CI uploads its own)
+.lighthouseci/
+lighthouse-report/

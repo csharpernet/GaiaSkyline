@@ -24,6 +24,7 @@ internal sealed class BookingCreationService(
     IBookingReferenceGenerator referenceGenerator,
     IAvailabilityService availabilityService,
     IIcsCacheInvalidator icsCacheInvalidator,
+    GaiaSkyline.Application.Partners.IPartnerAttributionService partnerAttribution,
     TimeProvider clock) : IBookingCreationService
 {
     private const int SqlUniqueViolation = 2627;
@@ -97,6 +98,20 @@ internal sealed class BookingCreationService(
 
         availabilityService.Invalidate();
         icsCacheInvalidator.Invalidate();
+
+        // Stage 8 Part A: record who referred this booking (code typed at checkout wins over the gs_ref
+        // cookie, ADR 0019). Attribution must never fail a booking — it is best-effort bookkeeping.
+        try
+        {
+            await partnerAttribution.AttributeBookingAsync(
+                booking.Id.Value, command.PromoCode, command.ReferralCode, cancellationToken);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // Swallowed by design; the daily lifecycle job cannot recreate a missing attribution, but a
+            // booking must never be lost to referral bookkeeping.
+        }
+
         return booking;
     }
 

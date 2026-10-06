@@ -131,6 +131,34 @@ public sealed class SettingsAdminController(
         return await FinishAsync(true, null, "settings.notifications.update", "Notification recipients saved.", cancellationToken);
     }
 
+    /// <summary>Global defaults for NEW partners + the payout minimum (Stage 8 Part A, ADR 0021).</summary>
+    [HttpPost("partners")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SavePartnerDefaults(
+        int defaultDiscountPct, int defaultCommissionPct, string? minPayoutEur, CancellationToken cancellationToken)
+    {
+        if (defaultDiscountPct is < 0 or > 100 || defaultCommissionPct is < 0 or > 100)
+        {
+            return await FinishAsync(
+                false, "Percentages must be between 0 and 100.", "settings.partners.update", string.Empty, cancellationToken);
+        }
+
+        if (!string.IsNullOrWhiteSpace(minPayoutEur)
+            && (!decimal.TryParse(minPayoutEur, System.Globalization.NumberStyles.Number,
+                    System.Globalization.CultureInfo.InvariantCulture, out var minimum) || minimum < 0))
+        {
+            return await FinishAsync(
+                false, "The minimum payout must be a non-negative amount.", "settings.partners.update", string.Empty, cancellationToken);
+        }
+
+        await writer.SetAsync(SettingKeys.PartnerDefaultDiscountPct,
+            defaultDiscountPct.ToString(System.Globalization.CultureInfo.InvariantCulture), isSecret: false, cancellationToken);
+        await writer.SetAsync(SettingKeys.PartnerDefaultCommissionPct,
+            defaultCommissionPct.ToString(System.Globalization.CultureInfo.InvariantCulture), isSecret: false, cancellationToken);
+        await writer.SetAsync(SettingKeys.PartnerMinPayoutEur, minPayoutEur, isSecret: false, cancellationToken);
+        return await FinishAsync(true, null, "settings.partners.update", "Partner defaults saved.", cancellationToken);
+    }
+
     [HttpPost("notifications/test")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> SendTestEmail(

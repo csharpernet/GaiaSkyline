@@ -83,6 +83,59 @@ public sealed class PartnerController(
         });
     }
 
+    /// <summary>Stage 8 Part A: clicks/bookings/value/commission for a period, default the current month.</summary>
+    [HttpGet("stats")]
+    [Authorize(AuthenticationSchemes = AuthSchemes.PartnerJwt, Roles = UserRoles.Partner)]
+    public async Task<IActionResult> Stats(
+        [FromQuery] string? period,
+        [FromServices] GaiaSkyline.Application.Partners.IPartnerDashboardService dashboard,
+        CancellationToken cancellationToken)
+    {
+        // period = yyyy-MM (e.g. 2026-10); anything else falls back to the current UTC month.
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var from = new DateOnly(today.Year, today.Month, 1);
+        if (period is not null
+            && DateOnly.TryParseExact($"{period}-01", "yyyy-MM-dd", out var parsed))
+        {
+            from = parsed;
+        }
+
+        var stats = await dashboard.GetStatsAsync(RequireUserId(), from, from.AddMonths(1), cancellationToken);
+        return stats is null ? NotFound() : Ok(new
+        {
+            period = $"{from:yyyy-MM}",
+            clicks = stats.Clicks,
+            bookings = stats.Bookings,
+            bookingValueEur = stats.BookingValueEur,
+            commissionEur = stats.CommissionEur,
+        });
+    }
+
+    [HttpGet("bookings")]
+    [Authorize(AuthenticationSchemes = AuthSchemes.PartnerJwt, Roles = UserRoles.Partner)]
+    public async Task<IActionResult> Bookings(
+        [FromQuery] DateOnly? from,
+        [FromQuery] DateOnly? to,
+        [FromServices] GaiaSkyline.Application.Partners.IPartnerDashboardService dashboard,
+        CancellationToken cancellationToken)
+    {
+        var rows = await dashboard.GetBookingsAsync(RequireUserId(), from, to, cancellationToken);
+        return rows is null ? NotFound() : Ok(rows);
+    }
+
+    [HttpGet("payouts")]
+    [Authorize(AuthenticationSchemes = AuthSchemes.PartnerJwt, Roles = UserRoles.Partner)]
+    public async Task<IActionResult> Payouts(
+        [FromServices] GaiaSkyline.Application.Partners.IPartnerDashboardService dashboard,
+        CancellationToken cancellationToken)
+    {
+        var rows = await dashboard.GetPayoutsAsync(RequireUserId(), cancellationToken);
+        return rows is null ? NotFound() : Ok(rows);
+    }
+
+    private Guid RequireUserId() =>
+        Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : Guid.Empty;
+
     private static object TokenResponse(string access, DateTime accessExpires, RefreshRotation refresh) => new
     {
         accessToken = access,

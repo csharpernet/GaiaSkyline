@@ -13,6 +13,11 @@ public static class SettingKeys
     public const string PropertyManagerEmails = "notifications.pm-emails"; // semicolon-separated
     public const string OwnerEmail = "notifications.owner-email";
     public const string EnabledLanguages = "languages.enabled"; // comma-separated slugs
+
+    // Stage 8 Part A — defaults for new partners and the payout run (ADR 0021).
+    public const string PartnerDefaultDiscountPct = "partners.default-discount-pct"; // default 5
+    public const string PartnerDefaultCommissionPct = "partners.default-commission-pct"; // default 10
+    public const string PartnerMinPayoutEur = "partners.min-payout-eur"; // default 50
 }
 
 /// <summary>

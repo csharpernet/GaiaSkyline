@@ -68,6 +68,10 @@ public sealed class ManualBookingForm
     public string? Notes { get; set; }
 
     public bool SendGuestConfirmation { get; set; } = true;
+
+    /// <summary>A promo/partner code the guest cited on the phone — attributes the booking (Stage 8 Part A).</summary>
+    [StringLength(20)]
+    public string? PromoCode { get; set; }
 }
 
 /// <summary>The manual-booking page: the form plus, after "Preview price", the quoted breakdown.</summary>

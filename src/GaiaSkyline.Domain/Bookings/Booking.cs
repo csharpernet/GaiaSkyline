@@ -78,6 +78,7 @@ public sealed class Booking : Entity<BookingId>
         CleaningFee = cleaningFee;
         TouristTax = touristTax;
         Total = total;
+        RefundedAmount = Money.Zero(total.Currency);
         Status = BookingStatus.AwaitingPayment;
         PromoCodeId = promoCodeId;
         AccountCreationRequested = accountCreationRequested;
@@ -127,6 +128,12 @@ public sealed class Booking : Entity<BookingId>
     public Money TouristTax { get; private set; }
 
     public Money Total { get; private set; }
+
+    /// <summary>
+    /// The sum refunded to the guest so far (Stage 8 Part A — it feeds the partner-commission basis,
+    /// ADR 0020). Recorded by the admin refund/cancel flows and the Stripe charge.refunded webhook.
+    /// </summary>
+    public Money RefundedAmount { get; private set; }
 
     public BookingStatus Status { get; private set; }
 
@@ -217,6 +224,21 @@ public sealed class Booking : Entity<BookingId>
 
     /// <summary>Marks the booking partially refunded (→ PartiallyRefunded).</summary>
     public void MarkPartiallyRefunded() => Transition(BookingStatus.PartiallyRefunded);
+
+    /// <summary>
+    /// Accumulates a refund the guest received, capped at the total (Stage 8 Part A — shrinks the
+    /// partner-commission basis, ADR 0020). Status transitions stay with the Mark* methods.
+    /// </summary>
+    public void RecordRefund(Money amount)
+    {
+        if (amount.Amount <= 0)
+        {
+            throw new ArgumentException("A refund must be a positive amount.", nameof(amount));
+        }
+
+        var accumulated = RefundedAmount + amount;
+        RefundedAmount = accumulated.Amount > Total.Amount ? Total : accumulated;
+    }
 
     /// <summary>Marks the guest as arrived (→ CheckedIn).</summary>
     public void CheckInGuest() => Transition(BookingStatus.CheckedIn);

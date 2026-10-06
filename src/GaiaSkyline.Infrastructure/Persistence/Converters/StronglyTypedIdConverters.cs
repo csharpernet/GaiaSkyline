@@ -243,3 +243,45 @@ internal sealed class PartnerApplicationIdConverter : ValueConverter<PartnerAppl
     {
     }
 }
+
+// Stage 8 (influencer program).
+
+internal sealed class PartnerInviteIdConverter : ValueConverter<PartnerInviteId, Guid>
+{
+    public PartnerInviteIdConverter()
+        : base(id => id.Value, value => PartnerInviteId.From(value))
+    {
+    }
+}
+
+internal sealed class PartnerClickIdConverter : ValueConverter<PartnerClickId, Guid>
+{
+    public PartnerClickIdConverter()
+        : base(id => id.Value, value => PartnerClickId.From(value))
+    {
+    }
+}
+
+internal sealed class PartnerAttributionIdConverter : ValueConverter<PartnerAttributionId, Guid>
+{
+    public PartnerAttributionIdConverter()
+        : base(id => id.Value, value => PartnerAttributionId.From(value))
+    {
+    }
+}
+
+internal sealed class CommissionIdConverter : ValueConverter<CommissionId, Guid>
+{
+    public CommissionIdConverter()
+        : base(id => id.Value, value => CommissionId.From(value))
+    {
+    }
+}
+
+internal sealed class PayoutIdConverter : ValueConverter<PayoutId, Guid>
+{
+    public PayoutIdConverter()
+        : base(id => id.Value, value => PayoutId.From(value))
+    {
+    }
+}
