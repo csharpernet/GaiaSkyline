@@ -1,4 +1,5 @@
 @using System.Globalization
+@using System.Linq
 @using GaiaSkyline.Application.Admin
 @model DashboardSummary
 @{
@@ -47,7 +48,10 @@
         </div>
     </div>
 
-    <div class="mt-4 grid gap-4 sm:grid-cols-2">
+    @{
+        var overdueSync = Model.ManualSyncItems.Count(i => i.Overdue);
+    }
+    <div class="mt-4 grid gap-4 sm:grid-cols-3">
         <div class="bg-white border @(Model.CalendarManualMode ? "border-[#C98A3A]" : "border-fog") rounded-md p-4">
             <p class="text-xs uppercase tracking-wide text-ink/50">Calendar</p>
             <p class="mt-1 text-sm">@Model.CalendarStatus</p>
@@ -55,6 +59,13 @@
         <div class="bg-white border @(Model.PricingManualMode ? "border-[#C98A3A]" : "border-fog") rounded-md p-4">
             <p class="text-xs uppercase tracking-wide text-ink/50">Pricing</p>
             <p class="mt-1 text-sm">@Model.PricingStatus</p>
+        </div>
+        @* Local monitoring surrogate for the "manual-sync overdue > 24h" alert (Part D): red when any
+           Hostify mirror is more than a day late. *@
+        <div class="bg-white border @(overdueSync > 0 ? "border-clay" : "border-fog") rounded-md p-4">
+            <p class="text-xs uppercase tracking-wide text-ink/50">Manual sync overdue</p>
+            <p class="mt-1 text-2xl font-display font-semibold @(overdueSync > 0 ? "text-clay" : "text-ink/30")">@overdueSync</p>
+            <p class="text-xs text-ink/60">awaiting Hostify &gt; 24h</p>
         </div>
     </div>
 

@@ -12,6 +12,9 @@ param operatorObjectId string
 param sqlEntraAdminLogin string
 param sqlEntraAdminObjectId string
 
+@description('Operator email for monitoring alert notifications (Part D). Placeholder until provided.')
+param operatorEmail string = ''
+
 var isProd = environment == 'prod'
 var suffix = 'gaiaskyline-${environment}'
 // Storage account names: 3-24 lowercase alphanumerics.
@@ -41,7 +44,7 @@ resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
   }
 }
 
-// ---------- Storage (media, invoices, calendar, exports, data-protection keys) ----------
+// ---------- Storage (media, guest documents, calendar, exports, data-protection keys) ----------
 
 resource storage 'Microsoft.Storage/storageAccounts@2023-05-01' = {
   name: storageName
@@ -420,6 +423,21 @@ resource fdRouteApp 'Microsoft.Cdn/profiles/afdEndpoints/routes@2024-02-01' = {
     // Dynamic pages are not edge-cached; the app's output cache owns that layer.
   }
   dependsOn: [fdOrigin]
+}
+
+// ---------- Monitoring & alerts (Part D) ----------
+
+module monitoring 'monitoring.bicep' = {
+  name: 'monitoring-${environment}'
+  params: {
+    location: location
+    suffix: suffix
+    appInsightsId: appInsights.id
+    workspaceId: logAnalytics.id
+    appHostName: webApp.properties.defaultHostName
+    operatorEmail: operatorEmail
+    isProd: isProd
+  }
 }
 
 // ---------- Outputs ----------

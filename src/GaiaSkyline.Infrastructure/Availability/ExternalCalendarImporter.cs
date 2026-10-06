@@ -194,6 +194,12 @@ internal sealed class ExternalCalendarImporter(
         dbContext.BookingConflicts.Add(new BookingConflict(BookingConflictId.New(), normalizedRef, sourceName, start, end, now));
         await dbContext.SaveChangesAsync(cancellationToken);
 
+        // Telemetry for the "any booking conflict" alert (Stage 8 Part D): one warning per newly-detected
+        // overlap, queryable in Application Insights (AppTraces).
+        logger.LogWarning(
+            "Booking conflict detected: direct booking {Reference} overlaps an imported block from {Source} ({Start} – {End}).",
+            normalizedRef, sourceName, start, end);
+
         var startText = start.ToString("dd MMM yyyy", CultureInfo.InvariantCulture);
         var endText = end.ToString("dd MMM yyyy", CultureInfo.InvariantCulture);
         var body =

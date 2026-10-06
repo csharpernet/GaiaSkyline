@@ -8,3 +8,4 @@ param customDomain = ''
 param operatorObjectId = ''
 param sqlEntraAdminLogin = ''
 param sqlEntraAdminObjectId = ''
+param operatorEmail = '' // operator alert email (Part D)

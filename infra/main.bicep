@@ -22,6 +22,9 @@ param sqlEntraAdminLogin string = ''
 @description('Entra admin object id for the SQL server.')
 param sqlEntraAdminObjectId string = ''
 
+@description('Operator email for monitoring alert notifications (Part D). Placeholder until provided.')
+param operatorEmail string = ''
+
 resource rg 'Microsoft.Resources/resourceGroups@2024-03-01' = {
   name: 'rg-gaiaskyline-${environment}'
   location: location
@@ -37,6 +40,7 @@ module resources 'resources.bicep' = {
     operatorObjectId: operatorObjectId
     sqlEntraAdminLogin: sqlEntraAdminLogin
     sqlEntraAdminObjectId: sqlEntraAdminObjectId
+    operatorEmail: operatorEmail
   }
 }
 
