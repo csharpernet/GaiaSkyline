@@ -1,0 +1,152 @@
+name: Deploy app
+
+# MANUAL-DISPATCH ONLY. A push to main never deploys — deployment is a deliberate, operator-initiated act.
+# Local-only mode: this workflow is authored and validated offline (actionlint) and is NOT wired to a live
+# Azure subscription yet. Finalising OIDC, GitHub Environments and the first real run are tracked in
+# docs/runbook.md ("Deployment phase").
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment
+        type: choice
+        options: [dev, prod]
+        default: dev
+      confirm:
+        description: Type "deploy" to confirm you intend to deploy
+        type: string
+        required: true
+
+permissions:
+  id-token: write # OIDC federated login to Azure — no stored cloud credentials
+  contents: read
+
+concurrency:
+  group: deploy-${{ inputs.environment }}
+  cancel-in-progress: false
+
+env:
+  DOTNET_NOLOGO: "true"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "true"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require explicit confirmation
+        env:
+          CONFIRM: ${{ inputs.confirm }}
+        run: |
+          if [ "$CONFIRM" != "deploy" ]; then
+            echo "::error::Set the 'confirm' input to 'deploy' to proceed."
+            exit 1
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up .NET (from global.json)
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Publish the web app
+        run: dotnet publish src/GaiaSkyline.Web/GaiaSkyline.Web.csproj --configuration Release --output publish
+
+      - name: Generate the idempotent EF migration script
+        # Idempotent: every migration is guarded by an IF-NOT-applied check, so the same script is safe to run
+        # against a database at any migration level — the zero-downtime, pre-swap schema update.
+        run: |
+          dotnet tool restore
+          dotnet ef migrations script \
+            --idempotent \
+            --project src/GaiaSkyline.Infrastructure \
+            --startup-project src/GaiaSkyline.Web \
+            --output migrate.sql
+          echo "Generated migrate.sql ($(wc -l < migrate.sql) lines)."
+
+      - name: Upload the app package
+        uses: actions/upload-artifact@v4
+        with:
+          name: app
+          path: publish
+
+      - name: Upload the migration script
+        uses: actions/upload-artifact@v4
+        with:
+          name: migration
+          path: migrate.sql
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    # The GitHub Environment carries the protection rules: prod requires a reviewer before this job starts
+    # (configured in repo settings — Deployment phase).
+    environment: ${{ inputs.environment }}
+    env:
+      APP_NAME: app-gaiaskyline-${{ inputs.environment }}
+      RESOURCE_GROUP: rg-gaiaskyline-${{ inputs.environment }}
+    steps:
+      - name: Download the app package
+        uses: actions/download-artifact@v4
+        with:
+          name: app
+          path: publish
+
+      - name: Download the migration script
+        uses: actions/download-artifact@v4
+        with:
+          name: migration
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Apply the idempotent migration to Azure SQL
+        # Entra-only auth: fetch a short-lived access token for the SQL resource with the pipeline's federated
+        # identity — no SQL password exists. The identity's db_ddladmin grant is a Deployment-phase task.
+        run: |
+          token=$(az account get-access-token --resource https://database.windows.net/ --query accessToken --output tsv)
+          sqlcmd -S "${{ secrets.SQL_SERVER_FQDN }}" -d gaiaskyline --authentication-method ActiveDirectoryAccessToken --access-token "$token" -i migrate.sql -b
+
+      - name: Resolve the target slot
+        id: target
+        run: |
+          if [ "${{ inputs.environment }}" = "prod" ]; then
+            echo "slot=staging" >> "$GITHUB_OUTPUT"
+            echo "host=${APP_NAME}-staging.azurewebsites.net" >> "$GITHUB_OUTPUT"
+          else
+            echo "slot=production" >> "$GITHUB_OUTPUT"
+            echo "host=${APP_NAME}.azurewebsites.net" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Deploy the package to the target slot
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.APP_NAME }}
+          slot-name: ${{ steps.target.outputs.slot }}
+          package: publish
+
+      - name: Smoke-test the target slot
+        # Readiness (DB + storage reachable) and the localized home page must both answer before any swap.
+        run: |
+          for path in /health/ready /en/; do
+            echo "Probing https://${{ steps.target.outputs.host }}${path}"
+            curl --fail --silent --show-error --retry 12 --retry-all-errors --retry-delay 5 \
+              "https://${{ steps.target.outputs.host }}${path}" > /dev/null
+          done
+
+      - name: Swap staging into production
+        if: inputs.environment == 'prod'
+        run: az webapp deployment slot swap --resource-group "$RESOURCE_GROUP" --name "$APP_NAME" --slot staging --target-slot production
+
+      - name: Post-swap smoke test
+        if: inputs.environment == 'prod'
+        run: |
+          for path in /health/ready /en/; do
+            curl --fail --silent --show-error --retry 12 --retry-all-errors --retry-delay 5 \
+              "https://${APP_NAME}.azurewebsites.net${path}" > /dev/null
+          done

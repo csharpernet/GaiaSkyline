@@ -1,0 +1,63 @@
+name: Deploy infrastructure
+
+# MANUAL-DISPATCH ONLY. Provisions/updates the Azure resources from the Bicep (Stage 8 Part B). Local-only
+# mode: authored and validated offline (bicep build + actionlint); the first real run against a subscription
+# is a Deployment-phase task (docs/runbook.md).
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment
+        type: choice
+        options: [dev, prod]
+        default: dev
+      confirm:
+        description: Type "deploy-infra" to confirm
+        type: string
+        required: true
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: infra-${{ inputs.environment }}
+  cancel-in-progress: false
+
+jobs:
+  deploy-infra:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - name: Require explicit confirmation
+        env:
+          CONFIRM: ${{ inputs.confirm }}
+        run: |
+          if [ "$CONFIRM" != "deploy-infra" ]; then
+            echo "::error::Set the 'confirm' input to 'deploy-infra' to proceed."
+            exit 1
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Preview the changes (what-if)
+        run: |
+          az deployment sub what-if \
+            --location westeurope \
+            --template-file infra/main.bicep \
+            --parameters infra/main.${{ inputs.environment }}.bicepparam
+
+      - name: Deploy the Bicep
+        run: |
+          az deployment sub create \
+            --location westeurope \
+            --template-file infra/main.bicep \
+            --parameters infra/main.${{ inputs.environment }}.bicepparam

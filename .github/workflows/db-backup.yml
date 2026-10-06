@@ -1,0 +1,62 @@
+name: Database backup
+
+# Weekly .bacpac export of the production database to blob storage. Local-only mode: MANUAL-DISPATCH ONLY for
+# now so nothing runs against Azure automatically. In the Deployment phase, enable the weekly schedule below
+# (and confirm the pipeline identity has db_datareader + the storage Blob Data Contributor role).
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Source environment
+        type: choice
+        options: [dev, prod]
+        default: prod
+  # Deployment phase — uncomment to export every Monday at 03:00 UTC:
+  # schedule:
+  #   - cron: "0 3 * * 1"
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    env:
+      DOTNET_NOLOGO: "true"
+    steps:
+      - name: Set up .NET (for SqlPackage)
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Install SqlPackage
+        run: dotnet tool install --global microsoft.sqlpackage
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Export the database to a .bacpac
+        # Entra-only auth: a short-lived access token for the SQL resource; no SQL password exists.
+        run: |
+          stamp=$(date -u +%Y%m%dT%H%M%SZ)
+          echo "BACPAC=gaiaskyline-${{ inputs.environment }}-${stamp}.bacpac" >> "$GITHUB_ENV"
+          token=$(az account get-access-token --resource https://database.windows.net/ --query accessToken --output tsv)
+          SqlPackage /Action:Export \
+            /SourceServerName:"${{ secrets.SQL_SERVER_FQDN }}" \
+            /SourceDatabaseName:gaiaskyline \
+            /AccessToken:"$token" \
+            /TargetFile:"gaiaskyline-${{ inputs.environment }}-${stamp}.bacpac"
+
+      - name: Upload the backup to blob storage
+        run: |
+          az storage blob upload \
+            --account-name "stgaiaskyline${{ inputs.environment }}" \
+            --container-name backups \
+            --auth-mode login \
+            --file "$BACPAC" \
+            --name "$BACPAC"
