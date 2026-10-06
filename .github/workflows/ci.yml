@@ -190,6 +190,12 @@ jobs:
           npx playwright install --with-deps chromium
           npx playwright test
 
+      - name: k6 smoke (light load on the key public routes)
+        # The app is still running from the step above; k6 reads BASE_URL from the job env.
+        run: |
+          choco install k6 -y --no-progress
+          k6 run tests/load/smoke.js
+
       - name: Upload Lighthouse report
         if: always()
         uses: actions/upload-artifact@v4
@@ -210,3 +216,111 @@ jobs:
         with:
           name: app-log
           path: app.log
+
+  stripe-e2e:
+    # Opt-in: the three Stripe test-mode payment flows (card, 3DS, Multibanco) in tests/e2e/booking.spec.js.
+    # They need real Stripe TEST keys, so this job runs only when a maintainer sets the repository variable
+    # RUN_STRIPE_E2E=true and provides the STRIPE_TEST_PUBLISHABLE_KEY + STRIPE_TEST_SECRET_KEY secrets. The
+    # webhook signing secret is derived from the Stripe CLI at run time. LIVE keys are never stored in GitHub.
+    # Exact setup steps live in docs/runbook.md.
+    needs: build-and-test
+    if: ${{ vars.RUN_STRIPE_E2E == 'true' }}
+    runs-on: windows-latest
+
+    defaults:
+      run:
+        shell: bash
+
+    env:
+      DOTNET_NOLOGO: "true"
+      DOTNET_CLI_TELEMETRY_OPTOUT: "true"
+      DOTNET_SKIP_FIRST_TIME_EXPERIENCE: "true"
+      ASPNETCORE_ENVIRONMENT: "Development"
+      Features__SeedContentOnStartup: "true"
+      ConnectionStrings__Default: "Server=(localdb)\\mssqllocaldb;Database=GaiaSkyline_Stripe;Trusted_Connection=True;TrustServerCertificate=True"
+      BASE_URL: "http://localhost:5080"
+      STRIPE_E2E: "1"
+      Stripe__PublishableKey: ${{ secrets.STRIPE_TEST_PUBLISHABLE_KEY }}
+      Stripe__SecretKey: ${{ secrets.STRIPE_TEST_SECRET_KEY }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up .NET (from global.json)
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Build the web app
+        run: dotnet build src/GaiaSkyline.Web/GaiaSkyline.Web.csproj --configuration Release
+
+      - name: Start LocalDB
+        run: |
+          sqllocaldb info
+          sqllocaldb start MSSQLLocalDB
+
+      - name: Forward Stripe webhooks (test mode)
+        # The Stripe CLI relays test events to the local webhook so paid intents confirm the booking. Its
+        # per-session signing secret becomes the app's Stripe__WebhookSecret for the following steps.
+        env:
+          STRIPE_API_KEY: ${{ secrets.STRIPE_TEST_SECRET_KEY }}
+        run: |
+          url=$(curl -fsSL https://api.github.com/repos/stripe/stripe-cli/releases/latest \
+            | grep -oE '"browser_download_url": *"[^"]*windows_x86_64.zip"' | grep -oE 'https[^"]+' | head -1)
+          curl -fsSL "$url" -o stripe.zip
+          unzip -o -q stripe.zip -d stripe-cli
+          ./stripe-cli/stripe.exe listen --api-key "$STRIPE_API_KEY" \
+            --forward-to "$BASE_URL/webhooks/stripe" > stripe.log 2>&1 &
+          echo "Started stripe listen (pid $!)"
+          for i in $(seq 1 15); do
+            whsec=$(grep -oE 'whsec_[A-Za-z0-9]+' stripe.log | head -1 || true)
+            if [ -n "$whsec" ]; then
+              echo "Stripe__WebhookSecret=$whsec" >> "$GITHUB_ENV"
+              echo "::add-mask::$whsec"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::Stripe CLI did not report a signing secret."; cat stripe.log || true; exit 1
+
+      - name: Start the app (Stripe test mode)
+        run: |
+          dotnet run --project src/GaiaSkyline.Web/GaiaSkyline.Web.csproj \
+            --configuration Release --no-build --urls "$BASE_URL" > app.log 2>&1 &
+          echo "Started app (pid $!)"
+
+      - name: Wait for the app to be ready
+        run: |
+          for i in $(seq 1 90); do
+            if curl -sf "$BASE_URL/health/live" > /dev/null; then
+              echo "App is up after ${i} tries."
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::App did not become ready in time."
+          cat app.log || true
+          exit 1
+
+      - name: Run the Stripe payment flows
+        working-directory: tests/e2e
+        run: |
+          npm install
+          npx playwright install --with-deps chromium
+          npx playwright test booking.spec.js
+
+      - name: Upload the Stripe E2E artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stripe-e2e-report
+          path: |
+            tests/e2e/playwright-report
+            app.log
+            stripe.log

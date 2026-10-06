@@ -76,4 +76,19 @@ test.describe('Checkout (Stripe test mode)', () => {
         await page.click('#pay');
         await page.waitForURL(/\/book\/confirmation\//, { timeout: 30000 });
     });
+
+    test('Multibanco produces a voucher and leaves the booking awaiting payment', async ({ page }) => {
+        await fillGuest(page);
+
+        // Multibanco is asynchronous: the Payment Element offers it for eligible EUR bookings with enough
+        // lead time (StripeOptions.MultibancoMinLeadDays — the 2027 dates above clear it). Selecting it and
+        // confirming returns the PaymentIntent as "processing"; the app then shows the voucher (entity +
+        // reference) and holds the booking in AwaitingPayment until the charge.succeeded webhook arrives.
+        const frame = page.frameLocator('iframe[title*="Secure payment"], iframe[name^="__privateStripeFrame"]').first();
+        await frame.getByText(/Multibanco/i).click();
+        await page.click('#pay');
+
+        await page.waitForURL(/\/book\/confirmation\//, { timeout: 30000 });
+        await expect(page.locator('body')).toContainText(/Multibanco|Entidade|Entity|refer[êe]ncia|reference/i, { timeout: 15000 });
+    });
 });
