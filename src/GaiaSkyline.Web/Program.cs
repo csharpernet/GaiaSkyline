@@ -408,7 +408,20 @@ if (app.Environment.IsDevelopment() && seedOnStartup)
 {
     using var scope = app.Services.CreateScope();
     var database = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    await database.Database.MigrateAsync();
+
+    // This startup migration is dev/test-only (production applies the idempotent script via the deploy
+    // pipeline). A busy SQL Server LocalDB instance can lose the CREATE DATABASE acknowledgement; EF's
+    // retry strategy then re-runs it and the server reports "database already exists" (SQL error 1801),
+    // which is not a transient error EF retries — this has intermittently failed the Web integration
+    // suite. The database does exist, so apply the (idempotent) migrations to it.
+    try
+    {
+        await database.Database.MigrateAsync();
+    }
+    catch (Microsoft.Data.SqlClient.SqlException ex) when (ex.Number == 1801)
+    {
+        await database.Database.MigrateAsync();
+    }
 
     var seeder = scope.ServiceProvider.GetRequiredService<ContentSeeder>();
     var webRoot = app.Environment.WebRootPath;
