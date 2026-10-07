@@ -11,7 +11,8 @@ smtp4dev, Stripe test mode — while the Azure pieces are authored and validated
 runbook's Deployment phase.
 
 See **[docs/architecture.md](docs/architecture.md)** for the system design and
-**[docs/runbook.md](docs/runbook.md)** for operations and go-live.
+**[docs/runbook.md](docs/runbook.md)** for operations and go-live. To run and click through the whole site
+on your own machine, follow **[docs/LOCAL-WALKTHROUGH.md](docs/LOCAL-WALKTHROUGH.md)**.
 
 ---
 
